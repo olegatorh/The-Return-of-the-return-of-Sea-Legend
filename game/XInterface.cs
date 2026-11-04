@@ -172,6 +172,7 @@ public partial class XView : Control
         }
         if (c is Label && code is 5 or 6 or 8 or 1) return;                         // formatted text: "recompute / scroll bar state" (the label wraps by itself)
         if (c is Label fl2 && code == 0 && d.Length <= 5) { fl2.Text = fl2.Text.Length == 0 ? param : fl2.Text + "\n" + param; return; }   // append a line
+        if ((c is TextureButton || c is Button) && code == 0 && d.Length >= 7) { float x1 = Conv.ToFloat(d[3]), y1 = Conv.ToFloat(d[4]), x2 = Conv.ToFloat(d[5]), y2 = Conv.ToFloat(d[6]); c.Position = new Vector2(x1, y1); c.Size = new Vector2(x2 - x1, y2 - y1); return; }       // move / resize a button (the +/- arrows of the skill rows)
         if (c is ScrollImageView sciv && code == 0) { sciv.Modulate = Conv.ToInt(d.Length > 3 ? d[3] : V.Int(1)) != 0 ? Colors.White : new Color(1, 1, 1, 0.6f); return; }     // this list is the active one (the chest screen has two)
         if (c is TextureRect tr4 && code == 4) { uint col = unchecked((uint)Conv.ToInt(d[3])); tr4.Modulate = new Color((col >> 16 & 255) / 128f, (col >> 8 & 255) / 128f, (col & 255) / 128f, (col >> 24) / 255f); return; }   // tint of a picture
         if (code == 0 && d.Length >= 10)   // a captioned string placed on a node: name, text, font, x, y, colour, ?, alignment, ?, scale, width
@@ -384,7 +385,7 @@ public partial class XView : Control
                 "QUESTTITLE" => MakeQuestTitle(P, pos),
                 "QUESTTEXT" => MakeQuestText(pos),
                 "CONTEXTHELP" => new Control { MouseFilter = MouseFilterEnum.Ignore },
-                "CHANGER" => new Control { MouseFilter = MouseFilterEnum.Ignore },
+                "CHANGER" => MakeChanger(name, sec),
                 "GLOWS" or "GLOWCURSOR" or "XBOX" or "KEYCHOOSER" or "EDITBOX" => new Control { MouseFilter = MouseFilterEnum.Ignore },   // purely decorative / console / replaced by the port's own key binding screen    // selectable rows: selection not drawn yet
                 _ => null,
             };
@@ -483,7 +484,7 @@ public partial class XView : Control
     Control MakeButton(string name, Func<string, string?> P, float[] pos)
     {
         // some screens put their buttons at the very bottom edge (y up to 515 on a 480 high screen): keep the caption visible
-        float overflow = Math.Max(0, pos[3] - 482);
+        float overflow = Math.Max(0, pos[3] - 510);
         pos[1] -= overflow; pos[3] -= overflow;
         var b = new Button
         {
@@ -878,6 +879,15 @@ public partial class XView : Control
         it.Language?.Close(lang);
     }
 
+    /// <summary>CHANGER: rectangles "place = x1,y1,x2,y2"; without any place it is only a focus target (the transfer screens' quantity changer).</summary>
+    Control MakeChanger(string name, IniFile.Section? sec)
+    {
+        var rects = new List<float[]>();
+        if (sec != null) foreach (var line in sec.All("place")) { var r = Floats(line, 4); if (r[2] > r[0]) rects.Add(r); }
+        if (rects.Count == 0) return new Control { MouseFilter = MouseFilterEnum.Ignore };
+        return new ChangerView(name, rects, () => Ent.Root.Find(name, false), (n, c) => Run(n, c, 0));
+    }
+
     Control MakeFormattedList(string name, Func<string, string?> P, float[] pos)
         => new FormattedListView(name, pos[0], pos[1], pos[2], pos[3], Floats(P("lineSpace"), 1)[0], Floats(P("leftoffset"), 1)[0], Floats(P("upOffset"), 1)[0],
             (n, a, b) => it.FireEvent("evntUpdateFormtText", new List<V> { V.Str(n), V.Int(a), V.Int(b) }),
@@ -936,6 +946,11 @@ public partial class XView : Control
             else if (cmd.Equals("rightstep", StringComparison.OrdinalIgnoreCase)) slv.Step(0.02f);
             else if (cmd.Equals("speedleft", StringComparison.OrdinalIgnoreCase)) slv.Step(-0.1f);
             else if (cmd.Equals("speedright", StringComparison.OrdinalIgnoreCase)) slv.Step(0.1f);
+        }
+        if (nodes.TryGetValue(node, out var ch4) && ch4 is ChangerView chv)
+        {
+            if (cmd.Equals("upstep", StringComparison.OrdinalIgnoreCase)) chv.Step(-1);
+            else if (cmd.Equals("downstep", StringComparison.OrdinalIgnoreCase)) chv.Step(1);
         }
         if (nodes.TryGetValue(node, out var fl4) && fl4 is FormattedListView flv)
         {
