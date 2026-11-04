@@ -55,7 +55,8 @@ are only covered by the smoke runs.
 **Manual test hooks** (Godot *user args* after `--`; frames are counted from start; the game window runs at ~60 fps, 1280x960):
 | Arg | Effect |
 |---|---|
-| `--click=NODE@N` | click interface node at frame N (e.g. `B_NEWGAME`, `RUNGAME`) |
+| `--click=NODE@N` | click interface node at frame N (e.g. `B_NEWGAME`, `RUNGAME`): a direct call, bypasses the input system |
+| `--mouse=NODE@N` | the same through a REAL mouse click (motion + press + release) in the middle of the node; `--key=Space@N` sends a real key. Env `SEADOGS_KEYLOG=1` logs every key with the UI state |
 | `--answer=1@N` | choose dialog answer 1 at frame N |
 | `--ctl=Name@N` | send a control to the script (`Quick_Save`, `Quick_Load`, `Interface`, `MainMenuDouble`, `ChrAction`) |
 | `--goto=group.locator@N` | teleport the player to a locator (e.g. `reload.reload3_back`) |

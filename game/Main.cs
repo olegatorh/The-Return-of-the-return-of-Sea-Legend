@@ -39,6 +39,7 @@ public partial class Main : Node
     string language = "Ukrainian";
     int shotAtFrame = -1;
     readonly List<(int frame, string node)> clicks = new();
+    readonly List<(int frame, string node)> mouseClicks = new();
     readonly List<(int frame, string id)> dialogTests = new();
     readonly List<(int frame, string name, string value)> sets = new();
     readonly List<(int frame, string fn)> calls = new();
@@ -89,6 +90,7 @@ public partial class Main : Node
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--answer=")) { var p = a.Substring(9).Split('@'); answers.Add((int.Parse(p[1]), int.Parse(p[0]))); }
+            else if (a.StartsWith("--mouse=")) { var p = a.Substring(8).Split('@'); mouseClicks.Add((int.Parse(p[1]), p[0])); }      // a real mouse click on a node of the interface (input system, not a direct call)
             else if (a.StartsWith("--click=")) { var p = a.Substring(8).Split('@'); clicks.Add((int.Parse(p[1]), p[0])); }
         }
         GameAssets.GameDir = game;
@@ -343,6 +345,8 @@ public partial class Main : Node
 
     public override void _UnhandledKeyInput(InputEvent e)
     {
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_KEYLOG") != null && e is InputEventKey { Pressed: true, Echo: false } kl)
+            GD.Print($"[key] {kl.PhysicalKeycode} UiOpen={UiOpen} dialog={dialogView != null} sea={sea.Active} locs={locations.Count} focus={GetViewport().GuiGetFocusOwner()?.Name}");
         if (e is InputEventKey { Pressed: true, Echo: false } fs && fs.PhysicalKeycode == Key.F11)       // full screen on / off
         {
             var w = GetWindow();
@@ -362,9 +366,10 @@ public partial class Main : Node
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {
-            string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Space ? "ChrAction" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
+            string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
+            if (ck.PhysicalKeycode == Key.Space && locations.Count > 0) LandAction();
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk && (Keys.Is(sk, "SeaSailUp") || Keys.Is(sk, "SeaSailDown")) && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
             sea.SailKey(Keys.Is(sk, "SeaSailUp") ? 1 : -1);
@@ -391,10 +396,9 @@ public partial class Main : Node
         // E or T = talk to the nearest character within reach
         if (e is InputEventKey { Pressed: true } tk && (Keys.Is(tk, "LandTalk") || tk.PhysicalKeycode == Key.T) && dialogView == null && !UiOpen)
         {
-            CharacterView? player = characters.Values.FirstOrDefault(c => c.IsPlayer);
-            var near = characters.Values.Where(c => !c.IsPlayer && player != null && c.Placed).OrderBy(c => c.Position.DistanceTo(player!.Position)).FirstOrDefault();
-            if (near != null && near.Position.DistanceTo(player!.Position) < 3.2f) StartDialog(near.Ent.Root.Get("id")?.Value ?? "");
-            else if (near != null) GD.Print("[main] nobody close enough to talk to");
+            var near = NearestTalkable();
+            if (near != null) StartDialog(near.Ent.Root.Get("id")?.Value ?? "");
+            else GD.Print("[main] nobody close enough to talk to");
         }
     }
 
@@ -408,8 +412,32 @@ public partial class Main : Node
     bool camInit, flyMode, rmbDown;
     bool nameTags;
 
+    /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
+    CharacterView? NearestTalkable()
+    {
+        var player = characters.Values.FirstOrDefault(c => c.IsPlayer);
+        if (player == null || !player.Placed) return null;
+        var near = characters.Values.Where(c => !c.IsPlayer && c.Placed && c.Ent.Root.Find("Dialog.Filename", false)?.Value is { Length: > 0 })
+            .OrderBy(c => c.Position.DistanceTo(player.Position)).FirstOrDefault();
+        return near != null && near.Position.DistanceTo(player.Position) < 3.2f ? near : null;
+    }
+
+    bool talkHint;
+
+    /// <summary>Offers "Talk" in the action hint while somebody is within reach and nothing else (door, item) is offered; takes it back when the character is gone.</summary>
+    void UpdateTalkHint()
+    {
+        if (frames % 6 != 0) return;
+        string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
+        bool busy = dialogView != null || UiOpen || locations.Count == 0;
+        bool someone = !busy && NearestTalkable() != null;
+        if (someone && (act.Length == 0 || act == "Nothing")) { host.It.CallTop("Log_SetActiveAction", V.Str("Talk")); talkHint = true; }
+        else if (talkHint && (!someone || act != "Talk")) { if (act == "Talk") host.It.CallTop("Log_SetActiveAction", V.Str("Nothing")); talkHint = false; }
+    }
+
     void UpdateWorld(float delta)
     {
+        UpdateTalkHint();
         float scale = host.It.TimeScale;
         float dt = delta * scale;
         var list = characters.Values.ToList();
@@ -521,6 +549,7 @@ public partial class Main : Node
             // attack with the sword when it is drawn
             var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
             if (pl != null && pl.FightMode && pl.Placed) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en); }
+            else if (pl != null && !sea.Active && locations.Count > 0) LandAction();          // the original: the left mouse button is ChrAction
         }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(-1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(-1); else camDist = Math.Max(1.5f, camDist - 0.3f); }
@@ -545,6 +574,23 @@ public partial class Main : Node
     }
 
     LocationView? CurrentLocation() { foreach (var l in locations.Values) return l; return null; }
+
+    /// <summary>
+    /// Space on land is the original control "BIFastCommand": it carries out the action the log interface offers (g_ActiveActionName): Reload (door), Pick (item on the ground),
+    /// OpenBox (chest), Action (use an item at a place), Talk ... The script's BI_FastCommand handler does the work.
+    /// </summary>
+    void LandAction()
+    {
+        string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
+        GD.Print("[land] action: " + (act.Length == 0 ? "Nothing" : act));
+        if (act == "Talk") { var who = NearestTalkable(); if (who != null) StartDialog(who.Ent.Root.Get("id")?.Value ?? ""); return; }
+        if (act.Length == 0 || act == "Nothing" || act == "Closed")
+        {
+            host.It.FireEvent("Control Activation", new List<V> { V.Str("ChrAction") });       // a closed door answers with the knock
+            return;
+        }
+        host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) });
+    }
 
     /// <summary>Executes the sea action the HUD offers (Moor / Board / LandTroops / Map ...): the engine's battle interface raised "BI_FastCommand" with its name.</summary>
     void SeaAction()
@@ -590,6 +636,7 @@ public partial class Main : Node
         frames++;
 
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
+        foreach (var (f, n) in mouseClicks) if (f == frames) view?.MouseClick(n);
         foreach (var (f, k, v) in sets) if (f == frames) host.It.SetGlobal(k, v);
         foreach (var (f, fn) in calls)
             if (f == frames)

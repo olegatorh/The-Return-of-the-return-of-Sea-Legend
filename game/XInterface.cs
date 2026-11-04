@@ -905,6 +905,17 @@ public partial class XView : Control
     }
 
     // ------------------------------------------------------------------ interface -> script
+    /// <summary>Test hook: a real left mouse click (move, press, release through the input system) in the middle of a node.</summary>
+    public void MouseClick(string node)
+    {
+        if (!nodes.TryGetValue(node, out var c) || !c.IsVisibleInTree()) { GD.Print($"[mouse] {node}: not visible"); return; }
+        var pos = GetViewport().GetFinalTransform() * c.GetGlobalRect().GetCenter();
+        GD.Print($"[mouse] click {node} at {pos}");
+        Input.ParseInputEvent(new InputEventMouseMotion { Position = pos, GlobalPosition = pos });
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = pos, GlobalPosition = pos, ButtonMask = MouseButtonMask.Left });
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = pos, GlobalPosition = pos });
+    }
+
     public void Click(string node)
     {
         GD.Print($"[xinterface] click {node}");
@@ -1004,6 +1015,7 @@ public partial class XView : Control
     public override void _UnhandledKeyInput(InputEvent e)
     {
         if (e is not InputEventKey { Pressed: true } k) return;
+        if (GetChildCount() == 0) return;          // the view outlives its screens: with nothing shown it must not swallow the game's keys (Space, Enter, arrows)
         if (k.Keycode == Key.Up) { Step("upstep"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Down) { Step("downstep"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Left) { Step("leftstep"); GetViewport().SetInputAsHandled(); }

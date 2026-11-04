@@ -84,6 +84,7 @@ public partial class DialogView : Control
         nameLabel.Text = Speaker();
         text.Text = Display(t);
         foreach (var c in links.GetChildren()) c.QueueFree();
+        sel = 0;
         for (int i = 0; i < items.Count; i++)
         {
             int idx = i;
@@ -105,6 +106,17 @@ public partial class DialogView : Control
             b.Pressed += () => Choose(idx);
             links.AddChild(b);
         }
+        PaintSelection();
+    }
+
+    int sel;
+
+    /// <summary>The answer chosen with the arrow keys is drawn in the highlight colour.</summary>
+    void PaintSelection()
+    {
+        int i = 0;
+        foreach (var c in links.GetChildren())
+            if (c is Button b) b.AddThemeColorOverride("font_color", i++ == sel ? new Color(1f, 0.85f, 0.4f) : new Color(0.72f, 0.84f, 1f));
     }
 
     public int LinkCount => Ent.Root.Get("Links")?.Count ?? 0;
@@ -122,9 +134,18 @@ public partial class DialogView : Control
 
     public override void _UnhandledKeyInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true } k && k.PhysicalKeycode >= Key.Key1 && k.PhysicalKeycode <= Key.Key9)
+        if (e is not InputEventKey { Pressed: true, Echo: false } k) return;
+        int n = LinkCount;
+        if (k.PhysicalKeycode >= Key.Key1 && k.PhysicalKeycode <= Key.Key9)
         {
             Choose((int)(k.PhysicalKeycode - Key.Key1));
+            GetViewport().SetInputAsHandled();
+        }
+        else if (n > 0 && k.PhysicalKeycode is Key.Up or Key.W) { sel = (sel + n - 1) % n; PaintSelection(); GetViewport().SetInputAsHandled(); }
+        else if (n > 0 && k.PhysicalKeycode is Key.Down or Key.S) { sel = (sel + 1) % n; PaintSelection(); GetViewport().SetInputAsHandled(); }
+        else if (n > 0 && k.PhysicalKeycode is Key.Enter or Key.KpEnter or Key.Space)            // the original DlgAction (Space) picks the highlighted answer
+        {
+            Choose(Math.Clamp(sel, 0, n - 1));
             GetViewport().SetInputAsHandled();
         }
     }

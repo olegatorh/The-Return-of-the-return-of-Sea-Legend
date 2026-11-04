@@ -21,7 +21,7 @@ public partial class LogHud : Control
     static readonly Dictionary<string, string> ActionText = new(StringComparer.OrdinalIgnoreCase)
     {
         ["Reload"] = "Увійти / перейти", ["Closed"] = "Зачинено", ["Pick"] = "Підняти", ["OpenBox"] = "Відкрити скриню",
-        ["Moor"] = "Причалити", ["Map"] = "Карта", ["Board"] = "Абордаж", ["LandTroops"] = "Висадити десант", ["Action"] = "Дія",
+        ["Moor"] = "Причалити", ["Map"] = "Карта", ["Board"] = "Абордаж", ["LandTroops"] = "Висадити десант", ["Action"] = "Дія", ["Talk"] = "Говорити",
     };
 
     public LogHud()
