@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **62 %**
 * Unit tests: **28** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **9504** lines of C# (`StormScript/` library + `game/`)
+* Port code: **9596** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -45,9 +45,9 @@ Layers (where the behaviour comes from):
 | Land | Melee combat (swings, damage by script, death) | APPROX | █████░░░░░ 55 % | V | timing and attacks are mine; no blocks, parry, pistols, weapons in hands |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
 | Land | Items on the ground, chests | PORT | ████░░░░░░ 40 % | E | code exists, barely tested |
-| Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; SCROLLER, KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |
+| Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
-| Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade'); ship hold and shipyard screens open and render (shipyard stock is empty in the test save); cargo transfer, items trade, hire crew untested |
+| Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard stock is empty in the test save; text overlaps remain on transfer/items screens); quest texts fall back to Russian where untranslated |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██░░░░░░░░ 20 % | V | simplified own HUD; original icons and menu missing |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |

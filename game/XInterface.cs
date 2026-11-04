@@ -108,6 +108,9 @@ public partial class XView : Control
                 }
                 return V.Int(0);
             case 45033: ShowQuestText(d.Length > 2 ? d[2].Attr : null, d.Length > 3 ? Conv.ToInt(d[3]) : 0); return V.Int(0);   // INIT_QTEXT_SHOW
+            case 45034:                                                    // SET_SCROLLER: node, position 0..1
+                if (nodes.TryGetValue(S(1), out var scn) && scn is ScrollerView scv) scv.SetPos(d.Length > 2 ? Conv.ToFloat(d[2]) : 0);
+                return V.Int(0);
             case 45018:                                                    // SCROLL_CHANGE: the script changed the lists of a scroll image
                 if (nodes.TryGetValue(S(1), out var sn) && sn is ScrollImageView ssv) ssv.Refresh();
                 return V.Int(0);
@@ -149,7 +152,7 @@ public partial class XView : Control
         }
         if (c is Button btn && code == 0) { btn.Text = param; return; }                                  // set the caption (ship name ...)
         if (c is SliderView sv && code == 0) { sv.Value = Conv.ParseFloatPrefix(param); return; }      // set the slider position (0..1)
-        Warn($"node message {code} for {c.GetType().Name}");
+        Warn($"node message {code} for {c.GetType().Name} '{node}' param '{param}'");
     }
 
     readonly Dictionary<string, TextureRect> dynImages = new();
@@ -263,6 +266,8 @@ public partial class XView : Control
                 "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
                 "TEXTBUTTON" => MakeButton(name, P, pos),
                 "SCROLLBAR" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("leftPicture") ?? "small left arrow", P("rightPicture") ?? "small right arrow", P("centerPicture") ?? "scrollbar", (n, c) => Run(n, c, 0)),
+                "LRCHANGER" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("lpicture") ?? "left arrow", P("rpicture") ?? "right arrow", "", (n, c) => Run(n, c, 0)),
+                "SCROLLER" => new ScrollerView(pos[0], pos[1], pos[2], pos[3], P("baseTexture") ?? "", P("rollerTexture") ?? "", Floats(P("scrollTexPos"), 4), Floats(P("rollTexPos"), 4), Floats(P("rollerHeight"), 1)[0]),
                 "BUTTON" => MakeIconButton(name, P, pos),
                 "RECTANGLE" => MakeRectangle(P, pos),
                 "BOUNDER" => MakeBounder(P, pos),

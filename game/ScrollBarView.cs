@@ -19,7 +19,7 @@ public partial class ScrollBarView : Control
         node = name; this.run = run; Name = name;
         Position = new Vector2(x1, y1); Size = new Vector2(x2 - x1, y2 - y1);
         FocusMode = FocusModeEnum.All;
-        var lt = Atlas.Get(group, left); var rt = Atlas.Get(group, right); var ct = Atlas.Get(group, center);
+        var lt = Atlas.Get(group, left); var rt = Atlas.Get(group, right); var ct = center == "" ? null : Atlas.Get(group, center);
         float aw = Math.Min(Size.Y, 24);
         AddChild(new TextureRect { Texture = ct, Position = new Vector2(aw, 0), Size = new Vector2(Size.X - 2 * aw, Size.Y), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });
         AddChild(Arrow(lt, new Vector2(0, 0), new Vector2(aw, Size.Y), "leftstep"));

@@ -36,10 +36,44 @@ public sealed class LanguageService
             string p = Path.Combine(textsRoot, lang, file);
             if (File.Exists(p)) { Parse(Lexer.ReadFile(p), file, d); break; }
         }
+        if (file.Equals("QuestBook.txt", StringComparison.OrdinalIgnoreCase))
+        {
+            // the quest book texts of the base game live in RESOURCE\QUESTSTEXT\quests_texts.txt ("#QUEST id", title line, "#TEXT n", text);
+            // they sit below the overlay, so every translated key wins
+            string qp = Path.Combine(textsRoot, "..", "..", "QUESTSTEXT", "quests_texts.txt");
+            if (File.Exists(qp)) ParseQuestTexts(Lexer.ReadFile(qp), d);
+        }
         string ov = Path.Combine(overlayRoot, "texts", file);
         if (File.Exists(ov)) Parse(File.ReadAllText(ov, new UTF8Encoding(false)), file, d);
         cache[file] = d;
         return d;
+    }
+
+    /// <summary>Quest file format: "#QUEST id" + title line, then any number of "#TEXT key" + body lines. Keys: id_title, id_key.</summary>
+    internal static void ParseQuestTexts(string text, Dictionary<string, string> into)
+    {
+        string quest = "", key = "";
+        var body = new List<string>();
+        void Flush()
+        {
+            if (quest.Length > 0 && key.Length > 0 && !into.ContainsKey(quest + "_" + key))
+                into[quest + "_" + key] = string.Join("\n", body).Trim();
+            body.Clear();
+        }
+        foreach (var raw in text.Split('\n'))
+        {
+            string line = raw.TrimEnd('\r');
+            if (line.StartsWith("#QUEST", StringComparison.Ordinal))
+            {
+                Flush(); quest = line.Substring(6).Trim(); key = "title";
+            }
+            else if (line.StartsWith("#TEXT", StringComparison.Ordinal))
+            {
+                Flush(); key = line.Substring(5).Trim();
+            }
+            else body.Add(line);
+        }
+        Flush();
     }
 
     static void Parse(string text, string file, Dictionary<string, string> into)
