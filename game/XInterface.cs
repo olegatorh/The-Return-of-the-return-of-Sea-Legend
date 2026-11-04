@@ -59,10 +59,10 @@ public partial class XView : Control
                 return V.Int(0);
             case 45017:
             case 45021:                                                    // set current (focused) node
-                if (nodes.TryGetValue(S(1), out var n4) && n4 is Button b4 && !b4.Disabled) b4.GrabFocus();
+                SelectNode(S(1));
                 return V.Int(0);
             case 45028:                                                    // GET_CURRENT_NODE (output string)
-                it.WriteRef(d[1], V.Str(GetViewport()?.GuiGetFocusOwner() is Button fb ? fb.Name.ToString() : ""));
+                it.WriteRef(d[1], V.Str(CurrentNode()));
                 return V.Int(0);
             case 45030:                                                    // GET_LANGUAGE_STRING: key -> text (no language files yet: echo)
                 it.WriteRef(d[2], V.Str(S(1)));
@@ -142,6 +142,7 @@ public partial class XView : Control
             if (list.Count > 0) tr.Texture = GameAssets.Texture(list[rng.Next(list.Count)]);
             return;
         }
+        if (c is Button btn && code == 0) { btn.Text = param; return; }                                  // set the caption (ship name ...)
         if (c is SliderView sv && code == 0) { sv.Value = Conv.ParseFloatPrefix(param); return; }      // set the slider position (0..1)
         Warn($"node message {code} for {c.GetType().Name}");
     }
@@ -256,6 +257,7 @@ public partial class XView : Control
             {
                 "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
                 "TEXTBUTTON" => MakeButton(name, P, pos),
+                "SCROLLBAR" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("leftPicture") ?? "small left arrow", P("rightPicture") ?? "small right arrow", P("centerPicture") ?? "scrollbar", (n, c) => Run(n, c, 0)),
                 "BUTTON" => MakeIconButton(name, P, pos),
                 "RECTANGLE" => MakeRectangle(P, pos),
                 "BOUNDER" => MakeBounder(P, pos),
@@ -773,16 +775,31 @@ public partial class XView : Control
         if (!cmds.TryGetValue(node, out var list)) return;
         foreach (var c in list.Where(c => c.Name.Equals(cmd, StringComparison.OrdinalIgnoreCase)).ToList())
         {
-            if (c.Select != null && nodes.TryGetValue(c.Select, out var sel) && sel is Button sb && !sb.Disabled) sb.GrabFocus();
+            if (c.Select != null) SelectNode(c.Select);
             foreach (var (cc, cn) in c.Coms) Run(cn, cc, depth + 1);
             foreach (var e in c.Events) it.FireEvent(e);
         }
     }
 
+    string selectedNode = "";
+
+    /// <summary>The engine's "current node": the one the player (or the script, "select:" in the ini) has selected, even when it is not a focusable widget or still hidden.</summary>
+    void SelectNode(string name)
+    {
+        selectedNode = name;
+        if (nodes.TryGetValue(name, out var c) && c.Visible && c.FocusMode != FocusModeEnum.None && !(c is Button b && b.Disabled)) c.GrabFocus();
+    }
+
+    string CurrentNode()
+    {
+        if (GetViewport()?.GuiGetFocusOwner() is Control f && nodes.ContainsKey(f.Name.ToString())) { selectedNode = f.Name.ToString(); return selectedNode; }
+        return selectedNode;
+    }
+
     void Step(string command)
     {
-        if (GetViewport()?.GuiGetFocusOwner() is Button fb) Run(fb.Name.ToString(), command, 0);
-        else foreach (var kv in nodes) if (kv.Value is ScrollImageView) { Run(kv.Key, command, 0); break; }
+        if (CurrentNode() is { Length: > 0 } cn && nodes.TryGetValue(cn, out var cnode) && cnode.Visible) Run(cn, command, 0);
+        else foreach (var kv in nodes) if (kv.Value is ScrollImageView || kv.Value.GetType().Name.StartsWith("FourImages")) { Run(kv.Key, command, 0); break; }
     }
 
     Control MakeScrollImage(string name, Func<string, string?> P, float[] pos)
@@ -798,6 +815,7 @@ public partial class XView : Control
         else if (k.Keycode == Key.Down) { Step("downstep"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Left) { Step("leftstep"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Right) { Step("rightstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode is Key.Enter or Key.KpEnter or Key.Space) { Step("activate"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Escape) { it.FireEvent("InterfaceBreak"); }
     }
 

@@ -17,18 +17,18 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 30 subsystems below): **61 %**
+* Overall (mean of the 30 subsystems below): **62 %**
 * Unit tests: **28** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **9424** lines of C# (`StormScript/` library + `game/`)
+* Port code: **9495** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
-| PORT | 13 | 75 % |
+| PORT | 14 | 73 % |
 | APPROX | 12 | 51 % |
-| STUB | 1 | 10 % |
+| STUB | 0 | 0 % |
 | MISSING | 1 | 0 % |
 
 ## Subsystems
@@ -47,7 +47,7 @@ Layers (where the behaviour comes from):
 | Land | Items on the ground, chests | PORT | ████░░░░░░ 40 % | E | code exists, barely tested |
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; SCROLLER, KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
-| Interface | Store, shipyard, trade, cargo transfer screens | STUB | █░░░░░░░░░ 10 % | E | shell opens, trade tables not implemented |
+| Interface | Store, shipyard, trade, cargo transfer screens | PORT | ████░░░░░░ 45 % | T | store buy works end to end (run_tests -Sea 'trade'); sell, shipyard, ship hold, transfer, items trade untested |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██░░░░░░░░ 20 % | V | simplified own HUD; original icons and menu missing |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |
@@ -72,7 +72,7 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 21 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (80%), `locator` (70%) |
+| PORT | 21 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
 | APPROX | 8 | `CharactersGroups` (70%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%) |
 | STUB | 28 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `rain`, `Lightning`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `PEOPLE_ON_SHIP`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
