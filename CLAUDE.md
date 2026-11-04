@@ -46,7 +46,7 @@ powershell -ExecutionPolicy Bypass -File run_tests.ps1 -Smoke    # + Godot main-
 powershell -ExecutionPolicy Bypass -File run_tests.ps1 -Intro    # + intro into the first location (~3 min)
 ```
 `StormScript.Tests/` (xunit, works offline from the local NuGet cache): `InterpreterTests` (VM semantics, one tiny script per rule —
-**add a test for every interpreter bug you fix**), `ScriptCorpusTests` (all 1139 original scripts parse, ≤16 known defects; the game boots headless with
+**add a test for every interpreter bug you fix**), `ScriptCorpusTests` (all 1139 original scripts parse, ≤12 known defects; the game boots headless with
 0 runtime errors / 0 unresolved functions), `FormatTests` (.ptc/.gm readers, path finding), `LanguageTests` (translation overlay).
 Tests needing game data return early if `addon/merged/PROGRAM` or the game folder is missing. `GroupsState`/`Characters` live in the Godot project and
 are only covered by the smoke runs.

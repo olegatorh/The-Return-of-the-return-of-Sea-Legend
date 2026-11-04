@@ -180,7 +180,12 @@ public sealed class Parser
         Expect(")");
         BlockStmt? body = null;
         if (IsPunct("{")) body = Block();
-        else ExpectSemi();
+        else
+        {
+            ExpectSemi();
+            // original defect "float Sea_TurnRateMagicNumber(); { return 162.962; }": a stray ';' between header and body, the compiler took it as a definition
+            if (IsPunct("{")) body = Block();
+        }
         return At(new FuncDecl(kind, retType, name, ps, body), start);
     }
 

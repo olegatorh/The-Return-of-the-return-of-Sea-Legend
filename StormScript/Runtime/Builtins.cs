@@ -68,17 +68,18 @@ public static class Builtins
         Add("pow", (_, a) => V.Float(MathF.Pow(F(a, 0), F(a, 1))));
         Add("degree2radian", (_, a) => V.Float(F(a, 0) * MathF.PI / 180f));
         Add("clampf", (_, a) => V.Float(Math.Clamp(F(a, 0), 0f, 1f)));
+        // Bring2Range(min1, max1, min2, max2, v): v (clamped to [min2,max2]) is mapped linearly onto [min1,max1]  (the commented-out script version in utils.c)
         Add("bring2range", (_, a) =>
         {
             float min1 = F(a, 0), max1 = F(a, 1), min2 = F(a, 2), max2 = F(a, 3), v = F(a, 4);
-            if (v < min1) v = min1;
-            if (v > max1) v = max1;
-            return V.Float(max1 == min1 ? min2 : min2 + (v - min1) * (max2 - min2) / (max1 - min1));
+            if (v < min2) v = min2;
+            if (v > max2) v = max2;
+            return V.Float(max2 == min2 ? min1 : min1 + (v - min2) / (max2 - min2) * (max1 - min1));
         });
         Add("bring2rangenocheck", (_, a) =>
         {
             float min1 = F(a, 0), max1 = F(a, 1), min2 = F(a, 2), max2 = F(a, 3), v = F(a, 4);
-            return V.Float(max1 == min1 ? min2 : min2 + (v - min1) * (max2 - min2) / (max1 - min1));
+            return V.Float(max2 == min2 ? min1 : min1 + (v - min2) / (max2 - min2) * (max1 - min1));
         });
         Add("argb", (_, a) => V.Int(unchecked((I(a, 0) << 24) | (I(a, 1) << 16) | (I(a, 2) << 8) | I(a, 3))));
         Add("shl", (_, a) => V.Int(I(a, 0) << I(a, 1)));

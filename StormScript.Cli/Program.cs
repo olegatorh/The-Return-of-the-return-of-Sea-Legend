@@ -9,6 +9,19 @@ if (args.Length < 2) { Console.WriteLine("usage: ssc check|api <PROGRAM dir> [ou
 string root = Path.GetFullPath(args[1]);
 
 if (args[0] == "run") return RunCommand.Run(root, args.Skip(2).ToArray());
+if (args[0] == "materials")   // ssc materials <file.gm>: materials (group/name/textures) and objects
+{
+    var gm = StormScript.Formats.GmFile.Parse(File.ReadAllBytes(args[1]));
+    foreach (var m in gm.Materials) Console.WriteLine($"material {m.Group}/{m.Name} tex=[{string.Join(",", m.Textures.Select(t => t ?? "-"))}]");
+    foreach (var o in gm.Objects) Console.WriteLine($"object {o.Name} material={o.Material}");
+    return 0;
+}
+if (args[0] == "labels")      // ssc labels <file.gm>: list the locator labels of a geometry file
+{
+    var gm = StormScript.Formats.GmFile.Parse(File.ReadAllBytes(args[1]));
+    foreach (var l in gm.Labels) Console.WriteLine($"{l.Group,-14} {l.Name,-16} x={l.X:0.###} y={l.Y:0.###} z={l.M[14]:0.###} flags={l.Flags} bone={l.Bone} vx=({l.M[0]:0.##},{l.M[1]:0.##},{l.M[2]:0.##})");
+    return 0;
+}
 
 var files = Directory.GetFiles(root, "*.*", SearchOption.AllDirectories)
     .Where(f => f.EndsWith(".c", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".h", StringComparison.OrdinalIgnoreCase))

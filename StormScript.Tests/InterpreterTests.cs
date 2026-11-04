@@ -168,4 +168,23 @@ public sealed class InterpreterTests : IDisposable
         h.It.FireEvent("ping");                                   // the run-time handler came back
         Assert.Equal("99", Str(h, "n"));
     }
+
+    [Fact]
+    public void StraySemicolonBetweenFunctionHeaderAndBodyStillDefinesTheFunction()
+    {
+        // original defect in GeneratorUtilite.c: "float Magic(); { return 162.5; }"
+        var h = Run("float Magic();\n{ return 162.5; }\nfloat r; void Test() { r = Magic(); }");
+        Assert.Equal("162.5", Str(h, "r"));
+    }
+
+    [Fact]
+    public void Bring2RangeMapsTheValueFromTheSecondRangeOntoTheFirst()
+    {
+        // the original (utils.c): min1 + (clamp(v, min2, max2) - min2) / (max2 - min2) * (max1 - min1)
+        var h = Run(@"object o; void Test() { o.a = Bring2Range(0.0, 1.0, 5.0, 15.0, 10.0); o.b = Bring2Range(0.0, 1.0, 5.0, 15.0, 99.0); o.c = Bring2Range(0.0, 1.0, 5.0, 15.0, -4.0); o.d = Bring2RangeNoCheck(0.0, 1.0, 5.0, 15.0, 25.0); }");
+        Assert.Equal("0.5", Attr(h, "o", "a"));
+        Assert.Equal("1", Attr(h, "o", "b"));
+        Assert.Equal("0", Attr(h, "o", "c"));
+        Assert.Equal("2", Attr(h, "o", "d"));
+    }
 }

@@ -40,6 +40,7 @@ public partial class Main : Node
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
     Queue<string>? fuzzQueue;
     readonly List<(int frame, string loc)> gotos = new();
+    readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     int controlAt = -1;
 
     public override void _Ready()
@@ -61,6 +62,7 @@ public partial class Main : Node
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--answer=")) { var p = a.Substring(9).Split('@'); answers.Add((int.Parse(p[1]), int.Parse(p[0]))); }
@@ -77,6 +79,8 @@ public partial class Main : Node
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
         host = new ScriptHost(program);
+        sea = new SeaView(host.It);
+        AddChild(sea);
         host.It.Language = new LanguageService(game, Path.Combine(portDir, "lang"), language);
         host.It.Log = s => GD.Print("[script] " + s);
         EngineStubs.Install(host.It);
@@ -101,6 +105,7 @@ public partial class Main : Node
                 var info = StormScript.Runtime.Interp.ReadInfo(path);
                 foreach (var seg in info.Segments) if (!host.LoadedSegments.Contains(seg)) host.LoadSegment(seg);
                 host.It.RestoreState(path);
+                sea.RelocateIslands();
                 GD.Print($"[save] restored {name}: {host.It.Globals.Count} globals, {host.It.Handlers.Count} event names");
                 rebuildWorld = true;                    // the 3D world is rebuilt on the next frame, outside of the script handler that called us
                 return true;
@@ -220,11 +225,13 @@ public partial class Main : Node
             }
             return cv.OnMessage(fmt, d);
         };
+        sea.Register(host.It);
         host.It.EntityHandlers["NPCharacter"] = chr;
         host.It.EntityHandlers["Character"] = chr;
         host.It.EntityHandlers["Player"] = chr;
         host.It.EntityDeleted = e =>
         {
+            sea.OnEntityDeleted(e);
             if (view != null && ReferenceEquals(view.Ent, e)) { view.QueueFree(); view = null; }
             if (e.Class == "fader" && fader != null) { fader.QueueFree(); fader = null; }
             if (dialogView != null && ReferenceEquals(dialogView.Ent, e)) { dialogView.QueueFree(); dialogView = null; host.It.TimeScale = 1f; }   // the dialog class restores the game speed when it dies
@@ -300,6 +307,8 @@ public partial class Main : Node
             };
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
         }
+        if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.W or Key.S } sk && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
+            sea.SailKey(sk.Keycode == Key.W ? 1 : -1);
         // F = draw/sheathe the sword (the original used E; E talks here)
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F } && dialogView == null && view == null)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
@@ -321,6 +330,7 @@ public partial class Main : Node
 
     // ------------------------------------------------------------------ engine loop for characters and the camera
     OutdoorEnv outdoor = null!;
+    SeaView sea = null!;
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
     Vector3 camToPos;
     float camYaw, camPitch = 0.38f, camDist = 3.6f;
@@ -379,6 +389,16 @@ public partial class Main : Node
                 if (c.Placed) host.It.FireEvent("CharacterUpdate", new List<V> { V.A(c.Ent.Root), V.Float(dt) });
         }
 
+        // sea mode: the ship camera replaces the location camera
+        if (sea.Active && locations.Count == 0)
+        {
+            sea.TestTurn = 0f;
+            foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1) sea.TestTurn = dir.X;
+            sea.Tick(dt, dialogView == null && !UiOpen);
+            outdoor.Sync(host.It, sea.Cam, delta);
+            return;
+        }
+
         // follow camera
         var cam = CurrentLocation()?.Cam;
         outdoor.Sync(host.It, cam, delta);
@@ -433,6 +453,9 @@ public partial class Main : Node
 
     LocationView? CurrentLocation() { foreach (var l in locations.Values) return l; return null; }
 
+    /// <summary>An interface screen is on display (the xinterface entity also exists, empty, while the sea HUD talks to it).</summary>
+    bool UiOpen => view != null && view.GetChildCount() > 0;
+
     void NewView(Entity e)
     {
         view?.QueueFree();
@@ -479,6 +502,7 @@ public partial class Main : Node
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
+        foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);

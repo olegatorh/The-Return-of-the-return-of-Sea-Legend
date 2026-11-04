@@ -43,8 +43,8 @@ public sealed class ScriptCorpusTests
             catch (Exception e) when (e is LexException or ParseException) { lock (unparseable) unparseable.Add(f + ": " + e.Message); }
         });
         Assert.Empty(unparseable);
-        // 16 known defects of the original sources (see docs/source_defects.md); a rise means the parser regressed
-        Assert.True(errors.Distinct().Count() <= 16, "recovered syntax errors: " + string.Join("\n", errors.Distinct()));
+        // 12 known defects of the original sources (see docs/source_defects.md); a rise means the parser regressed
+        Assert.True(errors.Distinct().Count() <= 12, "recovered syntax errors: " + string.Join("\n", errors.Distinct()));
     }
 
     [Fact]
