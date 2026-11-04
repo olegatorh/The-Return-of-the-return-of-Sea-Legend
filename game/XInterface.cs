@@ -287,7 +287,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); dynKeys.Clear(); snapped.Clear(); lastSnapExtra = new Vector2(-1, -1); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -349,13 +349,16 @@ public partial class XView : Control
             bool hidden = sec?.Has("bNotUse") == true;
 
             var pos = Floats(P("position"), 4);
+            int snapFlags = 0;
             if (int.TryParse(P("bAbsoluteRectangle"), out int snap))      // 1/2/4/8: left/top/right/bottom edge follows the screen edge
             {
+                snapFlags = snap;
                 if ((snap & 1) != 0) pos[0] = -40;
                 if ((snap & 2) != 0) pos[1] = -30;
                 if ((snap & 4) != 0) pos[2] = 680;
                 if ((snap & 8) != 0) pos[3] = 510;
             }
+            float[] snapBase = (float[])pos.Clone();
             Control? node = type switch
             {
                 "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
@@ -384,6 +387,7 @@ public partial class XView : Control
                 _ => null,
             };
             if (node == null) { Warn($"node type {type}"); continue; }
+            if (snapFlags != 0) snapped.Add((node, snapFlags, snapBase));
             node.Name = name;
             if (prio >= 120) node.ZIndex = 10;      // modal layers (confirmation windows) sit above the script's strings, which are added later
             node.Visible = !hidden;
@@ -609,7 +613,10 @@ public partial class XView : Control
         var box = new Control { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]), MouseFilter = MouseFilterEnum.Ignore };
         var tiled = Atlas.Get(P("imgGroupName") ?? "ICONS", P("titleTiled") ?? "titleTiled");
         if (tiled != null)
-            box.AddChild(new TextureRect { Texture = tiled, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, Size = box.Size, MouseFilter = MouseFilterEnum.Ignore });
+        {
+            var strip = new TextureRect { Texture = tiled, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore };
+            box.AddChild(strip); strip.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        }
         string key = Ent.Root.Find("title", false)?.Value ?? "";
         var lab = new Label
         {
@@ -623,7 +630,7 @@ public partial class XView : Control
         lab.AddThemeColorOverride("font_color", Colors.White);
         lab.AddThemeColorOverride("font_outline_color", Colors.Black);
         lab.AddThemeConstantOverride("outline_size", 4);
-        box.AddChild(lab);
+        box.AddChild(lab); lab.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         return box;
     }
 
@@ -961,6 +968,26 @@ public partial class XView : Control
         return selectedNode;
     }
 
+    readonly List<(Control node, int flags, float[] pos)> snapped = new();
+    Vector2 lastSnapExtra = new(-1, -1);
+
+    /// <summary>Nodes that follow the screen edges (bAbsoluteRectangle) stretch over the whole visible area of a wide window; backgrounds keep their proportions and cover it.</summary>
+    void ApplySnaps()
+    {
+        var ex = UiLayout.Extra(this);
+        if (ex == lastSnapExtra) return;
+        lastSnapExtra = ex;
+        foreach (var (n, f, p) in snapped)
+        {
+            if (!GodotObject.IsInstanceValid(n)) continue;
+            float x1 = (f & 1) != 0 ? -40 - ex.X : p[0], y1 = (f & 2) != 0 ? -30 - ex.Y : p[1];
+            float x2 = (f & 4) != 0 ? 680 + ex.X : p[2], y2 = (f & 8) != 0 ? 510 + ex.Y : p[3];
+            n.CustomMinimumSize = Vector2.Zero;
+            n.Position = new Vector2(x1, y1); n.Size = new Vector2(x2 - x1, y2 - y1);
+            if (n is TextureRect tr && f == 15) { tr.StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered; tr.ClipContents = true; }
+        }
+    }
+
     void Step(string command)
     {
         if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[step] {command} current='{CurrentNode()}'");
@@ -987,6 +1014,8 @@ public partial class XView : Control
 
     public override void _Process(double delta)
     {
+        Position = new Vector2(40, 30) + UiLayout.Extra(this);
+        ApplySnaps();
         foreach (var (c, speed) in spinners) c.Rotation += speed * (float)delta;
         // scripts change GameInterface.strings.<name> after the label was created (hero name, type, ...)
         foreach (var (name, lab) in strings)

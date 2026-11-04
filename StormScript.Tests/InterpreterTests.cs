@@ -26,6 +26,14 @@ public sealed class InterpreterTests : IDisposable
     static string Attr(ScriptHost h, string global, string path) => h.It.Globals[global].Val.Attr!.Find(path, false)?.Value ?? "<none>";
 
     [Fact]
+    public void RefFunctionReturningAddressOfGlobalIntKeepsTheVariable()
+    {
+        // event handlers such as BI_CommandEndChecking answer with "ref f() { ...; return &retValue; }": the caller reads the integer through the reference
+        var h = Run(@"int retv; int r; ref Get() { retv = 512; return &retv; } void Test() { ref x = Get(); r = x; }");
+        Assert.Equal("512", Str(h, "r"));
+    }
+
+    [Fact]
     public void StringConcatenationAndNumberFormatting()
     {
         var h = Run(@"string r; void Test() { r = ""a"" + 1 + ""b"" + 2.5; }");

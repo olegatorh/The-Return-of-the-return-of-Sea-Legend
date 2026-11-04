@@ -83,6 +83,12 @@ public partial class LogHud : Control
 
     public override void _Process(double delta)
     {
+        Position = new Vector2(40, 30) + UiLayout.Extra(this);
+        Process2(delta);
+    }
+
+    void Process2(double delta)
+    {
         clock += delta;
         bool changed = false;
         for (int i = lines.Count - 1; i >= 0; i--)

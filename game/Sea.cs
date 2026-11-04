@@ -63,6 +63,7 @@ public partial class SeaView : Node3D
         it = interp;
         Name = "SeaView";
         AddChild(hud);
+        hud.SetPickHandler(Pick);
         AddChild(Cam);
         Cam.Current = false;
     }
@@ -579,13 +580,14 @@ public partial class SeaView : Node3D
             if (scr.X < 0 || scr.Y < 0 || scr.X > vp.X || scr.Y > vp.Y || dist > 3000f) continue;
             float off = (scr - vp / 2).Length();
             if (off < best && dist < 1500f) { best = off; target = o; }
-            d.Markers.Add(new HudMarker { Screen = scr * (new Vector2(1280, 960) / vp), Relation = rel, Distance = dist, Name = o.Chr.Find("Ship.Name", false)?.Value ?? o.Chr.Get("id")?.Value ?? "" });
+            d.Markers.Add(new HudMarker { Screen = scr, Relation = rel, Distance = dist, Name = o.Chr.Find("Ship.Name", false)?.Value ?? o.Chr.Get("id")?.Value ?? "" });
         }
         if (target != null)
         {
             d.Target = MakeHudShip(target, Dist(p, target));
             foreach (var m in d.Markers) if (m.Name == d.Target.Name && Math.Abs(m.Distance - d.Target.Distance) < 0.5f) m.Target = true;
         }
+        d.Menu = BuildMenu();
         hud.Update(d);
     }
 

@@ -40,6 +40,7 @@ public sealed class HudData
     public HudShip? Target;
     public List<HudMarker> Markers = new();
     public string Info = "";
+    public HudMenu? Menu;
 }
 
 /// <summary>
@@ -62,6 +63,7 @@ public partial class SeaHud : CanvasLayer
     readonly ColorRect targetHull = new(), targetHullBack = new();
     readonly TextureRect targetFlag = new();
     readonly Control commands = new() { Name = "Commands" };
+    readonly Control menuBox = new() { Name = "CommandMenu", MouseFilter = Control.MouseFilterEnum.Ignore };
     readonly Control markers = new() { Name = "Markers", MouseFilter = Control.MouseFilterEnum.Ignore };
     readonly List<Control> commandIcons = new();
     readonly Label[] ammoText = new Label[4];
@@ -78,6 +80,9 @@ public partial class SeaHud : CanvasLayer
         BuildTarget();
         BuildCommands();
         root.AddChild(markers);
+        menuBox.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
+        menuBox.OffsetLeft = 24; menuBox.OffsetTop = -190; menuBox.OffsetRight = 24 + 560; menuBox.OffsetBottom = -82;
+        root.AddChild(menuBox);
         debug.Visible = false;
         root.AddChild(debug);
         Visible = false;
@@ -106,9 +111,8 @@ public partial class SeaHud : CanvasLayer
     {
         const float S = 230f;                                     // the navigator textures are 256x256
         nav.Size = new Vector2(S, S);
-        nav.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-        nav.Position = new Vector2(8, -S - 8);
-        nav.OffsetLeft = 8; nav.OffsetTop = -S - 8; nav.OffsetRight = 8 + S; nav.OffsetBottom = -8;
+        nav.SetAnchorsPreset(Control.LayoutPreset.TopRight);        // the original puts the navigator in the top right corner
+        nav.OffsetLeft = -S - 8; nav.OffsetTop = 8; nav.OffsetRight = -8; nav.OffsetBottom = S + 8;
         root.AddChild(nav);
         float k = S / 256f;
         nav.AddChild(Tex("indicators_dark_and_center_ship.tga", Vector2.Zero, new Vector2(S, S)));
@@ -297,6 +301,8 @@ public partial class SeaHud : CanvasLayer
             chargeIcon[i].Modulate = d.Ammo[i] <= 0 ? new Color(1, 1, 1, 0.35f) : Colors.White;
         }
         actionText.Text = "";            // the hint with the key comes from the script (ILogAndActions)
+        BuildMenuUi(d.Menu);
+        commands.Visible = d.Menu == null || !d.Menu.Open;
         // markers over ships
         foreach (var c in markers.GetChildren()) c.QueueFree();
         foreach (var m in d.Markers)
@@ -314,5 +320,39 @@ public partial class SeaHud : CanvasLayer
         var tex = GameAssets.Texture(Dir + "cicons_charge.tga");
         if (tex == null) return null;
         return new AtlasTexture { Atlas = tex, Region = new Rect2(selected ? 64 : 0, i * 64, 64, 64) };
+    }
+
+    // ------------------------------------------------------------------ command menu
+    string menuSig = "";
+    Action<int>? pick;
+    public void SetPickHandler(Action<int> a) => pick = a;
+
+    void BuildMenuUi(HudMenu? m)
+    {
+        string sig = m == null || !m.Open ? "" : m.Title + "|" + m.Selected + "|" + string.Join(",", m.Items.ConvertAll(i => i.Label + i.Enabled));
+        if (sig == menuSig) return;
+        menuSig = sig;
+        foreach (var c in menuBox.GetChildren()) c.QueueFree();
+        if (m == null || !m.Open) return;
+        const int Show = 8; const float W = 70;
+        int first = Math.Clamp(m.Selected - Show / 2, 0, Math.Max(0, m.Items.Count - Show));
+        var title = MakeLabel(16); title.Text = m.Title; title.Position = new Vector2(0, 0); title.Size = new Vector2(560, 22); menuBox.AddChild(title);
+        for (int i = first; i < Math.Min(m.Items.Count, first + Show); i++)
+        {
+            var it = m.Items[i];
+            bool sel = i == m.Selected;
+            var b = new TextureButton { TextureNormal = sel ? it.IconSelected ?? it.Icon : it.Icon, IgnoreTextureSize = true, StretchMode = TextureButton.StretchModeEnum.Scale,
+                Position = new Vector2((i - first) * W, 44), Size = new Vector2(64, 64), FocusMode = Control.FocusModeEnum.None, Modulate = it.Enabled ? Colors.White : new Color(1, 1, 1, 0.35f) };
+            int idx = i; b.Pressed += () => pick?.Invoke(idx);
+            menuBox.AddChild(b);
+            var num = MakeLabel(13, new Color(1f, 0.85f, 0.4f)); num.Text = (i + 1).ToString(); num.Position = new Vector2((i - first) * W + 3, 44); menuBox.AddChild(num);
+            if (sel)
+            {
+                var note = MakeLabel(15); note.Text = it.Label; note.Position = new Vector2(0, 24); note.Size = new Vector2(560, 20); menuBox.AddChild(note);
+                menuBox.AddChild(new ColorRect { Position = new Vector2((i - first) * W - 2, 42), Size = new Vector2(68, 2), Color = new Color(1f, 0.85f, 0.4f), MouseFilter = Control.MouseFilterEnum.Ignore });
+            }
+        }
+        if (first > 0) { var l = MakeLabel(20); l.Text = "◄"; l.Position = new Vector2(-18, 62); menuBox.AddChild(l); }
+        if (first + Show < m.Items.Count) { var l = MakeLabel(20); l.Text = "►"; l.Position = new Vector2(Show * W - 4, 62); menuBox.AddChild(l); }
     }
 }

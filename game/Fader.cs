@@ -23,7 +23,7 @@ public partial class FaderView : TextureRect
         Name = "Fader";
         ExpandMode = ExpandModeEnum.IgnoreSize;
         StretchMode = StretchModeEnum.Scale;
-        Size = new Vector2(720, 540);
+        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         ZIndex = 100;
         MouseFilter = MouseFilterEnum.Ignore;
     }

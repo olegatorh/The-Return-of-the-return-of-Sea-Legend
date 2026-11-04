@@ -151,7 +151,7 @@ public sealed partial class Interp
         string rt = fd.Decl.RetType;
         if (rt == "void") return V.Void;
         if (r.T == VT.Void) return DefaultValue(rt, fd.Decl.Name);
-        return Conv.IsAttrType(rt) ? (r.T == VT.Attr ? r : V.A(null)) : Conv.Coerce(r, rt);
+        return Conv.IsAttrType(rt) ? (r.T is VT.Attr or VT.Slot ? r : V.A(null)) : Conv.Coerce(r, rt);       // "ref f() { return &globalInt; }" hands out the variable
     }
 
     readonly Dictionary<FuncDecl, List<VarDecl>> hoisted = new();

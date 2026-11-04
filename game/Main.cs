@@ -111,6 +111,12 @@ public partial class Main : Node
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
         GD.Print("[main] BetaTestMode = " + beta);
+        // [video]: Fullscreen = 1 starts in full screen; WindowWidth / WindowHeight set the window size (F11 toggles full screen). The 2D interface adapts to any aspect ratio.
+        if (settings.Sections.TryGetValue("video", out var vs) && !OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--shot")))
+        {
+            if (int.TryParse(vs.Get("WindowWidth"), out int ww) && int.TryParse(vs.Get("WindowHeight"), out int wh) && ww >= 640 && wh >= 480) GetWindow().Size = new Vector2I(ww, wh);
+            if (vs.Get("Fullscreen")?.Trim() == "1") GetWindow().Mode = Window.ModeEnum.Fullscreen;
+        }
         sea = new SeaView(host.It);
         AddChild(sea);
         worldMap = new WorldMapView(host.It);
@@ -337,6 +343,22 @@ public partial class Main : Node
 
     public override void _UnhandledKeyInput(InputEvent e)
     {
+        if (e is InputEventKey { Pressed: true, Echo: false } fs && fs.PhysicalKeycode == Key.F11)       // full screen on / off
+        {
+            var w = GetWindow();
+            w.Mode = w.Mode == Window.ModeEnum.Fullscreen ? Window.ModeEnum.Windowed : Window.ModeEnum.Fullscreen;
+        }
+        if (sea.Active && sea.CommandsOpen && e is InputEventKey { Pressed: true, Echo: false } cmk && locations.Count == 0)
+        {
+            sea.CommandKey(cmk.PhysicalKeycode);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (sea.Active && locations.Count == 0 && dialogView == null && !UiOpen && e is InputEventKey { Pressed: true, Echo: false } ok && Keys.Is(ok, "SeaCommands"))
+        {
+            sea.OpenCommands();
+            return;
+        }
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {

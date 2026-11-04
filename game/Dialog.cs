@@ -67,6 +67,12 @@ public partial class DialogView : Control
 
     public override void _Process(double delta)
     {
+        Position = new Vector2(40, 30) + UiLayout.Extra(this);
+        Process2(delta);
+    }
+
+    void Process2(double delta)
+    {
         // the script rewrites Dialog.Text / Dialog.Links when it handles a node: rebuild the view whenever they change
         string t = Ent.Root.Get("Text")?.Value ?? "";
         var ls = Ent.Root.Get("Links");
