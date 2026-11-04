@@ -41,3 +41,11 @@ Legend: effort S (hours) / M (a day) / L (days+). "Hint" says where to start.
     (needs the logic split from Godot types), a `--fuzz` smoke mode in the script, golden-value checks of script flows (e.g. dump `Characters[0].chr_ai.hp` after a fight).
 19. Remove debug env hooks or document them (done in CLAUDE.md), clean the `out/` converters output, pin tool versions.
 20. Performance: trimesh colliders for large locations, `Blocked()` is O(n²) over characters (fine for <50).
+
+## F. Sea / physics / mechanics checklist (state 2026-11-04, evening)
+DONE: ship model assembly, movement from script speeds, wind, turning, island collision, ship-ship collision, wave rocking + heel, wake, cannons + ballistics, hull / sail / mast damage,
+sinking, ship AI tasks, forts (shoot + take cannon damage), map encounters (merchant/follow/war), boarding start (script), fires (script), splash/blast/smoke particles, world map, date/time on the map.
+TO DO (largest first): original battle_interface HUD + command menu (46xxx), sail trim by wind angle and visible sail state animation (furl/unfurl), storms (rain, lightning, big waves,
+tornado entity), telescope (77300 class TELESCOPE), cabin/deck cameras + people on deck (PEOPLE_ON_SHIP), sea sounds/music (schemes), wind-driven ship drift, ship groups formation
+following, grappling animation and the boarding deck, fire visuals on ships, floating cargo (AISeaGoods), sharks/animals, shipyard/trade/store/transfer screens (store.ini etc.),
+land combat: blocks/parry/pistols, key-binding screen, save thumbnails, remaining interface node types (KEYCHOOSER, EDITBOX, GLOWCURSOR).
