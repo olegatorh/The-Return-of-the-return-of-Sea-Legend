@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 30 subsystems below): **62 %**
+* Overall (mean of the 30 subsystems below): **63 %**
 * Unit tests: **28** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **9902** lines of C# (`StormScript/` library + `game/`)
+* Port code: **10207** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
 | PORT | 14 | 74 % |
-| APPROX | 12 | 51 % |
+| APPROX | 12 | 53 % |
 | STUB | 0 | 0 % |
 | MISSING | 1 | 0 % |
 
@@ -49,7 +49,7 @@ Layers (where the behaviour comes from):
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
 | Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
-| Interface | Sea HUD (battle_interface) and command menu | APPROX | ██░░░░░░░░ 20 % | V | simplified own HUD; original icons and menu missing |
+| Interface | Sea HUD (battle_interface) and command menu | APPROX | ████░░░░░░ 45 % | V | navigator (compass, wind and speed ring, gun readiness of 4 sides), squadron and target panels, ammo bar, ship markers from the original textures; layout is mine; command circle menu and ship selection missing |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |
 | Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are my model; no wave coupling |
 | Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; no storm, rain, lightning visuals |

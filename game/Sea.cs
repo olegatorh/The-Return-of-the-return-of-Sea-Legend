@@ -160,7 +160,7 @@ public partial class SeaView : Node3D
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
-        hud.Set(false, "", 0, 0, 0, "");
+        hud.Update(new HudData());
     }
 
     // ------------------------------------------------------------------ entity: sea_ai
@@ -486,28 +486,89 @@ public partial class SeaView : Node3D
         UpdateHud();
     }
 
-    void UpdateHud()
+    string NationGroup(Attr chr, out string nationName)
     {
-        var p = ships.FirstOrDefault(s => s.IsPlayer);
-        if (p == null) { hud.Set(false, "", 0, 0, 0, ""); return; }
-        var sh = p.Chr.Find("Ship", false);
-        float baseHp = 1f;
+        int nat = (int)F(chr, "Nation", 3);
+        nationName = Conv.ToStr(it.CallTop("GetNationNameByType", V.Int(nat)));
+        return Conv.ToStr(it.CallTop("GetBlazonryGroup", V.Int(nat)));
+    }
+
+    HudShip MakeHudShip(ShipRt s, float? dist = null)
+    {
+        var sh = s.Chr.Find("Ship", false);
+        float baseHp = 1f; string type = "";
         if (sh != null && it.Globals.TryGetValue("ShipsTypes", out var st) && st.Arr != null)
         {
             int ti = (int)F(sh, "Type", -1);
-            if (ti >= 0 && ti < st.Arr.Length) baseHp = Math.Max(1f, F(st.Arr[ti].Val.Attr, "HP", 1f));
+            if (ti >= 0 && ti < st.Arr.Length) { var tt = st.Arr[ti].Val.Attr; baseHp = Math.Max(1f, F(tt, "HP", 1f)); type = tt?.Get("name")?.Value ?? ""; }
         }
+        float baseSp = 100f, crewMax = Math.Max(1f, F(sh, "Crew.Max", F(sh, "Crew.Quantity", 1f)));
+        var r = new HudShip
+        {
+            Name = $"{sh?.Get("Name")?.Value ?? s.Chr.Get("id")?.Value}", Type = type, Own = s.IsPlayer,
+            Hull = F(sh, "HP") / baseHp, Sails = F(sh, "SP") / baseSp, Crew = F(sh, "Crew.Quantity") / crewMax, CrewCount = (int)F(sh, "Crew.Quantity"),
+            Distance = dist ?? 0f,
+        };
+        r.NationGroup = NationGroup(s.Chr, out r.NationName);
+        return r;
+    }
+
+    float windCache;
+
+    void UpdateHud()
+    {
+        var p = ships.FirstOrDefault(s => s.IsPlayer);
+        var d = new HudData();
+        if (p == null) { hud.Update(d); return; }
+        d.On = true;
+        var sh = p.Chr.Find("Ship", false);
         float windAng = 0f, windSpd = 0f;
         if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) { windAng = F(wa, "Wind.Angle"); windSpd = F(wa, "Wind.Speed"); }
-        string sails = p.Sail >= 0.99f ? "повні" : p.Sail >= 0.4f ? "половина" : "згорнуті";
-        int deg = ((int)Math.Round(p.Ay * 180f / MathF.PI) % 360 + 360) % 360;
-        string info = string.Join("\n", $"{sh?.Get("Name")?.Value ?? "?"}",
-                      $"Корпус {F(sh, "HP"):0}/{baseHp:0}   Вітрила {F(sh, "SP"):0}%   Екіпаж {F(sh, "Crew.Quantity"):0}",
-                      $"Швидкість {p.Speed:0.0} (макс. {F(sh, "MaxSpeedZ"):0.0})   Вітрила: {sails}",
-                      $"Курс {deg}°   Вітер {windSpd:0.0}");
+        d.Heading = p.Ay; d.WindTo = windAng; d.WindSpeed = windSpd; d.Speed = p.Speed; d.MaxSpeed = F(sh, "MaxSpeedZ"); d.SailState = p.Sail;
+        // gun readiness of the four sides
+        string[] borts = { "cannonf", "cannonr", "cannonb", "cannonl" };
+        for (int i = 0; i < 4; i++)
+        {
+            d.HasGuns[i] = p.Cannons.Any(c => c.bort == borts[i]) || (i == 2 && p.Cannons.Any(c => c.bort != "cannonf" && c.bort != "cannonr" && c.bort != "cannonl"));
+            if (p.ReadyAt.TryGetValue(i == 2 && !p.ReadyAt.ContainsKey("cannonb") ? p.ReadyAt.Keys.FirstOrDefault(k => k != "cannonf" && k != "cannonr" && k != "cannonl") ?? borts[i] : borts[i], out var at) && clock < at)
+                d.Ready[i] = Math.Clamp(1f - (at - clock) / 10f, 0f, 0.95f);
+        }
+        if (sh?.Find("Cannons.Charge.Type", false)?.Value is { Length: > 0 } ct) d.Charge = (int)Conv.ParseFloatPrefix(ct);
+        string[] goods = { "Balls", "Grapes", "Knippels", "Bombs" };
+        for (int i = 0; i < 4; i++) d.Ammo[i] = (int)F(sh, "Cargo.Goods." + goods[i]);
         string act = it.Globals.TryGetValue("g_ActiveActionName", out var ga) ? Conv.ToStr(ga.Val) : "";
-        string actText = act switch { "Moor" => "Enter — зайти в порт", "Board" => "Enter — абордаж", "LandTroops" => "Enter — десант", "Map" => "Enter / M — карта світу", _ => "" };
-        hud.Set(true, info, p.Ay, windAng, windSpd, actText);
+        d.Action = act switch { "Moor" => "Enter — зайти в порт", "Board" => "Enter — абордаж", "LandTroops" => "Enter — десант", "Map" => "Enter / M — карта світу", _ => "" };
+        // squadron: the player and the companions
+        int q = Math.Max(1, Conv.ToInt(it.CallTop("GetCompanionQuantity", V.A(p.Chr))));
+        for (int i = 0; i < q && i < 6; i++)
+        {
+            int idx = i == 0 ? p.Index : Conv.ToInt(it.CallTop("GetCompanionIndex", V.A(p.Chr), V.Int(i)));
+            var cs = ships.FirstOrDefault(x => x.Index == idx);
+            if (cs != null) d.Squadron.Add(MakeHudShip(cs));
+        }
+        // the nearest foreign ship in front of the camera is the target; markers over all ships in view
+        ShipRt? target = null; float best = float.MaxValue;
+        var cam = Cam;
+        foreach (var o in ships)
+        {
+            if (o.IsPlayer || o.Dying) continue;
+            float dist = Dist(p, o);
+            var pos = new Vector3(o.X, 22f, -o.Z);
+            if (cam.IsPositionBehind(pos)) continue;
+            var scr = cam.UnprojectPosition(pos);
+            int rel = Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(o.Index)));
+            var vp = cam.GetViewport().GetVisibleRect().Size;
+            if (scr.X < 0 || scr.Y < 0 || scr.X > vp.X || scr.Y > vp.Y || dist > 3000f) continue;
+            float off = (scr - vp / 2).Length();
+            if (off < best && dist < 1500f) { best = off; target = o; }
+            d.Markers.Add(new HudMarker { Screen = scr * (new Vector2(1280, 960) / vp), Relation = rel, Distance = dist, Name = o.Chr.Find("Ship.Name", false)?.Value ?? o.Chr.Get("id")?.Value ?? "" });
+        }
+        if (target != null)
+        {
+            d.Target = MakeHudShip(target, Dist(p, target));
+            foreach (var m in d.Markers) if (m.Name == d.Target.Name && Math.Abs(m.Distance - d.Target.Distance) < 0.5f) m.Target = true;
+        }
+        hud.Update(d);
     }
 
     /// <summary>
