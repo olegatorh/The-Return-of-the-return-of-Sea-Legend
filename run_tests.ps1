@@ -3,7 +3,7 @@
 #   ./run_tests.ps1 -Smoke     + Godot main-menu smoke run (needs a window; ~10 s), fails on [errors]/[unresolved]/script exceptions
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -22,7 +22,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
     $log = "$root\game\smoke_$name.log"
     Remove-Item $shot, $log -ErrorAction SilentlyContinue
     Write-Host "== godot run '$name'" -ForegroundColor Cyan
-    $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"", '--position', '9000,9000', '--resolution', '1280x720', '--') + $userArgs + @("--shot=smoke_$name.png")) `
+    $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"") + $(if ($Hidden) { @('--position', '9000,9000', '--resolution', '1280x720') } else { @('--position', '0,0', '--resolution', '1280x720') }) + @('--') + $userArgs + @("--shot=smoke_$name.png")) `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
     if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
     $text = (Get-Content $log, "$log.err" -ErrorAction SilentlyContinue) -join "`n"

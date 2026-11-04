@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File run_tests.ps1 -Intro    # + intro into 
 Tests needing game data return early if `addon/merged/PROGRAM` or the game folder is missing. `GroupsState`/`Characters` live in the Godot project and
 are only covered by the smoke runs.
 
-**Test runs must not pop up on the user's screen**: start Godot for tests with `--position 9000,9000 --resolution 1280x720` (before the `--`); the window then renders off-screen and `--shot` still works (`run_tests.ps1` does this). Do not use `--headless` for screenshots (no rendering).
+**Test windows**: the owner wants to WATCH runs, so start Godot for tests with `--position 0,0 --resolution 1280x720` (before the `--`); `run_tests.ps1` does this, `-Hidden` moves the window off-screen (9000,9000) if they complain about pop-ups. Do not use `--headless` for screenshots (no rendering).
 
 **Manual test hooks** (Godot *user args* after `--`; frames are counted from start; the game window runs at ~60 fps, 1280x960):
 | Arg | Effect |

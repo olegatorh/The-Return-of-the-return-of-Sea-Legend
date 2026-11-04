@@ -275,8 +275,10 @@ public partial class SeaView : Node3D
         }
         var hull = Load("");
         if (hull == null) return sm;
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_LABELS") != null) foreach (var f in Directory.GetFiles(dir, "*.gm")) { var gg = GmFile.Parse(File.ReadAllBytes(f)); GD.Print("[labels] " + Path.GetFileName(f) + ": " + string.Join(" ", gg.Labels.GroupBy(l => l.Group).Select(g => g.Key + "(" + g.Count() + ":" + string.Join(",", g.Take(4).Select(l => l.Name)) + ")"))); }
         var hullNode = ModelFactory.Build(hull, typeName, "ships", null);
         sm.Root.AddChild(hullNode);
+        var parts = new List<RiggingFx.Part> { new(hullNode, hull) };
         if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump(typeName, hullNode);
         var b = ModelFactory.Bounds(hullNode);
         sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y; sm.Width = Math.Min(b.Size.Z, b.Size.X);
@@ -293,6 +295,7 @@ public partial class SeaView : Node3D
             if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("MAST " + ml.Name, mastNode);
             if (false) foreach (var n in mastNode.FindChildren("*", "MeshInstance3D", true, false)) { var mi = (MeshInstance3D)n; var bb = mi.Mesh.GetAabb(); GD.Print(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[mastobj] {0} {1}: center ({2:0.0};{3:0.0};{4:0.0}) size ({5:0.0};{6:0.0};{7:0.0}) surfaces {8}", ml.Name, mi.Name, bb.GetCenter().X, bb.GetCenter().Y, bb.GetCenter().Z, bb.Size.X, bb.Size.Y, bb.Size.Z, mi.Mesh.GetSurfaceCount())); }
             if (System.Environment.GetEnvironmentVariable("SEADOGS_NOMAST") is not { } nm || !nm.Split(',').Contains(ml.Name)) sm.Root.AddChild(mastNode);
+            parts.Add(new(mastNode, mast));
             var mastSails = new List<Node3D>();
             sm.Masts.Add((mastNode, mastSails));
             foreach (var rl in mast.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
@@ -304,6 +307,7 @@ public partial class SeaView : Node3D
                 reyNode.Transform = LabelTransform(rl.M);
                 if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("REY " + rl.Name, reyNode);
                 mastNode.AddChild(reyNode);
+                parts.Add(new(reyNode, rey));
                 foreach (var grp in rey.Labels.Where(l => l.Group.StartsWith("sail", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("sail", StringComparison.OrdinalIgnoreCase)).GroupBy(l => l.Group))
                 {
                     var c = new Vector3[4];
@@ -317,6 +321,8 @@ public partial class SeaView : Node3D
                 }
             }
         }
+        if (RiggingFx.BuildRopes(sm.Root, parts) is { } ropes) sm.Root.AddChild(ropes);
+        foreach (var flag in RiggingFx.BuildFlags(sm.Root, parts, nation)) sm.Root.AddChild(flag);
         return sm;
     }
 
@@ -513,6 +519,7 @@ public partial class SeaView : Node3D
         ResolveShipCollisions();
         TickCombat(dt);
         TickForts(dt);
+        RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0));
         UpdateCamera(dt, inputEnabled);
         UpdateHud();
     }
@@ -829,7 +836,17 @@ public partial class SeaView : Node3D
         }
         else
         {
-            Cam.GlobalPosition = target + behind * camDist;
+            var want = target + behind * camDist;
+            // the camera must not sit inside the island or under the water: pull it in front of any island surface on the way and keep it above the waves
+            if (islandBody != null && islandBody.IsInsideTree() && GetWorld3D()?.DirectSpaceState is { } space)
+            {
+                var q = PhysicsRayQueryParameters3D.Create(target, want, 1u << 4);
+                var hit = space.IntersectRay(q);
+                if (hit.Count > 0) want = ((Vector3)hit["position"]).Lerp(target, 0.06f) + ((Vector3)hit["normal"]) * 0.8f;
+            }
+            float minY = SeaWaves.Height(want.X, -want.Z) + 1.6f;
+            if (want.Y < minY) want.Y = minY;
+            Cam.GlobalPosition = want;
             Cam.LookAt(target);
             Cam.Fov = 62f;
         }
