@@ -97,7 +97,7 @@ public partial class XView : Control
             case 45015:                                                    // ENABLE/DISABLE_STRING
                 if (strings.TryGetValue(S(1), out var lab)) lab.Visible = msg == 45014;
                 return V.Int(0);
-            case 45045: NodeMessage(S(1), Conv.ToInt(d[2]), d.Length > 4 ? S(4) : S(3)); return V.Int(0);   // MSG_TO_NODE
+            case 45045: if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[nodemsg] {fmt} {string.Join(" ; ", d.Select(x => Conv.ToStr(x)))}"); NodeMessage(S(1), Conv.ToInt(d[2]), d.Length > 4 ? S(4) : S(3), d); return V.Int(0);   // MSG_TO_NODE
             case 45013:                                                    // PLACE_IMAGE: node, ?, x1, y1, x2, y2
                 if (d.Length >= 7)
                 {
@@ -156,9 +156,41 @@ public partial class XView : Control
         return V.Int(0);
     }
 
-    void NodeMessage(string node, int code, string param)
+    void NodeMessage(string node, int code, string param, V[] d)
     {
         if (!nodes.TryGetValue(node, out var c)) return;
+        if (c is FormattedListView fl0)
+        {
+            switch (code)
+            {
+                case 0: fl0.Add(param); return;                                          // append a line
+                case 2: fl0.ScrollTo(d.Length > 3 ? Conv.ToFloat(d[3]) : 0); return;     // scroll bar moved
+                case 4:                                                                  // tops of the visible lines -> attributes l0..
+                    if (d.Length > 3 && d[3].Attr is { } outA) { int k = 0; foreach (var top in fl0.VisibleTops()) outA.GetOrCreate("l" + k++).Value = ((int)top).ToString(); }
+                    return;
+            }
+        }
+        if (c is Label && code is 5 or 6 or 8 or 1) return;                         // formatted text: "recompute / scroll bar state" (the label wraps by itself)
+        if (c is Label fl2 && code == 0 && d.Length <= 5) { fl2.Text = fl2.Text.Length == 0 ? param : fl2.Text + "\n" + param; return; }   // append a line
+        if (c is TextureRect tr4 && code == 4) { uint col = unchecked((uint)Conv.ToInt(d[3])); tr4.Modulate = new Color((col >> 16 & 255) / 128f, (col >> 8 & 255) / 128f, (col & 255) / 128f, (col >> 24) / 255f); return; }   // tint of a picture
+        if (code == 0 && d.Length >= 10)   // a captioned string placed on a node: name, text, font, x, y, colour, ?, alignment, ?, scale, width
+        {
+            string sname = "msg_" + node;
+            var existing = c.GetNodeOrNull<Label>(sname);
+            if (existing == null) { existing = new Label { Name = sname, MouseFilter = MouseFilterEnum.Ignore, AutowrapMode = TextServer.AutowrapMode.WordSmart }; c.AddChild(existing); }
+            float w = d.Length > 13 ? Conv.ToFloat(d[13]) : 400, sc = d.Length > 12 ? Conv.ToFloat(d[12]) : 1f;
+            uint cc = unchecked((uint)Conv.ToInt(d[8]));
+            existing.Text = Conv.ToStr(d[4]);
+            existing.AddThemeFontSizeOverride("font_size", Math.Max(12, (int)(18 * (sc <= 0 ? 1 : sc))));
+            existing.AddThemeColorOverride("font_color", new Color((cc >> 16 & 255) / 255f, (cc >> 8 & 255) / 255f, (cc & 255) / 255f));
+            existing.AddThemeColorOverride("font_outline_color", Colors.Black);
+            existing.AddThemeConstantOverride("outline_size", 3);
+            existing.HorizontalAlignment = Conv.ToInt(d[10]) == 2 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+            existing.Size = new Vector2(w, 40);
+            // positions are in the 640x480 core of the screen, the node sits somewhere inside it
+            existing.Position = new Vector2(Conv.ToFloat(d[6]) - c.Position.X - (Conv.ToInt(d[10]) == 2 ? w / 2 : 0), Conv.ToFloat(d[7]) - c.Position.Y);
+            return;
+        }
         if (c is TextureRect tr2 && code == 2)  // SetNewPicture: replace the texture by file
         {
             tr2.Texture = GameAssets.Texture(param);
@@ -176,6 +208,49 @@ public partial class XView : Control
     }
 
     readonly Dictionary<string, TextureRect> dynImages = new();
+
+    readonly Dictionary<string, (int px0, int align, int x, int y)> strInfo = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Font size of a script string: it must fit its row (screen edge, buttons beside a centred one, the next string to the right of a left-aligned one).</summary>
+    void RefitString(string name)
+    {
+        if (!strings.TryGetValue(name, out var lab) || !strInfo.TryGetValue(name, out var si)) return;
+        var (px0, align, x, y) = si;
+        float room = align == 1 ? x + 40 : align == 2 ? 2 * Math.Min(x + 40, 680 - x) : 680 - x;
+        if (align == 2)
+        {
+            float half = room / 2;
+            foreach (var bt in nodes.Values.OfType<Button>().Where(b => b.Visible && b.Size.X > 4 && b.Text.Length > 0))
+            {
+                if (bt.Position.Y > y + 20 || bt.Position.Y + bt.Size.Y < y + 4) continue;
+                if (bt.Position.X > x) half = Math.Min(half, bt.Position.X - x - 2);
+                else if (bt.Position.X + bt.Size.X < x) half = Math.Min(half, x - bt.Position.X - bt.Size.X - 2);
+            }
+            room = Math.Max(60, 2 * half);
+        }
+        else
+        {
+            room = Math.Max(120, room);
+            if (align == 0)
+                foreach (var (on, oi) in strInfo)
+                    if (!on.Equals(name, StringComparison.OrdinalIgnoreCase) && Math.Abs(oi.y - y) < 8 && oi.x > x + 20 && strings.TryGetValue(on, out var ol) && ol.Text.Length > 0)
+                        room = Math.Min(room, oi.x - x - 6);
+            room = Math.Max(60, room);
+        }
+        int fpx = Fit(lab, lab.Text, px0, room);
+        lab.AddThemeFontSizeOverride("font_size", fpx);
+        if (align == 1 && lab.Text.Length > 0)
+        {
+            // a right-aligned value stands in the row of a caption of a string collection: the caption must end before the value starts
+            float left = x - lab.GetThemeDefaultFont().GetStringSize(lab.Text, HorizontalAlignment.Left, -1, fpx).X;
+            foreach (var cl in collectionLabels)
+            {
+                if (!GodotObject.IsInstanceValid(cl) || Math.Abs(cl.Position.Y + 2 - y) > 8 || cl.Position.X >= left || cl.HasMeta("aligned")) continue;
+                if (!cl.HasMeta("px0")) cl.SetMeta("px0", cl.GetThemeFontSize("font_size"));
+                cl.AddThemeFontSizeOverride("font_size", Fit(cl, cl.Text, (int)cl.GetMeta("px0"), Math.Max(30, left - cl.Position.X - 4)));
+            }
+        }
+    }
 
     void CreateString(V[] d)
     {
@@ -196,21 +271,8 @@ public partial class XView : Control
         string font = Conv.ToStr(d[2]);
         float basePx = font.Equals("Dialog21", StringComparison.OrdinalIgnoreCase) ? 13f : font.Equals("Dialog2", StringComparison.OrdinalIgnoreCase) ? 24f : 26f;
         int px0 = font.Contains("small", StringComparison.OrdinalIgnoreCase) ? FontPx(font, scale) : Math.Max(8, (int)(basePx * 0.85f * scale));
-        float room = align == 1 ? x + 40 : align == 2 ? 2 * Math.Min(x + 40, 680 - x) : 680 - x;
-        if (align == 2)       // a centred caption must not run under a button of its row
-        {
-            float half = room / 2;
-            foreach (var bt in nodes.Values.OfType<Button>().Where(b => b.Visible && b.Size.X > 4 && b.Text.Length > 0))
-            {
-                if (bt.Position.Y > y + 20 || bt.Position.Y + bt.Size.Y < y + 4) continue;
-                if (bt.Position.X > x) half = Math.Min(half, bt.Position.X - x - 2);
-                else if (bt.Position.X + bt.Size.X < x) half = Math.Min(half, x - bt.Position.X - bt.Size.X - 2);
-            }
-            room = Math.Max(60, 2 * half);
-            lab.AddThemeFontSizeOverride("font_size", Fit(lab, text, px0, room));
-        }
-        else
-        lab.AddThemeFontSizeOverride("font_size", Fit(lab, text, px0, Math.Max(120, room)));
+        strInfo[name] = (px0, align, x, y);
+        RefitString(name);
         lab.AddThemeColorOverride("font_color", new Color((argb >> 16 & 255) / 255f, (argb >> 8 & 255) / 255f, (argb & 255) / 255f, (argb >> 24) / 255f));
         lab.AddThemeColorOverride("font_outline_color", Colors.Black);
         lab.AddThemeConstantOverride("outline_size", 3);
@@ -225,7 +287,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -306,7 +368,7 @@ public partial class XView : Control
                 "BOUNDER" => MakeBounder(P, pos),
                 "TITLE" => MakeTitle(P, pos),
                 "IMAGECOLLECTION" => MakeCollection(sec, P),
-                "FORMATEDTEXT" => MakeFormatted(P, pos),
+                "FORMATEDTEXT" => P("videoName") != null ? MakeFormattedList(name, P, pos) : MakeFormatted(P, pos),
                 "VIDEO" => new Control { MouseFilter = MouseFilterEnum.Ignore },     // background video: not played
                 "STRINGCOLLECTION" => MakeStringCollection(sec),
                 "LINECOLLECTION" => MakeLineCollection(sec),
@@ -348,6 +410,7 @@ public partial class XView : Control
             }
         }
         AvoidButtons();
+        if (main.Get("start") is { Length: > 0 } startNode) SelectNode(startNode.Trim());     // [MAIN] start = the node that is current when the screen opens
         GD.Print($"[xinterface] built {nodes.Count} nodes");
     }
 
@@ -806,6 +869,12 @@ public partial class XView : Control
         it.Language?.Close(lang);
     }
 
+    Control MakeFormattedList(string name, Func<string, string?> P, float[] pos)
+        => new FormattedListView(name, pos[0], pos[1], pos[2], pos[3], Floats(P("lineSpace"), 1)[0], Floats(P("leftoffset"), 1)[0], Floats(P("upOffset"), 1)[0],
+            (n, a, b) => it.FireEvent("evntUpdateFormtText", new List<V> { V.Str(n), V.Int(a), V.Int(b) }),
+            (n, i) => it.FireEvent("FormatedTextActivate", new List<V> { V.Str(n), V.Int(i) }),
+            (n, p) => it.FireEvent("SetScrollerPos", new List<V> { V.Str(n), V.Float(p) }));
+
     Control MakeFormatted(Func<string, string?> P, float[] pos)
     {
         string al = (P("alignment") ?? "center").ToLowerInvariant();
@@ -848,6 +917,14 @@ public partial class XView : Control
             else if (cmd.Equals("speedleft", StringComparison.OrdinalIgnoreCase)) slv.Step(-0.1f);
             else if (cmd.Equals("speedright", StringComparison.OrdinalIgnoreCase)) slv.Step(0.1f);
         }
+        if (nodes.TryGetValue(node, out var fl4) && fl4 is FormattedListView flv)
+        {
+            if (cmd.Equals("upstep", StringComparison.OrdinalIgnoreCase)) flv.Move(-1);
+            else if (cmd.Equals("downstep", StringComparison.OrdinalIgnoreCase)) flv.Move(1);
+            else if (cmd.Equals("speedup", StringComparison.OrdinalIgnoreCase)) flv.Move(-4);
+            else if (cmd.Equals("speeddown", StringComparison.OrdinalIgnoreCase)) flv.Move(4);
+            else if (cmd.Equals("activate", StringComparison.OrdinalIgnoreCase)) flv.Activate();
+        }
         if (nodes.TryGetValue(node, out var fn4) && fn4 is FourImagesView fv)
         {
             if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) fv.Move(-1, 0);
@@ -886,6 +963,7 @@ public partial class XView : Control
 
     void Step(string command)
     {
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[step] {command} current='{CurrentNode()}'");
         if (CurrentNode() is { Length: > 0 } cn && nodes.TryGetValue(cn, out var cnode) && cnode.Visible) Run(cn, command, 0);
         else foreach (var kv in nodes) if (kv.Value is ScrollImageView || kv.Value.GetType().Name.StartsWith("FourImages")) { Run(kv.Key, command, 0); break; }
     }
@@ -914,7 +992,7 @@ public partial class XView : Control
         foreach (var (name, lab) in strings)
         {
             string text = Ent.Root.Find("strings." + name, false)?.Value ?? "";
-            if (lab.Text != text) lab.Text = text;
+            if (lab.Text != text) { lab.Text = text; RefitString(name); }
         }
         // the same for the script's own images: it changes pictures.<name>.tex/pic after placing them (faces of the save list ...)
         foreach (var (name, img) in dynImages)
