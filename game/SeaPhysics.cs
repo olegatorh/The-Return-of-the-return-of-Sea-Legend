@@ -23,7 +23,11 @@ public partial class SeaView
         float size = Math.Clamp(30f / Math.Max(10f, s.Length), 0.5f, 1.3f);        // small ships rock more
         float roll = amp * size * (MathF.Sin(waveClock * 0.9f + ph) + 0.5f * MathF.Sin(waveClock * 1.7f + ph * 2f));
         float pitch = amp * 0.6f * size * MathF.Sin(waveClock * 0.7f + ph + 1f);
-        float heel = -s.TurnRate * Math.Clamp(s.Speed / 8f, 0f, 1.5f) * 0.6f + s.Sail * Math.Clamp(wind / 18f, 0f, 1f) * 0.03f;
+        // heel: outwards in a turn, and away from the wind under sail (the wind pushes the sails, strongest abeam)
+        float windAng = 0f;
+        if (it.Globals.TryGetValue("Weather", out var w2) && w2.Val.Attr is { } wb) windAng = F(wb, "Wind.Angle");
+        float side = MathF.Sin(windAng - s.Ay);                                   // > 0: the wind blows towards the starboard side
+        float heel = -s.TurnRate * Math.Clamp(s.Speed / 8f, 0f, 1.5f) * 0.6f + s.Sail * Math.Clamp(wind / 18f, 0f, 1f) * 0.11f * side * Math.Clamp(s.Speed / 5f, 0.3f, 1f);
         s.Node.Rotation = new Vector3(pitch, -s.Ay, roll + heel);
         s.Node.Position = new Vector3(s.X, 0.15f * MathF.Sin(waveClock * 1.1f + ph) * size, -s.Z);
         UpdateWake(s);

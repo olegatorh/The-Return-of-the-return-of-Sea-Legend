@@ -26,7 +26,7 @@ public partial class SeaView : Node3D
         public int Index;
         public Node3D Node = null!;
         public float Sail;                 // 0, 0.5, 1
-        public float Speed, TurnRate;      // current forward speed and yaw rate
+        public float Speed, TurnRate, Drift;      // current forward speed, yaw rate and sideways slide
         public float X, Z, Ay;
         public float ParamTimer;
         public bool IsPlayer, Aground, Dying;
@@ -68,6 +68,17 @@ public partial class SeaView : Node3D
     }
 
     // ------------------------------------------------------------------ helpers
+    /// <summary>A value of the ship type table (ShipsTypes[Ship.Type]) for the ship <paramref name="sh"/>.</summary>
+    float TypeF(Attr? sh, string key, float def)
+    {
+        if (sh != null && it.Globals.TryGetValue("ShipsTypes", out var st) && st.Arr != null)
+        {
+            int ti = (int)F(sh, "Type", -1);
+            if (ti >= 0 && ti < st.Arr.Length) return F(st.Arr[ti].Val.Attr, key, def);
+        }
+        return def;
+    }
+
     static float F(Attr? a, string path, float def = 0f) => a?.Find(path, false)?.Value is { } v && v.Length > 0 ? Conv.ParseFloatPrefix(v) : def;
     static void SetF(Attr a, string path, float v) => a.Find(path, true)!.Value = Conv.FloatToConcat(v);
 
@@ -454,13 +465,20 @@ public partial class SeaView : Node3D
                 if (Keys.Down("SeaRight")) turnIn += 1f;
                 if (TestTurn != 0f) turnIn = TestTurn;
             }
+            // the ship type's inertia (Ships_init.c: InertiaAccelerationZ/BrakingZ for the speed, ...Y for turning, ...X for sliding sideways) sets how lively it is
+            float accZ = TypeF(sh, "InertiaAccelerationZ", 1f), brkZ = TypeF(sh, "InertiaBrakingZ", 1f), accY = TypeF(sh, "InertiaAccelerationY", 1f), brkX = TypeF(sh, "InertiaBrakingX", 1f);
             float target = maxZ * s.Sail;
-            float k = target > s.Speed ? 0.25f : 0.5f;
+            float k = target > s.Speed ? 0.06f + 0.012f * accZ : 0.08f + 0.02f * brkZ;
             s.Speed += (target - s.Speed) * Math.Min(1f, k * dt);
             float wantTurn = turnIn * maxY;
-            s.TurnRate += (wantTurn - s.TurnRate) * Math.Min(1f, 2.5f * dt);
-            s.Ay += s.TurnRate * dt * (0.35f + 0.65f * Math.Clamp(s.Speed / Math.Max(1f, maxZ), 0f, 1f));
-            float nx = s.X + MathF.Sin(s.Ay) * s.Speed * dt, nz = s.Z + MathF.Cos(s.Ay) * s.Speed * dt;
+            float kTurn = Math.Clamp(1f + 0.15f * accY, 1f, 3.5f);
+            s.TurnRate += (wantTurn - s.TurnRate) * Math.Min(1f, kTurn * dt);
+            float steer = 0.2f + 0.8f * Math.Clamp(s.Speed / Math.Max(1f, maxZ * 0.6f), 0f, 1f);     // the rudder needs water flowing past it
+            s.Ay += s.TurnRate * dt * steer;
+            // in a turn the hull slides outwards: lateral speed grows with speed * turn rate and dies out with the ship's sideways braking
+            s.Drift += (-s.TurnRate * s.Speed * 0.5f - s.Drift * (0.8f + 0.5f * brkX)) * dt;
+            float sn0 = MathF.Sin(s.Ay), cs0 = MathF.Cos(s.Ay);
+            float nx = s.X + (sn0 * s.Speed + cs0 * s.Drift) * dt, nz = s.Z + (cs0 * s.Speed - sn0 * s.Drift) * dt;
             if (island != null && s.Speed > 0.01f && AgroundAt(s, nx, nz, s.Ay) && !AgroundAt(s, s.X, s.Z, s.Ay))
             {
                 if (!s.Aground)

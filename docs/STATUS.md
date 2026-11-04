@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **63 %**
 * Unit tests: **28** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **10207** lines of C# (`StormScript/` library + `game/`)
+* Port code: **10229** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -51,7 +51,7 @@ Layers (where the behaviour comes from):
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ████░░░░░░ 45 % | V | navigator (compass, wind and speed ring, gun readiness of 4 sides), squadron and target panels, ammo bar, ship markers from the original textures; layout is mine; command circle menu and ship selection missing |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |
-| Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are my model; no wave coupling |
+| Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
 | Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; no storm, rain, lightning visuals |
 | Sea | Island, collisions, mooring | APPROX | ██████░░░░ 60 % | V | collision by raycast of visible geometry; grounding events approximate |
 | Sea | Ship AI | APPROX | ███░░░░░░░ 35 % | E | move/attack/follow/runaway; no formations, boarding AI, fleeing logic |
