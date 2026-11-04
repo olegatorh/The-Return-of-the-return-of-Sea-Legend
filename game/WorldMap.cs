@@ -23,6 +23,7 @@ public partial class WorldMapView : Node3D
     bool built;
     float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camPitch = 0.95f, camDist = 190f;
     string inside = "";
+    public WorldLand? land;
     float encTimer, dateTimer;
     double secOfDay;
     readonly WorldHud hud = new() { Name = "MapHud" };
@@ -92,8 +93,13 @@ public partial class WorldMapView : Node3D
 
         // land
         string islands = GameAssets.Resource("MODELS\\WorldMap\\Islands.gm");
+        land = null;
         if (File.Exists(islands))
-            scene.AddChild(ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(islands)), "Islands", "WorldMap\\geometry", null));
+        {
+            var gm = GmFile.Parse(File.ReadAllBytes(islands));
+            scene.AddChild(ModelFactory.Build(gm, "Islands", "WorldMap\\geometry", null));
+            land = WorldLand.Build(gm);
+        }
 
         // towns, forts, bays; island names
         var isls = root.Get("islands");
@@ -183,7 +189,9 @@ public partial class WorldMapView : Node3D
         {
             shipAy += turn * 0.55f * dt;
             float speed = rate * 0.7f * sail;
-            shipX += MathF.Sin(shipAy) * speed * dt; shipZ += MathF.Cos(shipAy) * speed * dt;
+            float nx = shipX + MathF.Sin(shipAy) * speed * dt, nz = shipZ + MathF.Cos(shipAy) * speed * dt;
+            // islands are solid for the ship (it can still sail out of a bay: only a move that ends on land is refused)
+            if (land == null || !land.IsLand(nx, nz) || land.IsLand(shipX, shipZ)) { shipX = nx; shipZ = nz; }
         }
         PublishShip();
         UpdateDate(dt);

@@ -152,6 +152,14 @@ public partial class WorldMapView
                     break;
                 }
             }
+            // the other ships keep off the islands too: when land is ahead they turn to the free side
+            if (land != null && land.LandAhead(e.X, e.Z, e.Ay, 40f))
+            {
+                float turn = 0f;
+                foreach (float off in new[] { 0.5f, -0.5f, 1.0f, -1.0f, 1.6f, -1.6f })
+                    if (!land.LandAhead(e.X, e.Z, e.Ay + off, 40f)) { turn = off; break; }
+                e.Ay += (turn == 0f ? 1f : Math.Sign(turn) * Math.Min(MathF.Abs(turn), 1.2f * dt * 3f)) * (turn == 0f ? dt * 1.5f : 1f);
+            }
             e.X += MathF.Sin(e.Ay) * e.Speed * dt; e.Z += MathF.Cos(e.Ay) * e.Speed * dt;
             e.Node.Position = new Vector3(e.X, 0.5f, -e.Z); e.Node.Rotation = new Vector3(0, -e.Ay, 0);
             float d = MathF.Sqrt((e.X - shipX) * (e.X - shipX) + (e.Z - shipZ) * (e.Z - shipZ));

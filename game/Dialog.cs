@@ -19,6 +19,8 @@ public partial class DialogView : Control
     readonly RichTextLabel text = new();
     readonly VBoxContainer links = new();
     string signature = "";
+    Panel panel = null!;
+    int relayout;
 
     public DialogView(Interp it, Entity ent)
     {
@@ -30,7 +32,7 @@ public partial class DialogView : Control
         MouseFilter = MouseFilterEnum.Ignore;
         ZIndex = 50;
 
-        var panel = new Panel { Position = new Vector2(20, 262), Size = new Vector2(600, 206), MouseFilter = MouseFilterEnum.Stop };
+        panel = new Panel { Position = new Vector2(20, 262), Size = new Vector2(600, 206), MouseFilter = MouseFilterEnum.Stop };
         var style = new StyleBoxFlat { BgColor = new Color(0.03f, 0.06f, 0.16f, 0.88f), BorderColor = new Color(0.85f, 0.68f, 0.3f), CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6, CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6 };
         style.SetBorderWidthAll(2);
         panel.AddThemeStyleboxOverride("panel", style);
@@ -71,8 +73,29 @@ public partial class DialogView : Control
         Process2(delta);
     }
 
+    /// <summary>The frame hugs its content: wide as the longest line (up to the full width), tall as name + text + answers, standing on the bottom edge.</summary>
+    void Relayout()
+    {
+        var font = text.GetThemeDefaultFont();
+        float maxW = 0f;
+        foreach (var line in text.Text.Split('\n')) maxW = Math.Max(maxW, font.GetStringSize(line, HorizontalAlignment.Left, -1, 15).X);
+        foreach (var c in links.GetChildren()) if (c is Button b) maxW = Math.Max(maxW, font.GetStringSize(b.Text, HorizontalAlignment.Left, -1, 14).X);
+        float inner = Math.Clamp(maxW + 24f, 260f, 572f);
+        text.Size = new Vector2(inner, text.Size.Y);
+        float textH = Math.Min(Math.Max(22f, text.GetContentHeight()), 150f);
+        float linksH = 0f;
+        foreach (var c in links.GetChildren()) if (c is Control ctl) linksH += Math.Max(20f, ctl.GetCombinedMinimumSize().Y);
+        float w = inner + 28f, top = 468f - (8f + 24f + textH + 6f + linksH + 12f);
+        panel.Position = new Vector2(320f - w / 2f, top); panel.Size = new Vector2(w, 468f - top);
+        nameLabel.Position = new Vector2(320f - w / 2f + 14f, top + 4f);
+        text.Position = new Vector2(320f - w / 2f + 14f, top + 30f); text.Size = new Vector2(inner, textH);
+        links.Position = new Vector2(320f - w / 2f + 14f, top + 30f + textH + 6f); links.Size = new Vector2(inner, linksH);
+        foreach (var c in links.GetChildren()) if (c is Button b) b.CustomMinimumSize = new Vector2(inner, 20);
+    }
+
     void Process2(double delta)
     {
+        if (relayout > 0) { relayout--; Relayout(); }
         // the script rewrites Dialog.Text / Dialog.Links when it handles a node: rebuild the view whenever they change
         string t = Ent.Root.Get("Text")?.Value ?? "";
         var ls = Ent.Root.Get("Links");
@@ -107,6 +130,7 @@ public partial class DialogView : Control
             links.AddChild(b);
         }
         PaintSelection();
+        relayout = 3;
     }
 
     int sel;
