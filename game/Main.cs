@@ -43,6 +43,8 @@ public partial class Main : Node
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
     readonly List<(int frame, Key key)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
+    readonly List<(int frame, string name)> saveAt = new();       // test hook --save=name@N: write SAVE\name through the script's own save path
+    readonly List<(int frame, string name)> loadAt = new();       // test hook --load=name@N
     readonly List<int> seaDuels = new();                      // test hook --duel@N
     readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
@@ -69,6 +71,8 @@ public partial class Main : Node
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
+            else if (a.StartsWith("--save=")) { var p = a.Substring(7).Split('@'); saveAt.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--act@")) seaActions.Add(int.Parse(a.Substring(6)));
@@ -572,6 +576,17 @@ public partial class Main : Node
         foreach (var f in seaActions) if (f == frames) SeaAction();
         foreach (var f in seaFires) if (f == frames) sea.FirePlayer();
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
+        foreach (var (f, nm) in loadAt) if (f == frames)
+        {
+            host.It.SetHandler("evntLoad", "LoadGame", 1);
+            host.It.PostEventInternal("evntLoad", 0, new List<V> { V.Str("SAVE\\" + nm) });
+            host.It.FireEvent("evntPreLoad");
+        }
+        foreach (var (f, nm) in saveAt) if (f == frames)
+        {
+            host.It.SetHandler("evntSave", "SaveGame", 1);
+            host.It.PostEventInternal("evntSave", 0, new List<V> { V.Str("SAVE\\" + nm), V.Str(nm.Replace('_', ' ')) });
+        }
         foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
         foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) { sea.Teleport(x, z, ay); worldMap.Teleport(x, z, ay); }
