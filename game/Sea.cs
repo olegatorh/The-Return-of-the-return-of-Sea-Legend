@@ -143,7 +143,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -395,6 +395,7 @@ public partial class SeaView : Node3D
         SetF(s.Chr, "Ship.Ang.y", s.Ay); SetF(s.Chr, "Ship.Speed.z", s.Speed);
         s.Node.Position = new Vector3(s.X, 0f, -s.Z);
         s.Node.Rotation = new Vector3(0f, -s.Ay, 0f);
+        ApplyRocking(s);
         foreach (var sail in s.Sails) sail.Visible = s.Sail > 0.01f;
     }
 
@@ -434,7 +435,12 @@ public partial class SeaView : Node3D
             float nx = s.X + MathF.Sin(s.Ay) * s.Speed * dt, nz = s.Z + MathF.Cos(s.Ay) * s.Speed * dt;
             if (island != null && s.Speed > 0.01f && AgroundAt(s, nx, nz, s.Ay) && !AgroundAt(s, s.X, s.Z, s.Ay))
             {
-                if (!s.Aground) { s.Aground = true; GD.Print($"[sea] {s.Chr.Get("id")?.Value} touches the shore at ({nx:0},{nz:0})"); }
+                if (!s.Aground)
+                {
+                    s.Aground = true; GD.Print($"[sea] {s.Chr.Get("id")?.Value} touches the shore at ({nx:0},{nz:0})");
+                    // the script turns the impact into hull damage: (ours, other (-1), power, slide, touch point, x, y, z)
+                    it.FireEvent("Shp_ShipIslColl", new List<V> { V.Int(s.Index), V.Int(-1), V.Float(s.Speed * 0.5f), V.Float(0.3f), V.Int(0), V.Float(nx), V.Float(0f), V.Float(nz) });
+                }
                 s.Speed = 0f;                                              // stopped by the shore: only turning gets it free again
             }
             else { if (s.Aground && s.Speed > 0.5f) s.Aground = false; s.X = nx; s.Z = nz; }
@@ -445,6 +451,7 @@ public partial class SeaView : Node3D
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
+        ResolveShipCollisions();
         TickCombat(dt);
         UpdateCamera(dt, inputEnabled);
         UpdateHud();
