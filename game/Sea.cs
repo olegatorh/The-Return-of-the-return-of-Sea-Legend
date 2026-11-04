@@ -36,6 +36,8 @@ public partial class SeaView : Node3D
         public float TaskX, TaskZ;
         public float Length = 30f, Height = 12f;
         public List<Node3D> Sails = new();
+        public List<(Node3D node, List<Node3D> sails)> Masts = new();
+        public readonly HashSet<int> MastsDown = new();
         public List<(string bort, Vector3 pos)> Cannons = new();
         public readonly Dictionary<string, float> ReadyAt = new();
     }
@@ -209,7 +211,7 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Cannons = model.Cannons;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
@@ -222,7 +224,7 @@ public partial class SeaView : Node3D
         GD.Print($"[sea] ship {chr.Get("id")?.Value} group='{group}' groups=[{string.Join(",", groupPos.Keys)}] type={name} at ({rt.X:0},{rt.Z:0}) ay={rt.Ay:0.00} sail={rt.Sail} length={rt.Length:0.0}");
     }
 
-    sealed class ShipModel { public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f, Width = 8f; }
+    sealed class ShipModel { public readonly List<(Node3D node, List<Node3D> sails)> Masts = new(); public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f, Width = 8f; }
 
     /// <summary>Row-major D3D label matrix (vx, vy, vz, pos) -> Godot transform (z negated).</summary>
     static Transform3D LabelTransform(float[] m) =>
@@ -265,6 +267,8 @@ public partial class SeaView : Node3D
             var mastNode = ModelFactory.Build(mast, ml.Name, "ships", null);
             mastNode.Transform = LabelTransform(ml.M);
             sm.Root.AddChild(mastNode);
+            var mastSails = new List<Node3D>();
+            sm.Masts.Add((mastNode, mastSails));
             foreach (var rl in mast.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
             {
                 var rey = Load("_" + rl.Name);
@@ -281,7 +285,7 @@ public partial class SeaView : Node3D
                     if (have != 4) continue;
                     var sail = BuildSail(c, sailTex);
                     reyNode.AddChild(sail);
-                    sm.Sails.Add(sail);
+                    sm.Sails.Add(sail); mastSails.Add(sail);
                 }
             }
         }
