@@ -29,7 +29,8 @@ public partial class SeaView : Node3D
         public float Speed, TurnRate;      // current forward speed and yaw rate
         public float X, Z, Ay;
         public float ParamTimer;
-        public bool IsPlayer, Aground;
+        public bool IsPlayer, Aground, Dying;
+        public float SinkT;
         public int Task = -1;                 // AITASK_*: 0 drift, 1 attack, 2 follow, 3 defend, 6 runaway, 7 move
         public Attr? TaskTarget;
         public float TaskX, TaskZ;
@@ -159,7 +160,7 @@ public partial class SeaView : Node3D
         {
             case AI_GROUP_XYZ_AY: groupPos[S(1)] = (Fl(2), Fl(4), Fl(5)); return V.Int(1);
             case AI_GROUP_COMMANDER: if (d.Length > 2 && d[2].Attr is { } cmd) { groupCommander[S(1)] = cmd; cmd.Find("SeaAI.Group.Name", true)!.Value = S(1); } return V.Int(1);
-            case AI_ADD_SHIP: if (d.Length > 3 && d[2].Attr is { } chr && d[3].Attr is { } type) AddShip(Conv.ToInt(d[1]), chr, type); return V.Int(1);
+            case AI_ADD_SHIP: if (d.Length > 3 && d[2].Attr is { } chr && d[3].Attr is { } type) AddShip((int)F(chr, "index"), chr, type); return V.Int(1);
             case AI_SHIP_SAIL_STATE:                                                      // "lif": character index, sail state
             {
                 int idx = Conv.ToInt(d.Length > 1 ? d[1] : V.Int(-1));
@@ -406,6 +407,15 @@ public partial class SeaView : Node3D
         {
             var sh = s.Chr.Find("Ship", false);
             if (sh == null) continue;
+            if (!s.Dying && sh.Find("HP", false) != null && F(sh, "HP", 1f) <= 0f) { s.Dying = true; GD.Print($"[sea] {s.Chr.Get("id")?.Value} sinks"); }
+            if (s.Dying)                                                  // the script has declared the ship dead (ShipDead): sink and remove it
+            {
+                s.SinkT += dt; s.Sail = 0f; s.Speed *= 0.97f;
+                s.Node.Position = new Vector3(s.X, -s.SinkT * 1.2f, -s.Z);
+                s.Node.Rotation = new Vector3(0.12f * s.SinkT, -s.Ay, 0.07f * s.SinkT);
+                if (s.SinkT > 9f) { s.Node.QueueFree(); ships.Remove(s); it.FireEvent("ShpDelete", new List<V> { V.Int(s.Index) }); }
+                continue;
+            }
             float maxZ = F(sh, "MaxSpeedZ"), maxY = F(sh, "MaxSpeedY");
             float turnIn = 0f;
             if (!s.IsPlayer) turnIn = Steer(s, sh);
@@ -526,6 +536,15 @@ public partial class SeaView : Node3D
         float newSail = !go || (!away && dist < standoff && s.Task != 1) ? 0f : 1f;
         if (newSail != s.Sail) { s.Sail = newSail; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         return Math.Clamp(diff * 2f, -1f, 1f);
+    }
+
+    /// <summary>Test hook: park the first other ship 80 m abeam (right) of the player and stop it.</summary>
+    public void Duel()
+    {
+        var p = ships.FirstOrDefault(s => s.IsPlayer); var o = ships.FirstOrDefault(s => !s.IsPlayer);
+        if (p == null || o == null) { GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return; }
+        o.X = p.X + MathF.Cos(p.Ay) * 80f; o.Z = p.Z - MathF.Sin(p.Ay) * 80f; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
+        GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
     }
 
     public void SailKey(int dir)

@@ -147,7 +147,7 @@ public partial class SeaView
             // ships
             foreach (var o in ships)
             {
-                if (o.Index == b.Owner || !InsideShip(o, b.P)) continue;
+                if (o.Index == b.Owner || o.Dying || !InsideShip(o, b.P)) continue;
                 SetBallType(b);
                 GD.Print($"[sea] hit on {o.Chr.Get("id")?.Value} (HP {F(o.Chr.Find("Ship", false), "HP"):0})");
                 it.FireEvent("Shp_HullHit", new List<V> { V.A(o.Chr), V.Int(b.Owner), V.Int(o.Index), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z), V.Int(-1), V.Float(99f) });

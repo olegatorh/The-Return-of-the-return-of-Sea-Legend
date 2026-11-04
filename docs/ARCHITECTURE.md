@@ -96,7 +96,11 @@ Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI
 * Controls (no engine control system yet): W/S sail up/down, A/D turn, arrows/PgUp/PgDn camera, Enter/Space = execute the HUD action (`g_ActiveActionName` → event `BI_FastCommand`:
   Moor/Board/Map...), M/1..4 → `Control Activation` (`BI_MapEnter`, `BI_Charge*`). Ship camera parameters come from the `SHIP_CAMERA` entity attributes.
 * Units: 1 unit = 1 m, engine heading `ay`: forward = (sin ay, cos ay) in (x, z); Godot z = -z, node yaw = -ay.
-* Missing: sea HUD (`battle_interface` 46xxx), other ships/AI (`AI_MESSAGE_SHIP_SET_TASK`...), cannons/balls, forts, island collisions, wake/foam, rocking, world map.
+* Ship AI (`SeaView.Steer`): per-ship tasks from `AI_MESSAGE_SHIP_SET_TASK` (move, attack = come alongside at ~110 m and fire broadsides, follow, runaway); group tasks are script-level.
+* Combat (`game/SeaCombat.cs`): LMB / `--fire@N` fires the broadside facing the camera; cannon positions = hull labels `cannonl/cannonr/cannonf/cannonb`, ammunition by event `CannLoad`, reload by `CannGRTime`,
+  ball speed `Ship.Cannons.SpeedV0` (ballistics g = 9.81), hits raise `Shp_HullHit` (damage is the script's), `Ball_WaterHit`, `Ball_IslandHit`. A ship whose `Ship.HP` reaches 0 sinks and is removed.
+  Beware: in `AI_MESSAGE_ADD_SHIP` the second argument is an entity, not the character index (use `chr.index`).
+* Missing: original battle_interface HUD (46xxx), forts (AIFort), boarding, sail/mast damage, wake/foam, rocking, balls splash/smoke visuals, map encounters.
 
 ## 6c. World map (`game/WorldMap.cs`, class `WorldMapView`)
 `Sea_MapLoad` (script) fades out, `Sea_MapEndFade` calls `wdmCreateMap` which creates the entity `worldmap`; the object `worldMap` holds all data (islands with `position.x/z`, `rx/rz`
