@@ -60,6 +60,21 @@ public partial class SeaView
         FireBort(p, bort, dist);
     }
 
+    /// <summary>
+    /// Test hook --fire: the broadside that faces the nearest other ship, aimed at its distance. The mouse rule above picks the side by the camera, which is a
+    /// coin flip while the camera sits straight behind the ship (that made the fight scenario fire at the empty side now and then).
+    /// </summary>
+    public void FireAtNearest()
+    {
+        if (ships.FirstOrDefault(s => s.IsPlayer) is not { } p) return;
+        var o = ships.Where(s => !ReferenceEquals(s, p) && !s.Dying).OrderBy(s => Dist(p, s)).FirstOrDefault();
+        if (o == null) { FirePlayer(); return; }
+        float rel = MathF.Atan2(o.X - p.X, o.Z - p.Z) - p.Ay;
+        while (rel > MathF.PI) rel -= MathF.Tau;
+        while (rel < -MathF.PI) rel += MathF.Tau;
+        FireBort(p, rel >= 0f ? "cannonr" : "cannonl", Dist(p, o));
+    }
+
     static float Dist(ShipRt a, ShipRt b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
 
     /// <summary>One broadside (or the bow / stern guns): every cannon of the bort that can be loaded fires with a small random delay.</summary>

@@ -705,6 +705,22 @@ public partial class Main : Node
         else if (frames < actRetryUntil) seaActions.Add(frames + 20);          // test hook: the offer is not there yet (zone not entered), ask again
     }
 
+    /// <summary>
+    /// Test hooks --seapos / --duel / --fire wait for the state they need (after a world map exit the sea loads at a varying frame): the frame is the earliest one,
+    /// the hook runs once the player's ship is at sea, a duel only after the teleports planned before it, a volley only after the duels planned before it.
+    /// </summary>
+    void SeaTestHooks()
+    {
+        if (seaTeleports.Count == 0 && seaDuels.Count == 0 && seaFires.Count == 0) return;
+        bool atSea = sea.HasPlayerShip && !worldMap.Active && locations.Count == 0;
+        foreach (var m in seaTeleports.ToArray())
+            if (frames >= m.frame && atSea) { sea.Teleport(m.x, m.z, m.ay); worldMap.Teleport(m.x, m.z, m.ay); seaTeleports.Remove(m); }
+        foreach (var f in seaDuels.ToArray())
+            if (frames >= f && atSea && !seaTeleports.Any(t => t.frame <= f) && (sea.Duel(frames < f + 600) || frames >= f + 600)) seaDuels.Remove(f);
+        foreach (var f in seaFires.ToArray())
+            if (frames >= f && atSea && !seaTeleports.Any(t => t.frame <= f) && !seaDuels.Any(d => d <= f)) { sea.FireAtNearest(); seaFires.Remove(f); }
+    }
+
     /// <summary>An interface screen is on display (the xinterface entity also exists, empty, while the sea HUD talks to it).</summary>
     bool UiOpen => view != null && view.GetChildCount() > 0;
 
@@ -778,8 +794,7 @@ public partial class Main : Node
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
-        foreach (var f in seaFires) if (f == frames) sea.FirePlayer();
-        foreach (var f in seaDuels) if (f == frames) sea.Duel();
+        SeaTestHooks();
         foreach (var (f, nm) in loadAt) if (f == frames)
         {
             host.It.SetHandler("evntLoad", "LoadGame", 1);
@@ -792,9 +807,7 @@ public partial class Main : Node
             host.It.PostEventInternal("evntSave", 0, new List<V> { V.Str("SAVE\\" + nm), V.Str(nm.Replace('_', ' ')) });
         }
         foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
-        foreach (var f in seaDuels) if (f == frames) sea.Duel();
         foreach (var m in mapTeleports.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt) { worldMap.Teleport(m.x, m.z, m.ay); mapTeleports.Remove(m); }
-        foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) { sea.Teleport(x, z, ay); worldMap.Teleport(x, z, ay); }
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);

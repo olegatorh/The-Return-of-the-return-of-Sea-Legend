@@ -54,6 +54,7 @@ public partial class SeaView : Node3D
     float situationTimer = 1f;
 
     public bool Active => ships.Count > 0 || island != null || it.Entities.Any(e => !e.Deleted && e.Class.Equals("sea_ai", StringComparison.OrdinalIgnoreCase));
+    public bool HasPlayerShip => ships.Any(s => s.IsPlayer);
     public Vector3 PlayerPosition => ships.FirstOrDefault(s => s.IsPlayer) is { } p ? new Vector3(p.X, 0, -p.Z) : Vector3.Zero;
 
     readonly SeaHud hud = new() { Name = "SeaHud" };
@@ -741,13 +742,15 @@ public partial class SeaView : Node3D
     /// <summary>Test hook: park the first other ship 80 m abeam (right) of the player and stop it.</summary>
     static readonly float DuelDist = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_DUELDIST"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dd) ? dd : 80f;
 
-    public void Duel()
+    /// <returns>false when there is no opponent (yet); <paramref name="quiet"/> = do not log that (the hook retries)</returns>
+    public bool Duel(bool quiet = false)
     {
         var p = ships.FirstOrDefault(s => s.IsPlayer); var o = ships.FirstOrDefault(s => !s.IsPlayer);
-        if (p == null || o == null) { GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return; }
+        if (p == null || o == null) { if (!quiet) GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return false; }
         o.X = p.X + MathF.Cos(p.Ay) * DuelDist; o.Z = p.Z - MathF.Sin(p.Ay) * DuelDist; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
         foreach (var x in ships) if (!x.IsPlayer && x != o) { x.X = p.X + 3000f; x.Z = p.Z + 3000f; x.Task = -1; x.Speed = 0f; }       // the rest of the squadron out of the way
         GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
+        return true;
     }
 
     /// <summary>What a ship can do to an enemy at the given distance in one volley (used by the script's AI to decide whether to attack): its side guns times the ball's hull damage.</summary>
