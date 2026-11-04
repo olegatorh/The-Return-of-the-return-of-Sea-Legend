@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **62 %**
 * Unit tests: **28** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **9596** lines of C# (`StormScript/` library + `game/`)
+* Port code: **9647** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -37,7 +37,7 @@ Layers (where the behaviour comes from):
 |---|---|---|---|---|---|
 | Core | Storm Script interpreter (lexer, parser, VM, events, attributes) | PORT | █████████░ 95 % | T | 28 unit tests + headless boot of 2520 functions without errors; semantics found by trial (docs/vm_semantics.md) |
 | Core | Original game logic (quests, dialogs, economy, AI templates, combat formulas) | SCRIPT | ██████████ 100 % | T | runs unchanged from addon/merged/PROGRAM; 12 known source defects tolerated |
-| Core | Save / load (OnSave/OnLoad, attribute snapshot) | PORT | ████████░░ 85 % | T | round-trip unit test + load in game; thumbnails missing |
+| Core | Save / load (OnSave/OnLoad, attribute snapshot) | PORT | ████████░░ 85 % | T | round-trip unit test + load in game |
 | Data | Textures .tx, geometry .gm, animation .an/.ani, patches .ptc, lighting .col, ini, texts | NATIVE | █████████░ 90 % | V | read from the original files; some .gm versions and effects unsupported |
 | Language | Ukrainian translation layer | PORT | ███████░░░ 70 % | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality) |
 | Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 85 % | V | compared with screenshots; no shadows or animated props |

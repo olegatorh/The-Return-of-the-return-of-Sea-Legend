@@ -25,6 +25,15 @@ public partial class Main : Node
     bool started;
     bool camPlaced;
     int frames;
+    Image? lastGameFrame;
+
+    Image? GrabFrame()
+    {
+        var img = GetViewport().GetTexture()?.GetImage();
+        if (img == null) return null;
+        img.Resize(256, 192, Image.Interpolation.Bilinear);
+        return img;
+    }
     string? shotPath;
     string? programArg;
     string language = "Ukrainian";
@@ -119,6 +128,7 @@ public partial class Main : Node
             {
                 host.It.CallTop("OnSave");              // the engine calls the script's OnSave() first (remembers where the player is, positions of people)
                 host.It.SaveState(SaveFiles.PathFor(name), host.LoadedSegments, "");
+                SaveFiles.WriteThumbnail(name, lastGameFrame ?? GrabFrame());
                 GD.Print("[save] saved " + name);
                 return true;
             }
@@ -551,6 +561,8 @@ public partial class Main : Node
         if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
         UpdateWorld((float)delta);
         host.It.Advance((int)(delta * 1000));
+        // keep a small copy of the last frame without an interface on top: it becomes the thumbnail of the next save
+        if (!UiOpen && dialogView == null && frames % 45 == 0) lastGameFrame = GrabFrame();
         view?.FillSaveStrings();
         host.It.FireEvent("frame");
         frames++;

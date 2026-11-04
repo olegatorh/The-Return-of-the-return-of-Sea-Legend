@@ -1,0 +1,7 @@
+Delete savefile confirm{Ви дійсно хочете видалити цей запис?}
+Overwrite savefile confirm{Ви дійсно хочете перезаписати цей запис?}
+Low storage and unable save create{Недостатньо місця на диску для створення нового запису.}
+Load game confirm{Ви дійсно хочете завантажити цей запис?}
+Unable to Load save game{Неможливо завантажити цей запис.}
+save game limit{Досягнуто ліміт збережень. Видаліть щось!}
+Salary info{Ваша команда вимагає виплати платні. Ви згодні?}

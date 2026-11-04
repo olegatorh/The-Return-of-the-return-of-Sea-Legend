@@ -108,7 +108,10 @@ public partial class ScrollImageView : Control
         int tex = (int)Conv.ParseFloatPrefix(pic.Find("tex" + k, false)?.Value);
         string? group = root.Get("ImagesGroup")?.ChildAt(tex)?.Value;
         if (string.IsNullOrEmpty(group)) return;
-        var t = Atlas.Get(group, img);
+        Texture2D? t = Atlas.Get(group, img);
+        // saves: a stored screenshot replaces the "corrupt save" picture
+        string? file = pic.Find("descr", false)?.Value;
+        if (k == "1" && img == "corruptsave" && !string.IsNullOrEmpty(file)) t = SaveFiles.ReadThumbnail(file) ?? t;
         if (t == null) return;
         cell.AddChild(new TextureRect { Texture = t, Size = new Vector2(itemW, itemH), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });
     }

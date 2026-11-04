@@ -31,7 +31,7 @@ public static class SaveFiles
 
     public static void Delete(string name)
     {
-        foreach (var ext in new[] { ".sdsave", ".desc" })
+        foreach (var ext in new[] { ".sdsave", ".desc", ".png" })
         {
             string p = Path.Combine(Dir, Clean(name) + ext);
             if (File.Exists(p)) File.Delete(p);
@@ -42,6 +42,20 @@ public static class SaveFiles
     {
         Directory.CreateDirectory(Dir);
         File.WriteAllText(Path.Combine(Dir, Clean(name) + ".desc"), text);
+    }
+
+    public static void WriteThumbnail(string name, Image? img)
+    {
+        if (img == null) return;
+        try { img.SavePng(Path.Combine(Dir, Clean(name) + ".png")); } catch (Exception e) { GD.PrintErr("[save] thumbnail: " + e.Message); }
+    }
+
+    public static Texture2D? ReadThumbnail(string name)
+    {
+        string p = Path.Combine(Dir, Clean(name) + ".png");
+        if (!File.Exists(p)) return null;
+        var img = Image.LoadFromFile(p);
+        return img == null ? null : ImageTexture.CreateFromImage(img);
     }
 
     public static string ReadDescription(string name)

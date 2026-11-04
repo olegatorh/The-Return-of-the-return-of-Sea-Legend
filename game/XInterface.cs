@@ -266,7 +266,7 @@ public partial class XView : Control
             order.Add((prio, idx++, type, name));
         }
 
-        foreach (var (_, _, type, name) in order.OrderBy(o => o.prio).ThenBy(o => o.idx))
+        foreach (var (prio, _, type, name) in order.OrderBy(o => o.prio).ThenBy(o => o.idx))
         {
             var sec = ini.Get(name);
             var def = defs.Get(type);
@@ -310,6 +310,7 @@ public partial class XView : Control
             };
             if (node == null) { Warn($"node type {type}"); continue; }
             node.Name = name;
+            if (prio >= 120) node.ZIndex = 10;      // modal layers (confirmation windows) sit above the script's strings, which are added later
             node.Visible = !hidden;
             nodes[name] = node;
             AddChild(node);
