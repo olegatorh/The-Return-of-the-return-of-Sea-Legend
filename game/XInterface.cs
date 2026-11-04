@@ -197,6 +197,19 @@ public partial class XView : Control
         float basePx = font.Equals("Dialog21", StringComparison.OrdinalIgnoreCase) ? 13f : font.Equals("Dialog2", StringComparison.OrdinalIgnoreCase) ? 24f : 26f;
         int px0 = font.Contains("small", StringComparison.OrdinalIgnoreCase) ? FontPx(font, scale) : Math.Max(8, (int)(basePx * 0.85f * scale));
         float room = align == 1 ? x + 40 : align == 2 ? 2 * Math.Min(x + 40, 680 - x) : 680 - x;
+        if (align == 2)       // a centred caption must not run under a button of its row
+        {
+            float half = room / 2;
+            foreach (var bt in nodes.Values.OfType<Button>().Where(b => b.Visible && b.Size.X > 4 && b.Text.Length > 0))
+            {
+                if (bt.Position.Y > y + 20 || bt.Position.Y + bt.Size.Y < y + 4) continue;
+                if (bt.Position.X > x) half = Math.Min(half, bt.Position.X - x - 2);
+                else if (bt.Position.X + bt.Size.X < x) half = Math.Min(half, x - bt.Position.X - bt.Size.X - 2);
+            }
+            room = Math.Max(60, 2 * half);
+            lab.AddThemeFontSizeOverride("font_size", Fit(lab, text, px0, room));
+        }
+        else
         lab.AddThemeFontSizeOverride("font_size", Fit(lab, text, px0, Math.Max(120, room)));
         lab.AddThemeColorOverride("font_color", new Color((argb >> 16 & 255) / 255f, (argb >> 8 & 255) / 255f, (argb & 255) / 255f, (argb >> 24) / 255f));
         lab.AddThemeColorOverride("font_outline_color", Colors.Black);
@@ -212,7 +225,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -334,7 +347,31 @@ public partial class XView : Control
                 cmds[name] = list;
             }
         }
+        AvoidButtons();
         GD.Print($"[xinterface] built {nodes.Count} nodes");
+    }
+
+    /// <summary>
+    /// The captions of string collections were laid out for the short English texts; a longer translation must not run under a button
+    /// to its right: shrink such a caption so it ends before the nearest visible button on its row.
+    /// </summary>
+    void AvoidButtons()
+    {
+        var buttons = nodes.Values.OfType<Button>().Where(b => b.Visible && b.Size.X > 4 && b.Size.Y > 4).ToList();
+        foreach (var lab in collectionLabels)
+        {
+            if (!GodotObject.IsInstanceValid(lab) || lab.Text.Length == 0 || lab.HasMeta("aligned")) continue;
+            float top = lab.Position.Y, bottom = top + 20, x = lab.Position.X;
+            float limit = float.MaxValue;
+            foreach (var b in buttons)
+            {
+                var r = new Rect2(b.Position, b.Size);
+                if (r.Position.X > x + 12 && r.Position.Y < bottom && r.End.Y > top + 4) limit = Math.Min(limit, r.Position.X - x - 4);
+            }
+            if (limit == float.MaxValue) continue;
+            int cur = lab.GetThemeFontSize("font_size");
+            lab.AddThemeFontSizeOverride("font_size", Fit(lab, lab.Text, cur, Math.Max(30, limit)));
+        }
     }
 
     Control MakePicture(Func<string, string?> P, float[] pos)
@@ -590,13 +627,28 @@ public partial class XView : Control
             var fc = Braced(line, "fc", 4);
             float scale = float.TryParse(BracedText(line, "scale"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1f;
             var lab = new Label { Text = Tr(key), Position = new Vector2(pos[0], pos[1] - 2), MouseFilter = MouseFilterEnum.Ignore, Name = "cs_" + key };
-            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(40, Math.Min(628 - pos[0], nextDx == float.MaxValue ? 628 - pos[0] : nextDx - (pos[1] < 0 ? 46f : 6f))));
+            // state:{..}: C / R in it = the position is the centre / the right end of the caption (S = visible)
+            string state = (BracedText(line, "state") ?? "").ToUpperInvariant();
+            bool right = state.Contains('R'), centre = !right && state.Contains('C');
+            float room = Math.Max(40, Math.Min(628 - pos[0], nextDx == float.MaxValue ? 628 - pos[0] : nextDx - (pos[1] < 0 ? 46f : 6f)));
+            if (right) room = Math.Max(60, pos[0] + 30);
+            else if (centre) room = Math.Max(60, 2 * Math.Min(pos[0] + 30, 658 - pos[0]));
+            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), room);
             lab.AddThemeFontSizeOverride("font_size", px);
+            if (right || centre)
+            {
+                const float W = 400;
+                lab.Size = new Vector2(W, 30);
+                lab.HorizontalAlignment = right ? HorizontalAlignment.Right : HorizontalAlignment.Center;
+                lab.Position = new Vector2(right ? pos[0] - W : pos[0] - W / 2, pos[1] - 2);
+                lab.SetMeta("aligned", true);
+            }
             lab.AddThemeColorOverride("font_color", new Color(fc[1] / 255f, fc[2] / 255f, fc[3] / 255f, fc[0] / 255f));
             lab.AddThemeColorOverride("font_outline_color", Colors.Black);
             lab.AddThemeConstantOverride("outline_size", 3);
             root.AddChild(lab);
             collectionStrings[key] = lab;
+            collectionLabels.Add(lab);
         }
         return root;
     }
@@ -633,6 +685,7 @@ public partial class XView : Control
     }
 
     readonly Dictionary<string, Label> collectionStrings = new(StringComparer.OrdinalIgnoreCase);
+    readonly List<Label> collectionLabels = new();
 
     Control MakeFourImages(string name, Func<string, string?> P)
     {
