@@ -187,4 +187,12 @@ public sealed class InterpreterTests : IDisposable
         Assert.Equal("0", Attr(h, "o", "c"));
         Assert.Equal("2", Attr(h, "o", "d"));
     }
+
+    [Fact]
+    public void ReferenceParameterPassedOnToAnotherCallStaysAReference()
+    {
+        // GenerateMapEncounter(.., ref e1) calls GenerateMapEncounter_Merchant(.., e1): the callee must write through to the original variable
+        var h = Run(@"int x; void Inner(ref r) { r = 5; } void Outer(ref r) { Inner(r); } void Test() { x = -1; Outer(&x); }");
+        Assert.Equal("5", Str(h, "x"));
+    }
 }

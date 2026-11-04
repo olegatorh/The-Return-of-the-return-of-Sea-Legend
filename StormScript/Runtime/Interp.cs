@@ -637,6 +637,11 @@ public sealed partial class Interp
         if (Funcs.TryGetValue(name, out var fd))
         {
             List<(int, Slot)>? outs = null;
+            // a "ref" variable that points at a caller's scalar (void f(ref x) { g(x); }) is handed on as the reference, not as its value
+            for (int i = 0; i < c.Args.Count && i < fd.Decl.Params.Count; i++)
+                if (c.Args[i] is IdentExpr rid && Conv.IsAttrType(fd.Decl.Params[i].Type) && !fd.Decl.Params[i].IsArray
+                    && FindSlot(rid.Name, f) is { Arr: null } rs && rs.Val.T == VT.Slot && rs.Val.Slot is { Arr: null })
+                    args[i] = rs.Val;
             for (int i = 0; i < c.Args.Count && i < fd.Decl.Params.Count; i++)
                 if (c.Args[i] is UnaryExpr { Op: "&", Operand: IdentExpr oid } && Conv.IsAttrType(fd.Decl.Params[i].Type) && !fd.Decl.Params[i].IsArray
                     && FindSlot(oid.Name, f) is { Arr: null } cs && Conv.IsAttrType(cs.Type))

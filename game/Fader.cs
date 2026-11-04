@@ -49,6 +49,7 @@ public partial class FaderView : TextureRect
             if (--holdFrames > 0) return;
             mode = Mode.None;
             fire("FaderEvent_EndFade");
+            if (autoDelete) { deleteEntity(); QueueFree(); }      // a fade-out with "delete" lives until its EndFade has been reported (sea -> map)
             return;
         }
         t += (float)delta;
@@ -59,6 +60,6 @@ public partial class FaderView : TextureRect
         mode = finished == Mode.Out ? Mode.Hold : Mode.None;
         holdFrames = 2;
         fire(finished == Mode.In ? "FaderEvent_EndFade" : "FaderEvent_StartFade");
-        if (autoDelete) { deleteEntity(); QueueFree(); }
+        if (autoDelete && finished == Mode.In) { deleteEntity(); QueueFree(); }
     }
 }

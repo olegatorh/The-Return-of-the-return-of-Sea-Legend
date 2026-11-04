@@ -85,6 +85,8 @@ public partial class Main : Node
         host = new ScriptHost(program);
         sea = new SeaView(host.It);
         AddChild(sea);
+        worldMap = new WorldMapView(host.It);
+        AddChild(worldMap);
         host.It.Language = new LanguageService(game, Path.Combine(portDir, "lang"), language);
         host.It.Log = s => GD.Print("[script] " + s);
         EngineStubs.Install(host.It);
@@ -128,7 +130,7 @@ public partial class Main : Node
             if (fader == null)
             {
                 var ent = e;
-                fader = new FaderView(n => host.It.FireEvent(n), () => host.It.DeleteEntity(ent.Root));
+                fader = new FaderView(n => host.It.FireEvent(n, new List<V> { V.Int(0), V.A(ent.Root) }), () => host.It.DeleteEntity(ent.Root));   // event data: (int, fader object)
                 AddChild(fader);
             }
             if (msg == 33003 || msg == 33004) fader.Texture = GameAssets.Texture(Conv.ToStr(d[1]));
@@ -230,12 +232,14 @@ public partial class Main : Node
             return cv.OnMessage(fmt, d);
         };
         sea.Register(host.It);
+        worldMap.Register(host.It);
         host.It.EntityHandlers["NPCharacter"] = chr;
         host.It.EntityHandlers["Character"] = chr;
         host.It.EntityHandlers["Player"] = chr;
         host.It.EntityDeleted = e =>
         {
             sea.OnEntityDeleted(e);
+            worldMap.OnEntityDeleted(e);
             if (view != null && ReferenceEquals(view.Ent, e)) { view.QueueFree(); view = null; }
             if (e.Class == "fader" && fader != null) { fader.QueueFree(); fader = null; }
             if (dialogView != null && ReferenceEquals(dialogView.Ent, e)) { dialogView.QueueFree(); dialogView = null; host.It.TimeScale = 1f; }   // the dialog class restores the game speed when it dies
@@ -313,6 +317,11 @@ public partial class Main : Node
         }
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.W or Key.S } sk && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
             sea.SailKey(sk.Keycode == Key.W ? 1 : -1);
+        if (e is InputEventKey { Pressed: true, Echo: false } mk && worldMap.Active && locations.Count == 0 && dialogView == null && !UiOpen)
+        {
+            if (mk.Keycode is Key.W or Key.S) worldMap.SailKey(mk.Keycode == Key.W ? 1 : -1);
+            if (mk.Keycode is Key.Enter or Key.KpEnter or Key.Space) worldMap.Enter();
+        }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
             string? ctl = sk2.Keycode switch { Key.M => "BI_MapEnter", Key.Key1 => "BI_ChargeCannonballs", Key.Key2 => "BI_ChargeGrapes", Key.Key3 => "BI_ChargeKnippels", Key.Key4 => "BI_ChargeBombs", _ => null };
@@ -341,6 +350,7 @@ public partial class Main : Node
     // ------------------------------------------------------------------ engine loop for characters and the camera
     OutdoorEnv outdoor = null!;
     SeaView sea = null!;
+    WorldMapView worldMap = null!;
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
     Vector3 camToPos;
     float camYaw, camPitch = 0.38f, camDist = 3.6f;
@@ -397,6 +407,15 @@ public partial class Main : Node
             host.It.FireEvent("CharactersStateUpdate", new List<V> { V.Float(dt) });
             foreach (var c in list)
                 if (c.Placed) host.It.FireEvent("CharacterUpdate", new List<V> { V.A(c.Ent.Root), V.Float(dt) });
+        }
+
+        // world map
+        if (worldMap.Active && locations.Count == 0)
+        {
+            worldMap.TestTurn = 0f;
+            foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1) worldMap.TestTurn = dir.X;
+            worldMap.Tick(dt, dialogView == null && !UiOpen);
+            return;
         }
 
         // sea mode: the ship camera replaces the location camera
@@ -466,6 +485,7 @@ public partial class Main : Node
     /// <summary>Executes the sea action the HUD offers (Moor / Board / LandTroops / Map ...): the engine's battle interface raised "BI_FastCommand" with its name.</summary>
     void SeaAction()
     {
+        if (worldMap.Active) { worldMap.Enter(); return; }
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
         GD.Print("[sea] action: " + act);
         if (act.Length > 0 && act != "Nothing") host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) });
@@ -522,7 +542,7 @@ public partial class Main : Node
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var f in seaActions) if (f == frames) SeaAction();
-        foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) sea.Teleport(x, z, ay);
+        foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) { sea.Teleport(x, z, ay); worldMap.Teleport(x, z, ay); }
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);

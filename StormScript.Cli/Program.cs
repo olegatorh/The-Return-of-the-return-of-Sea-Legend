@@ -13,7 +13,18 @@ if (args[0] == "materials")   // ssc materials <file.gm>: materials (group/name/
 {
     var gm = StormScript.Formats.GmFile.Parse(File.ReadAllBytes(args[1]));
     foreach (var m in gm.Materials) Console.WriteLine($"material {m.Group}/{m.Name} tex=[{string.Join(",", m.Textures.Select(t => t ?? "-"))}]");
-    foreach (var o in gm.Objects) Console.WriteLine($"object {o.Name} material={o.Material}");
+    foreach (var o in gm.Objects)
+    {
+        var m = gm.ExtractObject(o);
+        string b = "";
+        if (m != null && m.Pos.Length >= 3)
+        {
+            float x0 = float.MaxValue, y0 = x0, z0 = x0, x1 = float.MinValue, y1 = x1, z1 = x1;
+            for (int i = 0; i + 2 < m.Pos.Length; i += 3) { x0 = Math.Min(x0, m.Pos[i]); x1 = Math.Max(x1, m.Pos[i]); y0 = Math.Min(y0, m.Pos[i + 1]); y1 = Math.Max(y1, m.Pos[i + 1]); z0 = Math.Min(z0, m.Pos[i + 2]); z1 = Math.Max(z1, m.Pos[i + 2]); }
+            b = $" bounds=({x0:0.#},{y0:0.#},{z0:0.#})..({x1:0.#},{y1:0.#},{z1:0.#})";
+        }
+        Console.WriteLine($"object {o.Name} material={o.Material}{b}");
+    }
     return 0;
 }
 if (args[0] == "labels")      // ssc labels <file.gm>: list the locator labels of a geometry file

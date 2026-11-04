@@ -6,7 +6,7 @@ Legend: effort S (hours) / M (a day) / L (days+). "Hint" says where to start.
 1. **Sea mode (L) — basics DONE** (own ship, sails, island, camera, mooring back; see ARCHITECTURE 6b). Still to do: HUD, other ships + AI, cannons/balls, forts, island collision, wake, sea sounds, storms. Original item: — `Ship`, `Island`, `Sail`, `Rope`, `Flag`, `Vant`, `SEA_CAMERAS`, `sea_ai`, `AIFort`, `AIBalls`, `battle_interface`, `ispyglass`.
    Hint: scripts `PROGRAM/SEA_AI`, `Ships/`, `BATTLE_INTERFACE`; entry `ReloadToSea` in `reload.c`; `sea` entity already renders a plane (`OutdoorEnv.cs`).
    The hero currently has no ship at the start; ships come from the shipyard (`LaunchShipyard`, needs gold) or quests.
-2. **World map (L)** — class `worldmap` (`PROGRAM/WorldMap`); `wdm*` script functions.
+2. **World map (L) — basics DONE** (`game/WorldMap.cs`: map model, ship with A/D/W/S, island zones, date, ExitFromWorldMap; sea -> map -> sea round trip). To do: map encounters (ships/storms: `MSG_WORLDMAP_CREATE*`), weather/sky, enemy ships, speed/time balance, fog of unknown locations. Original item: — class `worldmap` (`PROGRAM/WorldMap`); `wdm*` script functions.
 3. **Combat (M, basic version DONE)** — melee works end to end: `CharactersGroups` (`game/Groups.cs`: relations, alarm, GetTrg/IsEnemy/Attack/AddTarget),
    NPCs in task `Fight` path-find over the walk patch (`PtcFile.FindPath`), swing in reach, raise `Location_CharacterAttack(attack, enemy, 1, 1)`; the script computes
    damage, death (`Dead` task) and game over (back to the main menu). Player: key **F** draws the sword, left mouse button attacks the nearest person in reach (2.2 m).

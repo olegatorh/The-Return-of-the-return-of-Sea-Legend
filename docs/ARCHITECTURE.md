@@ -98,6 +98,14 @@ Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI
 * Units: 1 unit = 1 m, engine heading `ay`: forward = (sin ay, cos ay) in (x, z); Godot z = -z, node yaw = -ay.
 * Missing: sea HUD (`battle_interface` 46xxx), other ships/AI (`AI_MESSAGE_SHIP_SET_TASK`...), cannons/balls, forts, island collisions, wake/foam, rocking, world map.
 
+## 6c. World map (`game/WorldMap.cs`, class `WorldMapView`)
+`Sea_MapLoad` (script) fades out, `Sea_MapEndFade` calls `wdmCreateMap` which creates the entity `worldmap`; the object `worldMap` holds all data (islands with `position.x/z`, `rx/rz`
+(reference point used for sea coordinates), `radius` (zone), locations with `modelName` (`MODELS\WorldMap\<name>.gm`), labels, `date.*`, `playerShipX/Z/AY`).
+The port builds the scene (`Islands.gm`, sea texture, markers, labels, `ship.gm`) on the first frame, moves the ship, runs the clock (`date.hourPerSec` hours per second, events
+`WorldMap_UpdateDate`, `NextDay`), reports island zones (`WorldMap_inside_islandzone`/`outside_islandzone`) and asks the script for encounters every 0.5 s (`WorldMap_EncounterCreate`).
+Enter/Space raises `ExitFromWorldMap` -> `wdmReloadToSea` -> `SeaLogin` with the ship placed relative to the island (`(shipPos - island.rx/rz) * 19.6`).
+The first visit starts a scripted tutorial scene (deck location `qdeck`) - that is the game, not a bug. The fader entity's events carry data `(int, fader)` (`WdmEndFade` reads it).
+
 ## 7. Pitfalls found the hard way (read before debugging)
 1. **`ClearEvents()` must keep `#event_handler` registrations** — otherwise AI templates silently die after "new game".
 2. The dialog class restores `TimeScale` to 1 when it is deleted; the script only sets 0.

@@ -399,7 +399,7 @@ public partial class SeaView : Node3D
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
             if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
-            if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); } }
+            if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); ReportSeaState(); } }
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
@@ -458,6 +458,16 @@ public partial class SeaView : Node3D
     public void Teleport(float x, float z, float ay)
     {
         if (ships.FirstOrDefault(s => s.IsPlayer) is { } p) { p.X = x; p.Z = z; p.Ay = ay; p.Speed = 0f; Publish(p); }
+    }
+
+    /// <summary>
+    /// What the engine's battle interface reports to the script every second (BI_SetSeaState): sail-to possible, ?, map exit possible, attack / defend orders,
+    /// reload (cargo transfer) possible, its target. The map can be entered anywhere but in a port's mooring zone (the script also forbids it near enemies and in storms).
+    /// </summary>
+    void ReportSeaState()
+    {
+        bool canMoor = it.Globals.TryGetValue("bCanEnterToLand", out var g) && Conv.ToInt(g.Val) != 0;
+        it.FireEvent("BI_SetSeaState", new List<V> { V.Int(0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(0), V.Int(0), V.Int(0), V.Int(-1) });
     }
 
     public void SailKey(int dir)

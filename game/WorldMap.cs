@@ -1,0 +1,317 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Godot;
+using StormScript.Formats;
+using StormScript.Runtime;
+
+namespace SeaDogs;
+
+/// <summary>
+/// The world map ("worldmap" engine class): the Caribbean as a flat map with the player's ship, island zones and town/fort markers. The script owns the data
+/// (worldMap.islands.*, worldMap.date.*, worldMap.playerShip*, wdmCurrentIsland); the engine moves the ship, runs the date, tells the script which island zone the ship
+/// is in (WorldMap_inside_islandzone / outside_islandzone), asks it for encounters (WorldMap_EncounterCreate) and raises ExitFromWorldMap to go back to the sea.
+/// Map units = script units; Godot z = -z like everywhere else.
+/// </summary>
+public partial class WorldMapView : Node3D
+{
+    readonly Interp it;
+    public readonly Camera3D Cam = new() { Far = 20000f, Near = 1f, Fov = 55f, Name = "MapCamera" };
+    Entity? ent;
+    Node3D? scene, shipNode;
+    bool built;
+    float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camPitch = 0.95f, camDist = 190f;
+    string inside = "";
+    float encTimer, dateTimer;
+    double secOfDay;
+    readonly WorldHud hud = new() { Name = "MapHud" };
+
+    /// <summary>The world map exists as soon as the script has created the entity (it sends no message to it first).</summary>
+    public bool Active
+    {
+        get
+        {
+            if (ent is { Deleted: true }) Clear();
+            if (ent == null && it.Entities.FirstOrDefault(e => !e.Deleted && e.Class.Equals("worldmap", StringComparison.OrdinalIgnoreCase)) is { } found) { ent = found; built = false; }
+            return ent != null;
+        }
+    }
+
+    public WorldMapView(Interp interp)
+    {
+        it = interp;
+        Name = "WorldMapView";
+        AddChild(Cam);
+        AddChild(hud);
+    }
+
+    public void Register(Interp i)
+    {
+        i.EntityHandlers["worldmap"] = (e, fmt, d) =>
+        {
+            if (ent == null || !ReferenceEquals(ent, e)) { Clear(); ent = e; built = false; }
+            // MSG_WORLDMAP_CREATE*: encounters are not simulated yet
+            return V.Int(0);
+        };
+    }
+
+    public void OnEntityDeleted(Entity e)
+    {
+        if (ent != null && ReferenceEquals(ent, e)) Clear();
+    }
+
+    void Clear()
+    {
+        scene?.QueueFree(); scene = null; shipNode = null; ent = null; built = false; inside = "";
+        Cam.Current = false;
+        hud.Set(false, "", 0, 0);
+    }
+
+    static float F(Attr? a, string path, float def = 0f) => a?.Find(path, false)?.Value is { } v && v.Length > 0 ? Conv.ParseFloatPrefix(v) : def;
+    static void SetF(Attr a, string path, float v) => a.Find(path, true)!.Value = Conv.FloatToConcat(v);
+
+    Attr? Root => ent?.Root;
+
+    // ------------------------------------------------------------------ scene
+    void Build()
+    {
+        built = true;
+        scene = new Node3D { Name = "MapScene" };
+        AddChild(scene);
+        var root = Root!;
+
+        // water
+        var seaTex = GameAssets.Texture("WorldMap\\Sea\\sea.tga");
+        var seaMat = new StandardMaterial3D
+        {
+            AlbedoTexture = seaTex, Uv1Scale = new Vector3(40, 40, 1), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps, AlbedoColor = new Color(0.8f, 0.9f, 1f),
+        };
+        scene.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(6000, 6000) }, MaterialOverride = seaMat, Name = "MapSea", Position = new Vector3(0, -0.5f, 0) });
+
+        // land
+        string islands = GameAssets.Resource("MODELS\\WorldMap\\Islands.gm");
+        if (File.Exists(islands))
+            scene.AddChild(ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(islands)), "Islands", "WorldMap\\geometry", null));
+
+        // towns, forts, bays; island names
+        var isls = root.Get("islands");
+        int placed = 0;
+        if (isls != null)
+            foreach (var isl in isls.Children)
+            {
+                var label = isl.Get("label");
+                if (label?.Get("text")?.Value is { Length: > 0 } txt && label.Get("visible")?.Value != "false")
+                    scene.AddChild(MakeLabel(txt, new Vector3(F(isl, "position.x"), 60f, -F(isl, "position.z")), 34f, new Color(1f, 0.92f, 0.6f)));
+                var locs = isl.Get("locations");
+                if (locs == null) continue;
+                foreach (var loc in locs.Children)
+                {
+                    if (loc.Get("visible")?.Value == "false") continue;
+                    string mn = loc.Get("modelName")?.Value ?? "";
+                    var pos = new Vector3(F(loc, "position.x"), Math.Max(2f, F(loc, "position.y")), -F(loc, "position.z"));
+                    if (mn.Length > 0)
+                    {
+                        string f = GameAssets.Resource("MODELS\\WorldMap\\" + mn + ".gm");
+                        if (File.Exists(f))
+                        {
+                            var m = ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(f)), mn, "WorldMap\\geometry", null);
+                            m.Position = pos; m.Rotation = new Vector3(0, -F(loc, "position.ay"), 0);
+                            scene.AddChild(m); placed++;
+                        }
+                    }
+                    if (loc.Get("label")?.Get("text")?.Value is { Length: > 0 } lt && loc.Get("label")?.Get("visible")?.Value != "false")
+                        scene.AddChild(MakeLabel(lt, pos + new Vector3(0, 14, 0), 14f, new Color(1f, 1f, 1f)));
+                }
+            }
+
+        // the player's ship
+        string shipFile = GameAssets.Resource("MODELS\\WorldMap\\ship.gm");
+        shipNode = File.Exists(shipFile) ? ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(shipFile)), "PlayerShip", "WorldMap\\geometry", null) : new Node3D();
+        scene.AddChild(shipNode);
+
+        // starting position: the island the player sailed from (curIslandId) + displacement, or the saved map position
+        var pc = it.CallTop("GetMainCharacter").Attr;
+        string curIsland = pc?.Get("curIslandId")?.Value ?? "";
+        float dx = F(root, "playerShipDispX"), dz = F(root, "playerShipDispZ");
+        if (curIsland.Length > 0 && isls?.Get(curIsland) is { } ci) { shipX = F(ci, "position.rx") + dx; shipZ = F(ci, "position.rz") + dz; }
+        else if (pc?.Find("WMShip.Pos.x", false) != null) { shipX = F(pc, "WMShip.Pos.x"); shipZ = F(pc, "WMShip.Pos.z"); }
+        else { shipX = dx; shipZ = dz; }
+        shipAy = F(root, "playerShipAY");
+        secOfDay = F(root, "date.hour") * 3600 + F(root, "date.min") * 60 + F(root, "date.sec");
+        PublishShip(true);
+        GD.Print($"[map] world map built: {isls?.Count} islands, {placed} markers; ship at ({shipX:0},{shipZ:0}) ay={shipAy:0.00}, from island '{curIsland}', date {F(root, "date.day"):0}.{F(root, "date.month"):0}.{F(root, "date.year"):0}");
+    }
+
+    static Label3D MakeLabel(string text, Vector3 pos, float size, Color c) => new()
+    {
+        Text = text, Position = pos, Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, PixelSize = size / 140f, FontSize = 64, OutlineSize = 14,
+        Modulate = c, OutlineModulate = Colors.Black, NoDepthTest = true, FixedSize = false, Name = "Label",
+    };
+
+    void PublishShip(bool force = false)
+    {
+        var root = Root!;
+        SetF(root, "playerShipX", shipX); SetF(root, "playerShipZ", shipZ); SetF(root, "playerShipAY", shipAy);
+        if (shipNode != null) { shipNode.Position = new Vector3(shipX, 0.5f, -shipZ); shipNode.Rotation = new Vector3(0, -shipAy, 0); }
+    }
+
+    // ------------------------------------------------------------------ per frame
+    public float TestTurn;
+
+    public void Tick(float dt, bool input)
+    {
+        if (!Active) return;
+        if (!built) Build();
+        if (!built) return;
+        var root = Root!;
+
+        float turn = TestTurn;
+        if (input)
+        {
+            if (Godot.Input.IsKeyPressed(Key.A)) turn -= 1f;
+            if (Godot.Input.IsKeyPressed(Key.D)) turn += 1f;
+            if (Godot.Input.IsKeyPressed(Key.Left)) camYawOff += 1.2f * dt;
+            if (Godot.Input.IsKeyPressed(Key.Right)) camYawOff -= 1.2f * dt;
+            if (Godot.Input.IsKeyPressed(Key.Up)) camPitch = Math.Clamp(camPitch + 0.7f * dt, 0.25f, 1.45f);
+            if (Godot.Input.IsKeyPressed(Key.Down)) camPitch = Math.Clamp(camPitch - 0.7f * dt, 0.25f, 1.45f);
+            if (Godot.Input.IsKeyPressed(Key.Pageup)) camDist = Math.Max(60f, camDist - 120f * dt);
+            if (Godot.Input.IsKeyPressed(Key.Pagedown)) camDist = Math.Min(900f, camDist + 120f * dt);
+        }
+        if (SeaSpeedRate() is var rate && dt > 0f)
+        {
+            shipAy += turn * 0.55f * dt;
+            float speed = rate * 0.7f * sail;
+            shipX += MathF.Sin(shipAy) * speed * dt; shipZ += MathF.Cos(shipAy) * speed * dt;
+        }
+        PublishShip();
+        UpdateDate(dt);
+        UpdateZones();
+
+        // encounters / storms: the script decides (wdmEvent_EncounterCreate); the engine gives it the elapsed time and the ship position
+        encTimer += dt;
+        if (encTimer >= 0.5f)
+        {
+            it.FireEvent("WorldMap_EncounterCreate", new List<V> { V.Float(encTimer), V.Float(shipX), V.Float(shipZ), V.Float(shipAy) });
+            encTimer = 0f;
+        }
+
+        // camera: behind and above the ship
+        float yaw = shipAy + camYawOff;
+        var target = new Vector3(shipX, 0f, -shipZ);
+        var off = new Vector3(-MathF.Sin(yaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(yaw) * MathF.Cos(camPitch)) * camDist;
+        Cam.GlobalPosition = target + off;
+        Cam.LookAt(target);
+        Cam.Current = true;
+        hud.Set(true, DateText(root), shipAy, sail);
+    }
+
+    float SeaSpeedRate()
+    {
+        var pc = it.CallTop("GetMainCharacter");
+        return pc.Attr != null ? Math.Max(4f, Conv.ToFloat(it.CallTop("GetCharacterShipSpeedRate", pc))) : 12f;
+    }
+
+    public void SailKey(int dir) => sail = Math.Clamp(sail + 0.5f * dir, 0f, 1f);
+
+    string DateText(Attr root)
+    {
+        int day = (int)F(root, "date.day"), mon = (int)F(root, "date.month"), yr = (int)F(root, "date.year");
+        string[] months = { "січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня" };
+        int h = (int)F(root, "date.hour"), m = (int)F(root, "date.min");
+        string isl = inside.Length > 0 && Root?.Find("islands." + inside + ".label.text", false)?.Value is { } t ? $"\n{t}" : "";
+        return $"{day} {months[Math.Clamp(mon - 1, 0, 11)]} {yr}, {h:00}:{m:00}{isl}";
+    }
+
+    /// <summary>The map clock: worldMap.date.hourPerSec game hours per second (set by the script from the slowest ship); the script is told with WorldMap_UpdateDate and NextDay.</summary>
+    void UpdateDate(float dt)
+    {
+        var root = Root!;
+        float hps = F(root, "date.hourPerSec", 4f);
+        secOfDay += dt * hps * 3600.0;
+        bool nextDay = false;
+        while (secOfDay >= 86400.0) { secOfDay -= 86400.0; nextDay = true; AdvanceDay(root); }
+        root.Find("date.hour", true)!.Value = ((int)(secOfDay / 3600)).ToString();
+        root.Find("date.min", true)!.Value = ((int)(secOfDay % 3600 / 60)).ToString();
+        root.Find("date.sec", true)!.Value = ((int)(secOfDay % 60)).ToString();
+        dateTimer += dt;
+        if (nextDay || dateTimer >= 0.25f)
+        {
+            dateTimer = 0f;
+            it.FireEvent("WorldMap_UpdateDate", new List<V> { V.Float((float)(secOfDay / 3600.0)) });
+            if (nextDay) it.FireEvent("NextDay");
+        }
+    }
+
+    static void AdvanceDay(Attr root)
+    {
+        int day = (int)F(root, "date.day") + 1, mon = (int)F(root, "date.month"), yr = (int)F(root, "date.year");
+        int[] dim = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+        int len = dim[Math.Clamp(mon - 1, 0, 11)] + (mon == 2 && yr % 4 == 0 ? 1 : 0);
+        if (day > len) { day = 1; mon++; }
+        if (mon > 12) { mon = 1; yr++; }
+        root.Find("date.day", true)!.Value = day.ToString(); root.Find("date.month", true)!.Value = mon.ToString(); root.Find("date.year", true)!.Value = yr.ToString();
+    }
+
+    /// <summary>Island zones: the script learns which island the ship is over (wdmCurrentIsland) and may then leave the map to that island.</summary>
+    void UpdateZones()
+    {
+        string now = "";
+        float best = float.MaxValue;
+        if (Root?.Get("islands") is { } isls)
+            foreach (var isl in isls.Children)
+            {
+                float r = F(isl, "radius", 0f);
+                if (r <= 0f) continue;
+                float dx = shipX - F(isl, "position.rx"), dz = shipZ - F(isl, "position.rz");
+                float d = MathF.Sqrt(dx * dx + dz * dz);
+                if (d < r && d < best) { best = d; now = isl.Name; }
+            }
+        if (now == inside) return;
+        if (inside.Length > 0) it.FireEvent("WorldMap_outside_islandzone", new List<V> { V.Str(inside) });
+        inside = now;
+        if (now.Length > 0) { GD.Print("[map] entered the zone of " + now); it.FireEvent("WorldMap_inside_islandzone", new List<V> { V.Str(now) }); }
+    }
+
+    /// <summary>Enter / Space: leave the map to the sea (at the island when the ship is in its zone).</summary>
+    public void Enter()
+    {
+        GD.Print("[map] exit to sea" + (inside.Length > 0 ? " at " + inside : " (open sea)"));
+        it.FireEvent("ExitFromWorldMap");
+    }
+
+    public void Teleport(float x, float z, float ay) { shipX = x; shipZ = z; shipAy = ay; if (built) PublishShip(); }
+}
+
+/// <summary>Date, heading and sail state of the map.</summary>
+public partial class WorldHud : CanvasLayer
+{
+    readonly Label text = new();
+    readonly Label help = new();
+
+    public WorldHud()
+    {
+        Layer = 5;
+        var panel = new PanelContainer { Position = new Vector2(12, 12) };
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0.5f), ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 6, ContentMarginBottom = 6 });
+        text.AddThemeFontSizeOverride("font_size", 16);
+        text.AddThemeColorOverride("font_color", new Color(1f, 0.95f, 0.8f));
+        panel.AddChild(text);
+        AddChild(panel);
+        help.AddThemeFontSizeOverride("font_size", 14);
+        help.AddThemeColorOverride("font_color", new Color(1, 1, 1, 0.8f));
+        help.Position = new Vector2(12, 0); help.AnchorTop = 1f; help.AnchorBottom = 1f; help.OffsetTop = -34; help.OffsetBottom = -8;
+        help.Text = "A/D — поворот   W/S — вітрила   ←→↑↓ PgUp/PgDn — камера   Enter — зайти на острів / в море";
+        AddChild(help);
+        Visible = false;
+    }
+
+    public void Set(bool on, string date, float heading, float sail)
+    {
+        Visible = on;
+        if (!on) return;
+        int deg = ((int)Math.Round(heading * 180f / MathF.PI) % 360 + 360) % 360;
+        text.Text = $"Карта світу\n{date}\nКурс {deg}°   Вітрила: {(sail >= 0.99f ? "повні" : sail >= 0.4f ? "половина" : "згорнуті")}";
+    }
+}
