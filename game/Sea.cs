@@ -17,7 +17,7 @@ namespace SeaDogs;
 public partial class SeaView : Node3D
 {
     // ---- message ids (SEA_AI/Script_Defines.h, messages.h)
-    const int AI_ADD_SHIP = 51001, AI_GROUP_XYZ_AY = 51010, AI_GROUP_COMMANDER = 51022, AI_UNLOAD = 51025, AI_SHIP_SAIL_STATE = 51021;
+    const int AI_SHIP_SET_TASK = 51011, AI_ADD_SHIP = 51001, AI_GROUP_XYZ_AY = 51010, AI_GROUP_COMMANDER = 51022, AI_UNLOAD = 51025, AI_SHIP_SAIL_STATE = 51021;
     const int ISLAND_LOAD_GEO = 50100, ISLAND_SET_GEO = 50101;
 
     sealed class ShipRt
@@ -30,6 +30,9 @@ public partial class SeaView : Node3D
         public float X, Z, Ay;
         public float ParamTimer;
         public bool IsPlayer, Aground;
+        public int Task = -1;                 // AITASK_*: 0 drift, 1 attack, 2 follow, 3 defend, 6 runaway, 7 move
+        public Attr? TaskTarget;
+        public float TaskX, TaskZ;
         public float Length = 30f, Height = 12f;
         public List<Node3D> Sails = new();
     }
@@ -159,6 +162,16 @@ public partial class SeaView : Node3D
             {
                 int idx = Conv.ToInt(d.Length > 1 ? d[1] : V.Int(-1));
                 if (ships.FirstOrDefault(s => s.Index == idx) is { } sh) sh.Sail = Math.Clamp(Fl(2), 0f, 1f);
+                return V.Int(1);
+            }
+            case AI_SHIP_SET_TASK:                                                        // "lllaff" / "lllaa": task, priority, character, (x, z | target character)
+            {
+                if (d.Length > 3 && d[3].Attr is { } who && ships.FirstOrDefault(s => ReferenceEquals(s.Chr, who)) is { } sh)
+                {
+                    sh.Task = Conv.ToInt(d[1]); sh.TaskTarget = null;
+                    if (d.Length > 5 && d[4].T != VT.Attr) { sh.TaskX = Fl(4); sh.TaskZ = Fl(5); }
+                    else if (d.Length > 4) sh.TaskTarget = d[4].Attr;
+                }
                 return V.Int(1);
             }
             case AI_UNLOAD: Clear(); return V.Int(1);
@@ -391,6 +404,7 @@ public partial class SeaView : Node3D
             if (sh == null) continue;
             float maxZ = F(sh, "MaxSpeedZ"), maxY = F(sh, "MaxSpeedY");
             float turnIn = 0f;
+            if (!s.IsPlayer) turnIn = Steer(s, sh);
             if (s.IsPlayer && inputEnabled)
             {
                 if (Godot.Input.IsKeyPressed(Key.A)) turnIn -= 1f;
@@ -482,6 +496,31 @@ public partial class SeaView : Node3D
     {
         bool canMoor = it.Globals.TryGetValue("bCanEnterToLand", out var g) && Conv.ToInt(g.Val) != 0;
         it.FireEvent("BI_SetSeaState", new List<V> { V.Int(0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(0), V.Int(0), V.Int(0), V.Int(-1) });
+    }
+
+    /// <summary>Very small ship AI: head for the task position / target, keep a broadside distance when attacking, run away from the player.</summary>
+    float Steer(ShipRt s, Attr sh)
+    {
+        float tx = s.X, tz = s.Z;
+        ShipRt? tgt = s.TaskTarget != null ? ships.FirstOrDefault(o => ReferenceEquals(o.Chr, s.TaskTarget)) : null;
+        bool go = true, away = false; float standoff = 0f;
+        switch (s.Task)
+        {
+            case 7: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 60f; } else { tx = s.TaskX; tz = s.TaskZ; standoff = 40f; } break;
+            case 1: case 2: case 3: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = s.Task == 1 ? 110f : 70f; } else go = false; break;
+            case 6: var pl = ships.FirstOrDefault(o => o.IsPlayer); if (pl != null) { tx = pl.X; tz = pl.Z; away = true; } else go = false; break;
+            default: go = false; break;
+        }
+        float dx = tx - s.X, dz = tz - s.Z, dist = MathF.Sqrt(dx * dx + dz * dz);
+        float want = MathF.Atan2(dx, dz);
+        if (away) want += MathF.PI;
+        else if (s.Task == 1 && dist < standoff * 2f) want += MathF.PI / 2f * (MathF.Sin(want - s.Ay) >= 0 ? -1f : 1f);     // come alongside
+        float diff = want - s.Ay;
+        while (diff > MathF.PI) diff -= MathF.Tau;
+        while (diff < -MathF.PI) diff += MathF.Tau;
+        float newSail = !go || (!away && dist < standoff && s.Task != 1) ? 0f : 1f;
+        if (newSail != s.Sail) { s.Sail = newSail; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
+        return Math.Clamp(diff * 2f, -1f, 1f);
     }
 
     public void SailKey(int dir)
