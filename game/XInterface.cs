@@ -74,10 +74,25 @@ public partial class XView : Control
                 return V.Int(0);
             case 45045: NodeMessage(S(1), Conv.ToInt(d[2]), d.Length > 4 ? S(4) : S(3)); return V.Int(0);   // MSG_TO_NODE
             case 45013:                                                    // PLACE_IMAGE: node, ?, x1, y1, x2, y2
-                if (nodes.TryGetValue(S(1), out var pn) && d.Length >= 7)
+                if (d.Length >= 7)
                 {
-                    pn.Position = new Vector2(Conv.ToInt(d[3]), Conv.ToInt(d[4]));
-                    pn.Size = new Vector2(Conv.ToInt(d[5]) - Conv.ToInt(d[3]), Conv.ToInt(d[6]) - Conv.ToInt(d[4]));
+                    Control? pn = null;
+                    if (!nodes.TryGetValue(S(1), out pn))
+                    {
+                        // the script's own images: GameInterface.pictures.<name>.{tex,pic} (check marks of the option screens ...)
+                        if (!dynImages.TryGetValue(S(1), out var di))
+                        {
+                            di = new TextureRect { Name = "img_" + S(1), MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, ZIndex = 20 };
+                            dynImages[S(1)] = di; AddChild(di);
+                        }
+                        string tex = Ent.Root.Find("pictures." + S(1) + ".tex", false)?.Value ?? "", pic = Ent.Root.Find("pictures." + S(1) + ".pic", false)?.Value ?? "";
+                        di.Texture = Atlas.Get(tex, pic);
+                        pn = di;
+                    }
+                    int x1 = Conv.ToInt(d[3]), y1 = Conv.ToInt(d[4]), x2 = Conv.ToInt(d[5]), y2 = Conv.ToInt(d[6]);
+                    pn.Visible = x2 > x1 && y2 > y1;
+                    pn.Position = new Vector2(x1, y1);
+                    pn.Size = new Vector2(Math.Max(0, x2 - x1), Math.Max(0, y2 - y1));
                 }
                 return V.Int(0);
             case 45051:                                                    // CHANGE_STR_COLOR: string key, argb
@@ -130,6 +145,8 @@ public partial class XView : Control
         Warn($"node message {code} for {c.GetType().Name}");
     }
 
+    readonly Dictionary<string, TextureRect> dynImages = new();
+
     void CreateString(V[] d)
     {
         // "lssllllf": msg, name, font, color, x, y, alignment, scale ; the text is the script attribute strings.<name>
@@ -148,7 +165,9 @@ public partial class XView : Control
         // the original uses bitmap fonts by name; Dialog21 is the small one, Dialog2 a title size, interface_normal the menu size
         string font = Conv.ToStr(d[2]);
         float basePx = font.Equals("Dialog21", StringComparison.OrdinalIgnoreCase) ? 13f : font.Equals("Dialog2", StringComparison.OrdinalIgnoreCase) ? 24f : 26f;
-        lab.AddThemeFontSizeOverride("font_size", font.Contains("small", StringComparison.OrdinalIgnoreCase) ? FontPx(font, scale) : Math.Max(8, (int)(basePx * scale)));
+        int px0 = font.Contains("small", StringComparison.OrdinalIgnoreCase) ? FontPx(font, scale) : Math.Max(8, (int)(basePx * 0.85f * scale));
+        float room = align == 1 ? x + 40 : align == 2 ? 2 * Math.Min(x + 40, 680 - x) : 680 - x;
+        lab.AddThemeFontSizeOverride("font_size", Fit(lab, text, px0, Math.Max(120, room)));
         lab.AddThemeColorOverride("font_color", new Color((argb >> 16 & 255) / 255f, (argb >> 8 & 255) / 255f, (argb & 255) / 255f, (argb >> 24) / 255f));
         lab.AddThemeColorOverride("font_outline_color", Colors.Black);
         lab.AddThemeConstantOverride("outline_size", 3);
@@ -163,7 +182,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -344,16 +363,25 @@ public partial class XView : Control
         b.AddThemeColorOverride("font_disabled_color", new Color(0.5f, 0.5f, 0.5f));
         b.AddThemeColorOverride("font_outline_color", Colors.Black);
         b.AddThemeConstantOverride("outline_size", 4);
-        b.AddThemeFontSizeOverride("font_size", 26);
+        int bpx = P("font") is { } bf ? FontPx(bf, 1f) + 2 : 22;
+        b.AddThemeFontSizeOverride("font_size", Fit(b, b.Text, bpx, b.Size.X));
         b.Pressed += () => Click(name);
         return b;
     }
 
     /// <summary>Pixel height for the engine's bitmap font names (interface_small, INTERFACE_ULTRASMALL, Dialog21, ...).</summary>
+    /// <summary>Ukrainian captions are longer than the Russian ones the layouts were drawn for: shrink the font until the text fits the room it has.</summary>
+    static int Fit(Control c, string text, int px, float maxW)
+    {
+        var f = c.GetThemeDefaultFont();
+        while (px > 9 && f.GetStringSize(text, HorizontalAlignment.Left, -1, px).X + 8 > maxW) px--;
+        return px;
+    }
+
     static int FontPx(string font, float scale)
     {
         string f = font.ToLowerInvariant();
-        float px = f.Contains("ultrasmall") ? 11 : f.Contains("small") ? 15 : f.Contains("title") ? 28 : f == "dialog21" ? 13 : f == "dialog2" ? 24 : 24;
+        float px = f.Contains("ultrasmall") ? 11 : f.Contains("small") ? 15 : f.Contains("title") ? 28 : f == "dialog21" ? 13 : f == "dialog2" ? 22 : 22;
         return Math.Max(8, (int)(px * scale));
     }
 
@@ -457,7 +485,7 @@ public partial class XView : Control
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        lab.AddThemeFontSizeOverride("font_size", FontPx(P("font") ?? "interface_title", Floats(P("fontScale"), 1)[0] is var s && s > 0 ? s : 1f));
+        lab.AddThemeFontSizeOverride("font_size", Fit(lab, lab.Text, FontPx(P("font") ?? "interface_title", Floats(P("fontScale"), 1)[0] is var s && s > 0 ? s : 1f), box.Size.X));
         lab.AddThemeColorOverride("font_color", Colors.White);
         lab.AddThemeColorOverride("font_outline_color", Colors.Black);
         lab.AddThemeConstantOverride("outline_size", 4);
@@ -524,7 +552,7 @@ public partial class XView : Control
             var fc = Braced(line, "fc", 4);
             float scale = float.TryParse(BracedText(line, "scale"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1f;
             var lab = new Label { Text = Tr(key), Position = new Vector2(pos[0], pos[1] - 2), MouseFilter = MouseFilterEnum.Ignore, Name = "cs_" + key };
-            int px = FontPx(BracedText(line, "font") ?? "interface_normal", scale);
+            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(100, 680 - pos[0]));
             lab.AddThemeFontSizeOverride("font_size", px);
             lab.AddThemeColorOverride("font_color", new Color(fc[1] / 255f, fc[2] / 255f, fc[3] / 255f, fc[0] / 255f));
             lab.AddThemeColorOverride("font_outline_color", Colors.Black);

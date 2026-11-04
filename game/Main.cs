@@ -87,6 +87,14 @@ public partial class Main : Node
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
         host = new ScriptHost(program);
+        // port settings (settings.ini next to the project): the hidden "beta/test" page of the options screen is enabled by the original #define MOD_BETTATESTMODE
+        string settingsFile = Path.Combine(portDir, "settings.ini");
+        if (!File.Exists(settingsFile))
+            File.WriteAllText(settingsFile, "; Port settings. BetaTestMode: Off | Test | On  (Test/On show the extra beta page of the options screen: cheats, debug logs, locator display ...)\n[game]\nBetaTestMode = On\n");
+        var settings = IniFile.Load(settingsFile);
+        string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
+        if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
+        GD.Print("[main] BetaTestMode = " + beta);
         sea = new SeaView(host.It);
         AddChild(sea);
         worldMap = new WorldMapView(host.It);

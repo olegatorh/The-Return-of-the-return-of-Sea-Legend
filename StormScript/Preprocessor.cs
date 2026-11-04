@@ -20,6 +20,8 @@ public sealed class Preprocessor
 
     // #define names are case sensitive: items.h defines MAP/GOLD/POTION1 while scripts use the attributes .map/.gold/.potion1
     public Dictionary<string, List<Token>> Defines { get; } = new();
+    /// <summary>name -> string value that replaces the body of that #define.</summary>
+    public Dictionary<string, string> DefineOverrides { get; } = new();
     public List<EventHandlerDecl> EventHandlers { get; } = new();
     public List<string> Libraries { get; } = new();
     public List<string> MissingIncludes { get; } = new();
@@ -143,7 +145,14 @@ public sealed class Preprocessor
             {
                 if (rest.Count < 1 || rest[0].Kind != TokKind.Ident) throw new LexException("bad #define", file, line);
                 live.Add(rest[0].Text);
-                if (pass1) Defines[rest[0].Text] = rest.Skip(1).ToList();
+                if (pass1)
+                {
+                    var body = rest.Skip(1).ToList();
+                    // host settings override a #define of the original sources (e.g. MOD_BETTATESTMODE) without touching the files
+                    if (DefineOverrides.TryGetValue(rest[0].Text, out var ov))
+                        body = new List<Token> { new Token { Kind = TokKind.String, Text = ov, Line = rest[0].Line, File = rest[0].File } };
+                    Defines[rest[0].Text] = body;
+                }
                 break;
             }
             case "event_handler":
