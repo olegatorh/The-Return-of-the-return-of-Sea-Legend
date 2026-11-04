@@ -82,6 +82,13 @@ public partial class SeaView : Node3D
         if (models.Length == 0 || !File.Exists(file)) return V.Int(0);
         GmFile gm;
         try { gm = GmFile.Parse(File.ReadAllBytes(file)); } catch { return V.Int(0); }
+        // every locator group of the file becomes island.<group>.<name>.{x,y,z,ay} (quest ship berths: Quest_ships.quest_ship_5 ...); the "Reload" group is the port markers used below
+        foreach (var lab in gm.Labels)
+        {
+            if (lab.Group.Equals("Reload", StringComparison.OrdinalIgnoreCase) || lab.Group.Equals("reload", StringComparison.OrdinalIgnoreCase)) continue;
+            if (reloadGroups(island).Contains(lab.Group)) continue;                    // ship1..ship8 of a port are handled below
+            Put(island.GetOrCreate(lab.Group).GetOrCreate(lab.Name), lab);
+        }
         var reload = island.Get("reload");
         if (reload == null) return V.Int(1);
         foreach (var l in reload.Children)
@@ -103,6 +110,13 @@ public partial class SeaView : Node3D
         if (it.Globals.TryGetValue("Islands", out var g) && g.Arr != null)
             foreach (var slot in g.Arr)
                 if (slot.Val.Attr is { } a && a.Get("locators") != null) LocateIsland(a);
+    }
+
+    static HashSet<string> reloadGroups(Attr island)
+    {
+        var r = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (island.Get("reload") is { } rl) foreach (var l in rl.Children) if (l.Get("name")?.Value is { Length: > 0 } n) r.Add(n);
+        return r;
     }
 
     static void Put(Attr a, GmFile.Label l)
