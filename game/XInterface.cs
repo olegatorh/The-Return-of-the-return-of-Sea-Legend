@@ -32,6 +32,26 @@ public partial class XView : Control
         MouseFilter = MouseFilterEnum.Ignore;
     }
 
+    /// <summary>
+    /// Save list screens: the script lists the files (GameInterface.saveslist.picN.descr = file name, savestr = "") and expects the engine to
+    /// fill savestr with the description stored in the save ("place@face1..4@time@language"); an empty savestr means a corrupted save.
+    /// </summary>
+    public void FillSaveStrings()
+    {
+        var list = Ent.Root.Find("saveslist", false);
+        if (list == null) return;
+        for (int i = 1; i <= 200; i++)
+        {
+            var pic = list.Find("pic" + i, false);
+            if (pic == null) { if (i > 1) break; continue; }
+            var s = pic.Find("savestr", false);
+            var d = pic.Find("descr", false)?.Value;
+            if (s == null || string.IsNullOrEmpty(d) || !string.IsNullOrEmpty(s.Value)) continue;
+            string desc = SaveFiles.ReadDescription(d);
+            if (desc != "") s.Value = desc;
+        }
+    }
+
     /// <summary>Node captions are keys of the global strings file (common.ini): "New Game" -> "Нова гра".</summary>
     string Tr(string key) => it.Language?.Global(key) ?? key;
 

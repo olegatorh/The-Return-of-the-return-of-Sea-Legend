@@ -551,6 +551,7 @@ public partial class Main : Node
         if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
         UpdateWorld((float)delta);
         host.It.Advance((int)(delta * 1000));
+        view?.FillSaveStrings();
         host.It.FireEvent("frame");
         frames++;
 
