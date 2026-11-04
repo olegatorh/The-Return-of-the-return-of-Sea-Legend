@@ -1,0 +1,14 @@
+name: unit tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+      # the tests that need the original game files skip themselves when they are absent, so only the interpreter tests run here
+      - run: dotnet test StormScript.Tests/StormScript.Tests.csproj -nologo

@@ -14,3 +14,9 @@ saves/
 
 game/smoke_*
 intro_test.log
+
+# scratch screenshots/logs of test runs
+game/*.png
+game/*.log
+game/*.err
+*.log
