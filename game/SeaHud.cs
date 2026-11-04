@@ -80,6 +80,12 @@ public partial class SeaHud : CanvasLayer
         BuildTarget();
         BuildCommands();
         root.AddChild(markers);
+        scopeRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        scopeRect.Visible = false;
+        root.AddChild(scopeRect);
+        root.AddChild(scopeBarL);
+        root.AddChild(scopeBarR);
+        scopeBarL.Visible = scopeBarR.Visible = false;
         menuBox.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
         menuBox.OffsetLeft = 24; menuBox.OffsetTop = -190; menuBox.OffsetRight = 24 + 560; menuBox.OffsetBottom = -82;
         root.AddChild(menuBox);
@@ -248,6 +254,26 @@ public partial class SeaHud : CanvasLayer
     bool suspended;
     bool lastOn;
     public bool Suspended { get => suspended; set { suspended = value; Visible = lastOn && !suspended; } }
+
+    // ---- telescope eyepiece
+    readonly TextureRect scopeRect = new() { MouseFilter = Control.MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
+    readonly ColorRect scopeBarL = new() { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore }, scopeBarR = new() { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore };
+    string scopeTexName = "";
+    float scopeAmount;
+    public string ScopeTexture { set { if (value != scopeTexName) { scopeTexName = value; scopeRect.Texture = value.Length > 0 ? GameAssets.Texture(value) : null; } } }
+    public float ScopeAmount
+    {
+        set
+        {
+            scopeAmount = value; scopeRect.Visible = value > 0.05f; scopeRect.Modulate = new Color(1, 1, 1, value);
+            scopeBarL.Visible = scopeBarR.Visible = scopeRect.Visible;
+            scopeBarL.Modulate = scopeBarR.Modulate = scopeRect.Modulate;
+            var sz = root.GetViewportRect().Size;                       // the round eyepiece keeps its proportions; black bars fill the sides of a wide window
+            float bar = Math.Max(0f, (sz.X - sz.Y) / 2f);
+            scopeBarL.Position = new Vector2(0, 0); scopeBarL.Size = new Vector2(bar, sz.Y);
+            scopeBarR.Position = new Vector2(sz.X - bar, 0); scopeBarR.Size = new Vector2(bar, sz.Y);
+        }
+    }
 
     public void Update(HudData d)
     {

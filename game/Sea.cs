@@ -689,6 +689,26 @@ public partial class SeaView : Node3D
         p.ParamTimer = 0f;
     }
 
+    // ---- telescope: hold the key, the view goes to the mast top and zooms (RESOURCE\INI	elescope.ini: eyepiece texture and zoom of the spyglass type)
+    float scopeT;
+    float scopeZoom = 5.5f;
+    string scopeTex = "telescope.tga";
+
+    void LoadScopeType(ShipRt p)
+    {
+        string id = p.Chr.Find("equip.spyglass", false)?.Value ?? "";
+        int n = 0;
+        foreach (char ch in id) if (char.IsDigit(ch)) n = n * 10 + (ch - '0');
+        int type = n is >= 1 and <= 4 ? n : 0;
+        try
+        {
+            var ini = IniFile.Load(GameAssets.Resource("INI\\telescope.ini")).Get("Type" + type);
+            scopeTex = ini?.Get("texture") ?? scopeTex;
+            if (float.TryParse(ini?.Get("zoom"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var z)) scopeZoom = z;
+        }
+        catch { }
+    }
+
     void UpdateCamera(float dt, bool inputEnabled)
     {
         var p = ships.FirstOrDefault(s => s.IsPlayer);
@@ -715,8 +735,27 @@ public partial class SeaView : Node3D
         float yaw = p.Ay + camYawOff;
         var target = new Vector3(p.X, p.Height * 0.55f, -p.Z);
         var behind = new Vector3(-MathF.Sin(yaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(yaw) * MathF.Cos(camPitch));   // godot: forward = (sin, 0, -cos)
-        Cam.GlobalPosition = target + behind * camDist;
-        Cam.LookAt(target);
+        bool scope = inputEnabled && (Keys.Down("SeaTelescope") || System.Environment.GetEnvironmentVariable("SEADOGS_SCOPE") != null) && !CommandsOpen;
+        float prev = scopeT;
+        scopeT = Math.Clamp(scopeT + (scope ? 1f : -1f) * dt * 4f, 0f, 1f);
+        if (scopeT > 0f && prev <= 0f) LoadScopeType(p);
+        hud.ScopeTexture = scopeT > 0f ? scopeTex : "";
+        hud.ScopeAmount = scopeT;
+        if (scopeT > 0f)
+        {
+            // from the top of the mast along the camera's heading; the zoom narrows the field of view
+            var eye = new Vector3(p.X, p.Height * 0.9f, -p.Z);
+            var fwdDir = new Vector3(MathF.Sin(yaw), 0f, -MathF.Cos(yaw));
+            Cam.GlobalPosition = target.Lerp(eye, scopeT);
+            Cam.LookAt(Cam.GlobalPosition + fwdDir * 200f + Vector3.Up * 200f * MathF.Tan((camPitch - 0.3f) * 0.6f));
+            Cam.Fov = 62f / Mathf.Lerp(1f, scopeZoom, scopeT);
+        }
+        else
+        {
+            Cam.GlobalPosition = target + behind * camDist;
+            Cam.LookAt(target);
+            Cam.Fov = 62f;
+        }
         Cam.Current = true;
     }
 }

@@ -24,7 +24,7 @@ public static class Keys
 
         new("SeaLeft", "На морі й карті", "Поворот ліворуч", Key.A), new("SeaRight", "На морі й карті", "Поворот праворуч", Key.D),
         new("SeaSailUp", "На морі й карті", "Підняти вітрила", Key.W), new("SeaSailDown", "На морі й карті", "Опустити вітрила", Key.S),
-        new("SeaAction", "На морі й карті", "Дія (порт / абордаж / вихід з карти)", Key.Enter), new("SeaMap", "На морі й карті", "Карта світу", Key.M), new("SeaCommands", "На морі й карті", "Командне меню (накази ескадрі)", Key.C),
+        new("SeaAction", "На морі й карті", "Дія (порт / абордаж / вихід з карти)", Key.Enter), new("SeaMap", "На морі й карті", "Карта світу", Key.M), new("SeaCommands", "На морі й карті", "Командне меню (накази ескадрі)", Key.C), new("SeaTelescope", "На морі й карті", "Підзорна труба (утримувати)", Key.Ctrl),
         new("SeaBalls", "На морі й карті", "Ядра", Key.Key1), new("SeaGrapes", "На морі й карті", "Картеч", Key.Key2),
         new("SeaKnippels", "На морі й карті", "Книпелі", Key.Key3), new("SeaBombs", "На морі й карті", "Бомби", Key.Key4),
         new("SeaCamLeft", "На морі й карті", "Камера вліво", Key.Left), new("SeaCamRight", "На морі й карті", "Камера вправо", Key.Right),

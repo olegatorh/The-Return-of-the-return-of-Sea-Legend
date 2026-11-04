@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **64 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **11134** lines of C# (`StormScript/` library + `game/`)
+* Port code: **11199** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,9 +27,9 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
 | PORT | 14 | 74 % |
-| APPROX | 12 | 54 % |
+| APPROX | 13 | 52 % |
 | STUB | 0 | 0 % |
-| MISSING | 1 | 0 % |
+| MISSING | 0 | 0 % |
 
 ## Subsystems
 
@@ -58,7 +58,7 @@ Layers (where the behaviour comes from):
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███░░░░░░░ 30 % | E | script flow starts; deck fight uses the land combat engine; grapple scene missing |
-| Sea | Telescope, cabin, deck cameras, people on deck | MISSING | ░░░░░░░░░░ 0 % | - | not started |
+| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██░░░░░░░░ 25 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; no people on deck, no deck camera |
 | Map | World map scene, ship, zones, date | PORT | ███████░░░ 70 % | V | works; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
 | Effects | Particles (smoke, blast, splash) | APPROX | ██░░░░░░░░ 25 % | V | generic CPU particles, not the original particle ini |
