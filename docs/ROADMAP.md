@@ -37,6 +37,7 @@ Legend: effort S (hours) / M (a day) / L (days+). "Hint" says where to start.
 17. Pictures with baked-in Russian text (loading screens) stay Russian.
 
 ## E. Engineering
-18. Unit tests for the interpreter (semantics in `docs/vm_semantics.md`) and a CI-style smoke script (intro run + `--fuzz`).
+18. Tests — DONE basics: `StormScript.Tests` (23 xunit tests) + `run_tests.ps1 [-Smoke] [-Intro]` (see CLAUDE.md). Still to do: tests for `GroupsState`/`Characters`
+    (needs the logic split from Godot types), a `--fuzz` smoke mode in the script, golden-value checks of script flows (e.g. dump `Characters[0].chr_ai.hp` after a fight).
 19. Remove debug env hooks or document them (done in CLAUDE.md), clean the `out/` converters output, pin tool versions.
 20. Performance: trimesh colliders for large locations, `Blocked()` is O(n²) over characters (fine for <50).

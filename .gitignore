@@ -11,3 +11,6 @@ tools/mt/venv/
 tools/mt/model/
 tools/mt/work/
 saves/
+
+game/smoke_*
+intro_test.log

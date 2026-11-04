@@ -39,7 +39,19 @@ Read **`docs/ARCHITECTURE.md`** next: how script ↔ engine communication works 
 Godot executable: `godot/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64.exe --path game -- <user args>`.
 Build only: `dotnet build game/SeaDogs.csproj -nologo -v q` (must print `0 Error(s)`).
 
-**Automated test hooks** (Godot *user args* after `--`; frames are counted from start; the game window runs at ~60 fps, 1280x960):
+**Automated regression tests — run these BEFORE and AFTER every change (do not rely on playing by hand):**
+```powershell
+powershell -ExecutionPolicy Bypass -File run_tests.ps1           # unit tests + game build (seconds)
+powershell -ExecutionPolicy Bypass -File run_tests.ps1 -Smoke    # + Godot main-menu run, fails on [errors]/[unresolved]/exceptions
+powershell -ExecutionPolicy Bypass -File run_tests.ps1 -Intro    # + intro into the first location (~3 min)
+```
+`StormScript.Tests/` (xunit, works offline from the local NuGet cache): `InterpreterTests` (VM semantics, one tiny script per rule —
+**add a test for every interpreter bug you fix**), `ScriptCorpusTests` (all 1139 original scripts parse, ≤16 known defects; the game boots headless with
+0 runtime errors / 0 unresolved functions), `FormatTests` (.ptc/.gm readers, path finding), `LanguageTests` (translation overlay).
+Tests needing game data return early if `addon/merged/PROGRAM` or the game folder is missing. `GroupsState`/`Characters` live in the Godot project and
+are only covered by the smoke runs.
+
+**Manual test hooks** (Godot *user args* after `--`; frames are counted from start; the game window runs at ~60 fps, 1280x960):
 | Arg | Effect |
 |---|---|
 | `--click=NODE@N` | click interface node at frame N (e.g. `B_NEWGAME`, `RUNGAME`) |
