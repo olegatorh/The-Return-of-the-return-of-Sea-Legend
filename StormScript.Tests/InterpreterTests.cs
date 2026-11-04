@@ -195,4 +195,20 @@ public sealed class InterpreterTests : IDisposable
         var h = Run(@"int x; void Inner(ref r) { r = 5; } void Outer(ref r) { Inner(r); } void Test() { x = -1; Outer(&x); }");
         Assert.Equal("5", Str(h, "x"));
     }
+
+    [Fact]
+    public void NumericAttributeNamesAfterADynamicNameAreMembers()
+    {
+        // Encounters.c: rEnc.(sRank).1 / .0 - the lexer must not read ".1" as a float
+        var h = Run(@"object o; string r; void Test() { string k = ""Rank.5""; o.Rank.5.1 = ""x""; o.Rank.5.0 = ""y""; r = o.(k).1 + o.(k).0; }");
+        Assert.Equal("xy", Str(h, "r"));
+    }
+
+    [Fact]
+    public void RefToScalarAssignedFromAnAttributeWritesTheValue()
+    {
+        var h = Run(@"object o; int a; int b; void Get(ref x, ref y) { x = o.p.1; y = o.p.0; } void Test() { o.p.1 = 7; o.p.0 = 3; Get(&a, &b); }");
+        Assert.Equal("7", Str(h, "a"));
+        Assert.Equal("3", Str(h, "b"));
+    }
 }

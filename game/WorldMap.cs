@@ -51,8 +51,7 @@ public partial class WorldMapView : Node3D
         i.EntityHandlers["worldmap"] = (e, fmt, d) =>
         {
             if (ent == null || !ReferenceEquals(ent, e)) { Clear(); ent = e; built = false; }
-            // MSG_WORLDMAP_CREATE*: encounters are not simulated yet
-            return V.Int(0);
+            return OnMessage(d);
         };
     }
 
@@ -63,6 +62,7 @@ public partial class WorldMapView : Node3D
 
     void Clear()
     {
+        encs.Clear(); encHooked = false;
         scene?.QueueFree(); scene = null; shipNode = null; ent = null; built = false; inside = "";
         Cam.Current = false;
         hud.Set(false, "", 0, 0);
@@ -188,6 +188,8 @@ public partial class WorldMapView : Node3D
         PublishShip();
         UpdateDate(dt);
         UpdateZones();
+        TickEncounters(dt);
+        if (!Active) return;
 
         // encounters / storms: the script decides (wdmEvent_EncounterCreate); the engine gives it the elapsed time and the ship position
         encTimer += dt;
@@ -204,7 +206,7 @@ public partial class WorldMapView : Node3D
         Cam.GlobalPosition = target + off;
         Cam.LookAt(target);
         Cam.Current = true;
-        hud.Set(true, DateText(root), shipAy, sail);
+        hud.Set(input, DateText(root), shipAy, sail);
     }
 
     float SeaSpeedRate()

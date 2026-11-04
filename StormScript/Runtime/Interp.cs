@@ -232,8 +232,8 @@ public sealed partial class Interp
                 break;
             case "ref":
             case "aref":
-                if (s.Val.Slot is { Arr: null } target && v.T != VT.Attr && v.T != VT.Slot)
-                    SetSlot(target, v, at);                       // "void f(ref x) { x = 5; }" writes through to the caller's variable
+                if (s.Val.Slot is { Arr: null } target && ((v.T != VT.Attr && v.T != VT.Slot) || (v.T == VT.Attr && !Conv.IsAttrType(target.Type))))
+                    SetSlot(target, Conv.Decay(v), at);       // an attribute read assigned to a ref that points at an int/float/string variable: its value                       // "void f(ref x) { x = 5; }" writes through to the caller's variable
                 else
                     s.Val = v.T == VT.Attr || v.T == VT.Slot ? v : V.A(null);
                 break;

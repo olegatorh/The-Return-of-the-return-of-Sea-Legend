@@ -9,7 +9,10 @@ namespace StormScript.Runtime;
 public sealed class Attr
 {
     public string Name;
-    public string? Value;
+    string? value;
+    /// <summary>Optional engine hook: called after the script has written this node's value (the engine's "SPI" attributes such as worldMap.encounter.cur).</summary>
+    public Action<Attr>? OnWrite;
+    public string? Value { get => value; set { this.value = value; OnWrite?.Invoke(this); } }
     public Attr? Parent;
     public Entity? Entity;      // set when this node is the root of an engine entity (CreateEntity)
     readonly List<Attr> kids = new();
