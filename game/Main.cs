@@ -92,6 +92,7 @@ public partial class Main : Node
         if (!File.Exists(settingsFile))
             File.WriteAllText(settingsFile, "; Port settings. BetaTestMode: Off | Test | On  (Test/On show the extra beta page of the options screen: cheats, debug logs, locator display ...)\n[game]\nBetaTestMode = On\n");
         var settings = IniFile.Load(settingsFile);
+        Keys.Load(settingsFile);
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
         GD.Print("[main] BetaTestMode = " + beta);
@@ -320,37 +321,34 @@ public partial class Main : Node
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && view == null && dialogView == null)
         {
-            string? ctl = ck.PhysicalKeycode switch
-            {
-                Key.Escape => "MainMenuDouble", Key.F1 => "MainMenu", Key.F2 => "Interface", Key.Space => "ChrAction",
-                Key.F4 => "Quick_Save", Key.F6 => "Quick_Load", Key.Enter => "LICommandsActivate", _ => null,
-            };
+            string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Space ? "ChrAction" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
+                : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
         }
-        if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.W or Key.S } sk && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
-            sea.SailKey(sk.PhysicalKeycode == Key.W ? 1 : -1);
+        if (e is InputEventKey { Pressed: true, Echo: false } sk && (Keys.Is(sk, "SeaSailUp") || Keys.Is(sk, "SeaSailDown")) && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
+            sea.SailKey(Keys.Is(sk, "SeaSailUp") ? 1 : -1);
         if (e is InputEventKey { Pressed: true, Echo: false } mk && worldMap.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
-            if (mk.PhysicalKeycode is Key.W or Key.S) worldMap.SailKey(mk.PhysicalKeycode == Key.W ? 1 : -1);
-            if (mk.PhysicalKeycode is Key.Enter or Key.KpEnter or Key.Space) worldMap.Enter();
+            if (Keys.Is(mk, "SeaSailUp") || Keys.Is(mk, "SeaSailDown")) worldMap.SailKey(Keys.Is(mk, "SeaSailUp") ? 1 : -1);
+            if (Keys.Is(mk, "SeaAction") || mk.PhysicalKeycode is Key.KpEnter or Key.Space) worldMap.Enter();
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
-            string? ctl = sk2.PhysicalKeycode switch { Key.M => "BI_MapEnter", Key.Key1 => "BI_ChargeCannonballs", Key.Key2 => "BI_ChargeGrapes", Key.Key3 => "BI_ChargeKnippels", Key.Key4 => "BI_ChargeBombs", _ => null };
+            string? ctl = Keys.Is(sk2, "SeaMap") ? "BI_MapEnter" : Keys.Is(sk2, "SeaBalls") ? "BI_ChargeCannonballs" : Keys.Is(sk2, "SeaGrapes") ? "BI_ChargeGrapes" : Keys.Is(sk2, "SeaKnippels") ? "BI_ChargeKnippels" : Keys.Is(sk2, "SeaBombs") ? "BI_ChargeBombs" : null;
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
-            if (sk2.PhysicalKeycode is Key.Enter or Key.KpEnter or Key.Space) SeaAction();
+            if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
         }
         // F = draw/sheathe the sword (the original used E; E talks here)
-        if (e is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.F } && dialogView == null && view == null)
+        if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && view == null)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
-        if (e is InputEventKey { Pressed: true, PhysicalKeycode: Key.F9 }) flyMode = !flyMode;          // free debug camera
-        if (e is InputEventKey { Pressed: true, PhysicalKeycode: Key.F3 })                              // show/hide name tags
+        if (e is InputEventKey { Pressed: true } f9 && Keys.Is(f9, "FlyCam")) flyMode = !flyMode;          // free debug camera
+        if (e is InputEventKey { Pressed: true } f3 && Keys.Is(f3, "NameTags"))                              // show/hide name tags
         {
             nameTags = !nameTags;
             foreach (var c in characters.Values) c.ShowNameTag(nameTags);
         }
         // E or T = talk to the nearest character within reach
-        if (e is InputEventKey { Pressed: true, PhysicalKeycode: Key.E or Key.T } && dialogView == null && view == null)
+        if (e is InputEventKey { Pressed: true } tk && (Keys.Is(tk, "LandTalk") || tk.PhysicalKeycode == Key.T) && dialogView == null && view == null)
         {
             CharacterView? player = characters.Values.FirstOrDefault(c => c.IsPlayer);
             var near = characters.Values.Where(c => !c.IsPlayer && player != null && c.Placed).OrderBy(c => c.Position.DistanceTo(player!.Position)).FirstOrDefault();
@@ -383,18 +381,18 @@ public partial class Main : Node
             var mv = Vector2.Zero;
             if (free)
             {
-                if (Godot.Input.IsPhysicalKeyPressed(Key.W)) mv.Y += 1;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.S)) mv.Y -= 1;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.D)) mv.X += 1;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.A)) mv.X -= 1;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.Left)) camYaw += 1.8f * delta;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.Right)) camYaw -= 1.8f * delta;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.Up)) camPitch = Math.Clamp(camPitch + 0.9f * delta, 0.05f, 1.3f);
-                if (Godot.Input.IsPhysicalKeyPressed(Key.Down)) camPitch = Math.Clamp(camPitch - 0.9f * delta, 0.05f, 1.3f);
+                if (Keys.Down("LandForward")) mv.Y += 1;
+                if (Keys.Down("LandBack")) mv.Y -= 1;
+                if (Keys.Down("LandRight")) mv.X += 1;
+                if (Keys.Down("LandLeft")) mv.X -= 1;
+                if (Keys.Down("LandCamLeft")) camYaw += 1.8f * delta;
+                if (Keys.Down("LandCamRight")) camYaw -= 1.8f * delta;
+                if (Keys.Down("LandCamUp")) camPitch = Math.Clamp(camPitch + 0.9f * delta, 0.05f, 1.3f);
+                if (Keys.Down("LandCamDown")) camPitch = Math.Clamp(camPitch - 0.9f * delta, 0.05f, 1.3f);
             }
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) mv = dir;     // test hook
             player.Input = mv;
-            player.Run = Godot.Input.IsPhysicalKeyPressed(Key.Shift);
+            player.Run = Keys.Down("LandRun");
             player.CameraYaw = camYaw;
         }
 

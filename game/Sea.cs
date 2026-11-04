@@ -450,8 +450,8 @@ public partial class SeaView : Node3D
             if (!s.IsPlayer) turnIn = Steer(s, sh);
             if (s.IsPlayer && inputEnabled)
             {
-                if (Godot.Input.IsPhysicalKeyPressed(Key.A)) turnIn -= 1f;
-                if (Godot.Input.IsPhysicalKeyPressed(Key.D)) turnIn += 1f;
+                if (Keys.Down("SeaLeft")) turnIn -= 1f;
+                if (Keys.Down("SeaRight")) turnIn += 1f;
                 if (TestTurn != 0f) turnIn = TestTurn;
             }
             float target = maxZ * s.Sail;
@@ -614,12 +614,12 @@ public partial class SeaView : Node3D
         if (camDist < 0f) camDist = Math.Clamp(p.Length * 1.5f, dMin, dMax);
         if (inputEnabled)
         {
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Left)) camYawOff += 1.4f * dt;
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Right)) camYawOff -= 1.4f * dt;
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Up)) camPitch = Math.Clamp(camPitch + 0.8f * dt, 0.05f, 1.4f);
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Down)) camPitch = Math.Clamp(camPitch - 0.8f * dt, 0.05f, 1.4f);
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Pageup)) camDist = Math.Max(dMin * 0.5f, camDist - 30f * dt);
-            if (Godot.Input.IsPhysicalKeyPressed(Key.Pagedown)) camDist = Math.Min(dMax * 1.6f, camDist + 30f * dt);
+            if (Keys.Down("SeaCamLeft")) camYawOff += 1.4f * dt;
+            if (Keys.Down("SeaCamRight")) camYawOff -= 1.4f * dt;
+            if (Keys.Down("SeaCamUp")) camPitch = Math.Clamp(camPitch + 0.8f * dt, 0.05f, 1.4f);
+            if (Keys.Down("SeaCamDown")) camPitch = Math.Clamp(camPitch - 0.8f * dt, 0.05f, 1.4f);
+            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(dMin * 0.5f, camDist - 30f * dt);
+            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(dMax * 1.6f, camDist + 30f * dt);
         }
         if (!camInit && System.Environment.GetEnvironmentVariable("SEADOGS_SEACAM") is { } sc)      // debug: "distance,pitch,yawOffset"
         {

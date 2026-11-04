@@ -552,7 +552,7 @@ public partial class XView : Control
             var fc = Braced(line, "fc", 4);
             float scale = float.TryParse(BracedText(line, "scale"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1f;
             var lab = new Label { Text = Tr(key), Position = new Vector2(pos[0], pos[1] - 2), MouseFilter = MouseFilterEnum.Ignore, Name = "cs_" + key };
-            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(100, 680 - pos[0]));
+            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(100, 628 - pos[0]));
             lab.AddThemeFontSizeOverride("font_size", px);
             lab.AddThemeColorOverride("font_color", new Color(fc[1] / 255f, fc[2] / 255f, fc[3] / 255f, fc[0] / 255f));
             lab.AddThemeColorOverride("font_outline_color", Colors.Black);
@@ -741,6 +741,7 @@ public partial class XView : Control
     public void Click(string node)
     {
         GD.Print($"[xinterface] click {node}");
+        if (node == "CONTROLS_B_CHANGE") { GetParent().AddChild(new KeyBindingsScreen()); return; }     // the port's own key binding screen (the original KEYCHOOSER page is script + engine widgets)
         Run(node, "click", 0);
     }
 
