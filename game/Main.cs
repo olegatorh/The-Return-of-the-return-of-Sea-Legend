@@ -25,6 +25,8 @@ public partial class Main : Node
     bool started;
     bool camPlaced;
     int frames;
+    readonly bool prof = System.Environment.GetEnvironmentVariable("SEADOGS_PROF") != null;
+    long profWorld, profAdv, profFrame;
     Image? lastGameFrame;
 
     Image? GrabFrame()
@@ -640,12 +642,26 @@ public partial class Main : Node
             host.It.CallTop("OnLoad");
         }
         if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         UpdateWorld((float)delta);
+        long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
         host.It.Advance((int)(delta * 1000));
+        long t2 = System.Diagnostics.Stopwatch.GetTimestamp();
         // keep a small copy of the last frame without an interface on top: it becomes the thumbnail of the next save
-        if (!UiOpen && dialogView == null && frames % 45 == 0) lastGameFrame = GrabFrame();
+        if (!UiOpen && dialogView == null && frames % 45 == 0 && System.Environment.GetEnvironmentVariable("SEADOGS_NOGRAB") == null) lastGameFrame = GrabFrame();
         view?.FillSaveStrings();
         host.It.FireEvent("frame");
+        long t3 = System.Diagnostics.Stopwatch.GetTimestamp();
+        if (prof)
+        {
+            profWorld += t1 - t0; profAdv += t2 - t1; profFrame += t3 - t2;
+            if ((frames + 1) % 120 == 0)
+            {
+                double k = 1000.0 / System.Diagnostics.Stopwatch.Frequency / 120.0;
+                GD.Print($"[prof] per frame ms: world {profWorld * k:0.0}, advance {profAdv * k:0.0}, frameEvent {profFrame * k:0.0}, fps {Engine.GetFramesPerSecond():0}, process {Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000:0.0} ms, draw calls {Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame):0}, primitives {Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame):0}, objects {Performance.GetMonitor(Performance.Monitor.ObjectCount):0}");
+                profWorld = profAdv = profFrame = 0;
+            }
+        }
         frames++;
 
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
@@ -692,7 +708,7 @@ public partial class Main : Node
         if (shotPath != null && frames == shotAtFrame)
         {
             GetViewport().GetTexture().GetImage().SavePng(shotPath);
-            GD.Print("[main] screenshot saved: " + shotPath);
+            GD.Print("[main] screenshot saved: " + shotPath + $" (fps {Engine.GetFramesPerSecond():0})");
             foreach (var kv in host.It.MessageStats.Where(k => !host.It.EntityHandlers.ContainsKey(k.Key.Split('|')[0].Trim())).OrderByDescending(k => k.Value).Take(40)) GD.Print($"[nohandler] {kv.Value}x {kv.Key}");
             GD.Print($"[main] TimeScale={host.It.TimeScale}, locations={locations.Count}, entities alive: " + string.Join(", ", host.It.Entities.Where(en => !en.Deleted).GroupBy(en => en.Class).Select(g => g.Key + "x" + g.Count())));
             foreach (var ch in GetChildren()) GD.Print($"[tree] {ch.Name} {ch.GetType().Name} children={ch.GetChildCount()} queued={ch.IsQueuedForDeletion()}");

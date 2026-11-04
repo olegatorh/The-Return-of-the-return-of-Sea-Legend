@@ -28,7 +28,7 @@ public partial class SeaView : Node3D
         public float Sail;                 // 0, 0.5, 1
         public float Speed, TurnRate, Drift;      // current forward speed, yaw rate and sideways slide
         public float X, Z, Ay;
-        public float ParamTimer;
+        public float ParamTimer, AvoidT, AvoidOff;
         public bool IsPlayer, Aground, Dying;
         public float SinkT;
         public int Task = -1;                 // AITASK_*: 0 drift, 1 attack, 2 follow, 3 defend, 6 runaway, 7 move
@@ -459,7 +459,7 @@ public partial class SeaView : Node3D
             }
             float maxZ = F(sh, "MaxSpeedZ"), maxY = F(sh, "MaxSpeedY");
             float turnIn = 0f;
-            if (!s.IsPlayer) turnIn = Steer(s, sh);
+            if (!s.IsPlayer) turnIn = Steer(s, sh, dt);
             if (s.IsPlayer && inputEnabled)
             {
                 if (Keys.Down("SeaLeft")) turnIn -= 1f;
@@ -630,29 +630,82 @@ public partial class SeaView : Node3D
         it.FireEvent("BI_SetSeaState", new List<V> { V.Int(0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(0), V.Int(0), V.Int(0), V.Int(-1) });
     }
 
-    /// <summary>Very small ship AI: head for the task position / target, keep a broadside distance when attacking, run away from the player.</summary>
-    float Steer(ShipRt s, Attr sh)
+    /// <summary>
+    /// Ship AI of the escorts and enemies. Tasks come from the script (AITASK_*): follow keeps a formation slot beside / behind the leader, defend stays close and
+    /// engages enemies that come near, attack closes in to a broadside distance, run away flees from the threat, move goes to a point, aboard / brander ram the target.
+    /// Every ship also steers around islands.
+    /// </summary>
+    float Steer(ShipRt s, Attr sh, float dt)
     {
         float tx = s.X, tz = s.Z;
-        ShipRt? tgt = s.TaskTarget != null ? ships.FirstOrDefault(o => ReferenceEquals(o.Chr, s.TaskTarget)) : null;
-        bool go = true, away = false; float standoff = 0f;
-        switch (s.Task)
+        ShipRt? tgt = s.TaskTarget != null ? ships.FirstOrDefault(o => ReferenceEquals(o.Chr, s.TaskTarget) && !o.Dying) : null;
+        int task = s.Task;
+        bool go = true, away = false, match = false; float standoff = 0f;
+        // a defender engages an enemy that comes close
+        if (task == 3 && ships.Where(o => !o.Dying && !ReferenceEquals(o, s) && Relation(s.Index, o.Index) == 2 && Dist(s, o) < 320f).OrderBy(o => Dist(s, o)).FirstOrDefault() is { } foe) { tgt = foe; task = 1; }
+        switch (task)
         {
             case 7: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 60f; } else { tx = s.TaskX; tz = s.TaskZ; standoff = 40f; } break;
-            case 1: case 2: case 3: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = s.Task == 1 ? 110f : 70f; } else go = false; break;
-            case 6: var pl = ships.FirstOrDefault(o => o.IsPlayer); if (pl != null) { tx = pl.X; tz = pl.Z; away = true; } else go = false; break;
+            case 1: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 110f; } else go = false; break;
+            case 2: case 3:
+                if (tgt != null)
+                {
+                    // formation slot: followers of the same leader alternate to its sides, each row further back
+                    var mates = ships.Where(o => !o.Dying && o.Task == s.Task && ReferenceEquals(o.TaskTarget, s.TaskTarget)).OrderBy(o => o.Index).ToList();
+                    int k = Math.Max(0, mates.IndexOf(s));
+                    float side = (k % 2 == 0 ? 1f : -1f) * (task == 2 ? 28f + 22f * (k / 2) : 45f), back = -(task == 2 ? 30f + 28f * (k / 2) : 10f);
+                    float sn = MathF.Sin(tgt.Ay), cs = MathF.Cos(tgt.Ay);
+                    tx = tgt.X + cs * side + sn * back; tz = tgt.Z - sn * side + cs * back;
+                    standoff = 18f; match = true;
+                }
+                else go = false;
+                break;
+            case 5: case 8: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 12f; match = true; } else go = false; break;      // board / ram the target
+            case 6:
+            {
+                var threat = tgt ?? ships.Where(o => !o.Dying && !ReferenceEquals(o, s) && Relation(s.Index, o.Index) == 2).OrderBy(o => Dist(s, o)).FirstOrDefault() ?? ships.FirstOrDefault(o => o.IsPlayer);
+                if (threat != null) { tx = threat.X; tz = threat.Z; away = true; } else go = false;
+                break;
+            }
             default: go = false; break;
         }
         float dx = tx - s.X, dz = tz - s.Z, dist = MathF.Sqrt(dx * dx + dz * dz);
         float want = MathF.Atan2(dx, dz);
         if (away) want += MathF.PI;
-        else if (s.Task == 1 && dist < standoff * 2f) want += MathF.PI / 2f * (MathF.Sin(want - s.Ay) >= 0 ? -1f : 1f);     // come alongside
+        else if (task == 1 && dist < standoff * 2f) want += MathF.PI / 2f * (MathF.Sin(want - s.Ay) >= 0 ? -1f : 1f);     // come alongside
+        else if ((task == 2 || task == 3) && tgt != null && dist < 45f) want = Mathf.LerpAngle(want, tgt.Ay, 0.8f);         // in the slot: take the leader's heading
+        want = AvoidLand(s, want, dt);
         float diff = want - s.Ay;
         while (diff > MathF.PI) diff -= MathF.Tau;
         while (diff < -MathF.PI) diff += MathF.Tau;
-        float newSail = !go || (!away && dist < standoff && s.Task != 1) ? 0f : 1f;
+        float newSail;
+        if (!go) newSail = 0f;
+        else if (away) newSail = 1f;
+        else if (match && tgt != null) newSail = dist < standoff * 2f ? (tgt.Sail > 0f ? Math.Min(1f, tgt.Sail + (dist > standoff * 1.2f ? 0.5f : 0f)) : 0f) : 1f;
+        else newSail = dist < standoff && task != 1 ? 0f : 1f;
+        newSail = MathF.Round(newSail * 2f) / 2f;
         if (newSail != s.Sail) { s.Sail = newSail; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         return Math.Clamp(diff * 2f, -1f, 1f);
+    }
+
+    /// <summary>Looks ahead along the wished heading; if land is in the way, takes the nearest clear heading beside it (re-checked a few times a second).</summary>
+    float AvoidLand(ShipRt s, float want, float dt)
+    {
+        if (island == null) return want;
+        s.AvoidT -= dt;
+        if (s.AvoidT <= 0f)
+        {
+            s.AvoidT = 0.35f + 0.1f * (s.Index % 3);
+            float look = Math.Clamp(s.Speed * 12f, 70f, 260f);
+            s.AvoidOff = 0f;
+            foreach (float off in new[] { 0f, 0.45f, -0.45f, 0.9f, -0.9f, 1.4f, -1.4f, 2.0f, -2.0f })
+            {
+                float a = want + off;
+                if (!AgroundAt(s, s.X + MathF.Sin(a) * look, s.Z + MathF.Cos(a) * look, a) && !AgroundAt(s, s.X + MathF.Sin(a) * look * 0.5f, s.Z + MathF.Cos(a) * look * 0.5f, a)) { s.AvoidOff = off; break; }
+                s.AvoidOff = off;
+            }
+        }
+        return want + s.AvoidOff;
     }
 
     /// <summary>Test hook: park the first other ship 80 m abeam (right) of the player and stop it.</summary>

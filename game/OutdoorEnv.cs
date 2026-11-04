@@ -92,7 +92,7 @@ void fragment() {
             {
                 seaMat = new ShaderMaterial { Shader = new Shader { Code = SeaShader } };
                 // a fine grid near the camera carries the waves; the far sea is a flat plane under the fog
-                sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(1600, 1600), SubdivideWidth = 399, SubdivideDepth = 399 }, MaterialOverride = seaMat, Name = "Sea", CustomAabb = new Aabb(new Vector3(-800, -20, -800), new Vector3(1600, 40, 1600)) };
+                sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(1000, 1000), SubdivideWidth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg ? int.Parse(sg) : 199, SubdivideDepth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg2 ? int.Parse(sg2) : 399 }, MaterialOverride = seaMat, Name = "Sea", CustomAabb = new Aabb(new Vector3(-500, -20, -500), new Vector3(1000, 40, 1000)) };
                 farMat = new ShaderMaterial { Shader = seaMat.Shader };
                 seaFar = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(12000, 12000) }, MaterialOverride = farMat, Name = "SeaFar" };
                 AddChild(seaFar);
@@ -106,7 +106,7 @@ void fragment() {
             if (cam != null)
             {
                 // the wave grid follows the camera in whole 4 m steps (the waves are a function of the world position, so the surface does not swim)
-                sea.GlobalPosition = new Vector3(MathF.Round(cam.GlobalPosition.X / 4f) * 4f, 0, MathF.Round(cam.GlobalPosition.Z / 4f) * 4f);
+                sea.GlobalPosition = new Vector3(MathF.Round(cam.GlobalPosition.X / 5f) * 5f, 0, MathF.Round(cam.GlobalPosition.Z / 5f) * 5f);
                 if (seaFar != null) seaFar.GlobalPosition = new Vector3(cam.GlobalPosition.X, -0.7f, cam.GlobalPosition.Z);
             }
             if (farMat != null)
