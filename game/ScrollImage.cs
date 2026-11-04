@@ -20,6 +20,10 @@ public partial class ScrollImageView : Control
     string signature = "";
     readonly List<Control> items = new();
     TextureRect? selectBorder;
+    /// <summary>ini "centerXoffset": x of the chosen picture's centre in interface units (null = the middle of the strip).</summary>
+    public float? CenterX;
+    /// <summary>ini "UseOneString": the caption's centre offset from the picture's centre (x) and its top from the picture's top (y); null = bottom right.</summary>
+    public Vector2? TextOffset;
 
     public ScrollImageView(Entity gameInterface, string nodeName, float x1, float y1, float x2, float y2, float imageW, float imageH, Action<string, string> command)
     {
@@ -74,7 +78,9 @@ public partial class ScrollImageView : Control
             string? str = pic.Find("str1", false)?.Value;
             if (!string.IsNullOrEmpty(str))
             {
-                var l = new Label { Text = str.TrimStart('#'), Position = new Vector2(itemW * 0.45f, itemH * 0.72f), Size = new Vector2(itemW * 0.55f, 24), HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
+                var l = TextOffset is { } to
+                    ? new Label { Text = str.TrimStart('#'), Position = new Vector2(itemW / 2 + to.X - itemW, to.Y - 4), Size = new Vector2(itemW * 2, 24), HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1 }
+                    : new Label { Text = str.TrimStart('#'), Position = new Vector2(itemW * 0.45f, itemH * 0.72f), Size = new Vector2(itemW * 0.55f, 24), HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
                 l.AddThemeFontSizeOverride("font_size", 16);
                 l.AddThemeColorOverride("font_outline_color", Colors.Black);
                 l.AddThemeConstantOverride("outline_size", 4);
@@ -126,7 +132,7 @@ public partial class ScrollImageView : Control
         if (signature != Signature()) Refresh();
         int cur = Current;
         shown += (cur - shown) * Math.Min(1f, (float)delta * 12f);
-        float cx = Size.X / 2 - itemW / 2;
+        float cx = (CenterX is { } c ? c - Position.X : Size.X / 2) - itemW / 2;
         for (int i = 0; i < items.Count; i++)
         {
             float dx = (i - shown) * (itemW + 6);

@@ -9,7 +9,7 @@ Land | Locations (models, lighting, locators, collisions, camera) | PORT | 85 | 
 Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | 80 | V | walk/run/follow/fight tasks work; ragdoll and many animations missing
 Land | Melee combat (swings, damage by script, death) | APPROX | 55 | V | timing and attacks are mine; sword and pistol on the body; fight stance, draw/sheathe, block (Ctrl; NPCs by their block skill; script event Location_CharacterBlock), hit reactions, pistol shot (Q; engine recharge of chr_ai.charge); not verified in a live fight, no parry/recoil
 Land | Dialogs (window, answers, links) | PORT | 90 | V | works with real quest dialogs
-Land | Items on the ground, chests | PORT | 40 | E | code exists, barely tested
+Land | Items on the ground, chests | PORT | 80 | V | box locators -> OpenBox hint -> original itemsbox screen, items moved both ways (test chest); random/quest items shown (MODELR), picked with fade (MSG_MODEL_BLEND)
 Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | 80 | V | most screens render; KEYCHOOSER, EDITBOX, XBOX, GLOWS missing
 Interface | Main menu, options, character, items, quest book screens | PORT | 80 | V | options fully usable (game/beta settings, sound, video, controls)
 Interface | Store, shipyard, trade, cargo transfer screens | PORT | 55 | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work

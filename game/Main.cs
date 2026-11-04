@@ -20,6 +20,7 @@ public partial class Main : Node
     SoundView? sound;
     readonly Dictionary<Entity, Node3D> modelNodes = new();
     readonly Dictionary<Entity, string> modelDirs = new();
+    readonly Dictionary<Node3D, (float from, float to, float t, float dur)> modelFades = new();     // MSG_MODEL_BLEND in progress
     readonly Dictionary<Entity, LocationView> locations = new();
     readonly Dictionary<Entity, CharacterView> characters = new();
     bool started;
@@ -189,6 +190,7 @@ public partial class Main : Node
         host.It.EntityHandlers["fader"] = (e, fmt, d) =>
         {
             int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_FADERLOG") != null) GD.Print($"[fader] entity {e.Id} msg {msg} view={(fader == null ? "new" : "existing")}");
             if (fader == null)
             {
                 var ent = e;
@@ -243,15 +245,21 @@ public partial class Main : Node
                         var g = StormScript.Formats.GmFile.Parse(File.ReadAllBytes(file));
                         foreach (var c in holder.GetChildren()) c.QueueFree();
                         holder.AddChild(ModelFactory.Build(g, Path.GetFileNameWithoutExtension(file), modelDirs[e].TrimEnd((char)92), null));
+                        GD.Print("[model] loaded " + S(1));
                         return V.Int(1);
                     }
                     catch (Exception ex) { GD.PrintErr("[model] " + file + ": " + ex.Message); return V.Int(0); }
                 }
-                case 20506:                                                                 // SET_POSITION: x y z + three basis vectors (already in the renderer's handedness)
+                case 20506:                                                                 // SET_POSITION: x y z + the basis vectors vx vy vz the original engine used as they come
+                    // (the scripts pass them with z negated). The meshes are built with z negated (S = diag(1,1,-1)), so the node gets S*M*S: z rows and z column flip sign.
                     holder.Position = new Vector3(F(1), F(2), -F(3));
-                    if (d.Length >= 13) holder.Basis = new Basis(new Vector3(F(4), F(5), F(6)), new Vector3(F(7), F(8), F(9)), new Vector3(F(10), F(11), F(12)));
+                    if (d.Length >= 13) holder.Basis = new Basis(new Vector3(F(4), F(5), -F(6)), new Vector3(F(7), F(8), -F(9)), new Vector3(-F(10), -F(11), F(12)));
                     return V.Int(1);
                 case 20504: holder.QueueFree(); modelNodes.Remove(e); return V.Int(1);      // RELEASE
+                case 20507:                                                                 // BLEND "lslff": technique, time (ms), alpha from -> to (a picked item fades out, a placed one fades in)
+                    GD.Print($"[model] blend {holder.Name} {F(3)} -> {F(4)}");
+                    FadeModel(holder, F(3), F(4), Math.Max(0.05f, F(2) / 1000f));
+                    return V.Int(1);
             }
             return V.Int(1);
         };
@@ -678,6 +686,33 @@ public partial class Main : Node
     /// Space on land is the original control "BIFastCommand": it carries out the action the log interface offers (g_ActiveActionName): Reload (door), Pick (item on the ground),
     /// OpenBox (chest), Action (use an item at a place), Talk ... The script's BI_FastCommand handler does the work.
     /// </summary>
+    /// <summary>MSG_MODEL_BLEND of a free-standing model: fades every mesh between two opacities; fully faded out it is hidden.</summary>
+    void FadeModel(Node3D holder, float from, float to, float seconds)
+    {
+        holder.Visible = true;
+        modelFades[holder] = (from, to, 0f, seconds);
+        SetModelAlpha(holder, from);
+    }
+
+    static void SetModelAlpha(Node n, float alpha)
+    {
+        if (n is GeometryInstance3D g) g.Transparency = 1f - Math.Clamp(alpha, 0f, 1f);
+        foreach (var c in n.GetChildren()) SetModelAlpha(c, alpha);
+    }
+
+    /// <summary>Advances the MSG_MODEL_BLEND fades with the game's delta (scripted runs use a fixed step).</summary>
+    void TickModelFades(float dt)
+    {
+        foreach (var (node, f) in modelFades.ToArray())
+        {
+            if (!IsInstanceValid(node)) { modelFades.Remove(node); continue; }
+            float t = Math.Min(f.t + dt, f.dur);
+            SetModelAlpha(node, f.from + (f.to - f.from) * (t / f.dur));
+            if (t >= f.dur) { modelFades.Remove(node); if (f.to <= 0.01f) node.Visible = false; }
+            else modelFades[node] = (f.from, f.to, t, f.dur);
+        }
+    }
+
     void LandAction()
     {
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
@@ -735,6 +770,7 @@ public partial class Main : Node
     {
         // scripted test runs (--shot) advance a fixed 1/100 s per frame (the speed the hooks were written at): the frame-numbered hooks then mean the same game time whatever the machine's frame rate is
         if (shotPath != null && System.Environment.GetEnvironmentVariable("SEADOGS_REALDT") == null) delta = 1.0 / 100.0;
+        if (modelFades.Count > 0) TickModelFades((float)delta);
         if (!started)
         {
             started = true;
@@ -819,6 +855,9 @@ public partial class Main : Node
             GD.Print($"[main] TimeScale={host.It.TimeScale}, locations={locations.Count}, entities alive: " + string.Join(", ", host.It.Entities.Where(en => !en.Deleted).GroupBy(en => en.Class).Select(g => g.Key + "x" + g.Count())));
             foreach (var ch in GetChildren()) GD.Print($"[tree] {ch.Name} {ch.GetType().Name} children={ch.GetChildCount()} queued={ch.IsQueuedForDeletion()}");
             foreach (var c in characters.Values) GD.Print("[chars] " + c.DebugState());
+            foreach (var m in modelNodes.Values)
+                foreach (var part in m.GetChildren().OfType<Node3D>()) GD.Print($"[models] {part.Name} at {m.GlobalPosition} visible={m.Visible} size={(m.Basis * ModelFactory.Bounds(part).Size).Abs()}"
+                        + (GetViewport().GetCamera3D() is { } cam && !cam.IsPositionBehind(m.GlobalPosition) ? $" screen={cam.UnprojectPosition(m.GlobalPosition)}" : " off-screen"));
             foreach (var kv in host.It.RuntimeErrors.OrderByDescending(k => k.Value).Take(25)) GD.Print($"[errors] {kv.Value}x {kv.Key}");
             foreach (var kv in host.It.EventsFired.OrderByDescending(k => k.Value).Take(40)) GD.Print($"[events] {kv.Value}x {kv.Key} handlers={(host.It.Handlers.TryGetValue(kv.Key, out var hl) ? string.Join(",", hl.Select(h => h.fn)) : "-")}");
             foreach (var kv in host.It.UnresolvedFuncs.OrderByDescending(k => k.Value).Take(25)) GD.Print($"[unresolved] {kv.Value}x {kv.Key}");

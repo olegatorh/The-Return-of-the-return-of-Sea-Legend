@@ -65,6 +65,11 @@ if ($Sea) {
         # controls: after a screen has been opened and closed the REAL keys must still work (the empty interface view used to swallow Space): the door is opened with the Space key
         $d = @('--ctl=Quick_Load@200', '--ctl=Interface@300', '--key=Escape@450', '--goto=reload.reload1@600', '--key=Space@650', '--shot-frame=1000')
         $fail += Invoke-Godot 'door' $d 300 @('[land] action: Reload')
+        # chest: the usurer's house of the port town, walk onto the box locator, Space opens the items box, give 2 coins into it, Escape, Space opens it again
+        $x = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_UsurerHouse,reload,reload1)@300', '--set=Characters[0].GenQuest.God_hit_us=0@650', '--goto=box.box1@700',
+               '--key=Space@760', '--mouse=ONEDOWN_BUTTON@820', '--mouse=ONEDOWN_BUTTON@840', '--dump=Characters[0].Money@870', '--dump=Locations[192].box1.Money@870',
+               '--key=Escape@900', '--key=Space@1000', '--shot-frame=1100')
+        $fail += Invoke-Godot 'chest' $x 300 @('[land] action: OpenBox', 'itemsbox.ini', 'money = "99998"', 'Money = "2"')
         # 'sail to' the port from the command menu: the squadron is moved next to the port's reload locator behind the fader, where mooring is offered
         $st = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--seapos=-500,-400,3.0@700', '--call=SeaAI_SailToLocator(reload_1)@800', '--act@1300', '--shot-frame=1500')

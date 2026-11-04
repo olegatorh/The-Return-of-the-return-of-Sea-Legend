@@ -1026,7 +1026,11 @@ public partial class XView : Control
     Control MakeScrollImage(string name, Func<string, string?> P, float[] pos)
     {
         var sz = Floats(P("imageSize"), 2);
-        return new ScrollImageView(Ent, name, pos[0], pos[1], pos[2], pos[3], sz[0] > 0 ? sz[0] : 128, sz[1] > 0 ? sz[1] : 128, (cmd, n) => Run(n, cmd, 0));
+        var v = new ScrollImageView(Ent, name, pos[0], pos[1], pos[2], pos[3], sz[0] > 0 ? sz[0] : 128, sz[1] > 0 ? sz[1] : 128, (cmd, n) => Run(n, cmd, 0));
+        if (P("centerXoffset") is { Length: > 0 } cxo) v.CenterX = pos[0] + Conv.ParseFloatPrefix(cxo);         // the chosen picture's centre (screen units), e.g. between the arrows of the chest lists
+        if (P("UseOneString") is { Length: > 0 } one && Conv.ParseFloatPrefix(one) != 0 && Conv.ParseFloatPrefix(P("UseTwoString")) == 0)                        // one caption per picture placed by dwXOffset1 (from the centre) / dwYOffset1 (from the top)
+            v.TextOffset = new Vector2(Conv.ParseFloatPrefix(P("dwXOffset1") ?? "0"), Conv.ParseFloatPrefix(P("dwYOffset1") ?? "92"));
+        return v;
     }
 
     public override void _UnhandledKeyInput(InputEvent e)
