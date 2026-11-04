@@ -63,7 +63,11 @@ are only covered by the smoke runs.
 | `--dialog=Id_with_underscores@N` | start a dialog with a character |
 | `--fuzz@N` | talk to everyone in the location, click the first answer; prints missing engine functions |
 | `--shot=path.png --shot-frame=N` | save a screenshot (path **without spaces**) and print diagnostics, then quit |
-| `--camdist=N`, `--move=X,Y@A-B`, `--control@N` | camera distance, hold a move direction, give control to the player |
+| `--camdist=N`, `--move=X,Y@A-B`, `--control@N` | camera distance, hold a move direction (at sea: X = steering), give control to the player |
+| `--sail=+1@N`, `--act@N` | sea: sail state up/down; execute the offered sea action (Moor...). Env `SEADOGS_SEACAM=dist,pitch,yawOffset` fixes the sea camera |
+
+Sea test recipe (from a save made in the town port): `--ctl=Quick_Load@200 --call=initTutMainCharacterShip()@300 --call=SetPlayerShipLocation(184)@320 --goto=reload.reload1@400 --ctl=ChrAction@450`
+(184 = index of the port location in `Locations[]`); `run_tests.ps1 -Sea` does exactly this.
 
 Env vars: `SEADOGS_TRACE=Func1,Func2` (log script calls), `SEADOGS_MATLOG`, `SEADOGS_DETECTLOG`, `SEADOGS_RIGLOG`, `SEADOGS_SOUNDLOG`.
 At screenshot time the log lists: `[errors]` (runtime errors), `[unresolved]` (engine functions the scripts call that do not exist), `[events]`, `[nohandler]`
@@ -84,5 +88,6 @@ Intro reference run (from the main menu to the first location, ~9000 frames):
 Works: boot, menu, hero selection, real intro, locations (3D, lighting, sky/sea/fog), characters + AI tasks + sitting poses, dialogs, locator detection and
 reloads, game clock, sound, save/load (`OnSave/OnLoad`), interfaces: character, items, quest book, options (sound), shipyard (empty), Ukrainian layer.
 Basic melee combat works (groups, NPC attacks, death/game over; player: F draws the sword, LMB attacks).
-Missing (largest first): **sea/ships/world map** (Ship, Island, Sail, sea AI, battle interface), blocks/pistols/weapon models, trade/store flow,
+Sea mode basics work (own ship with sails sails around the island, mooring back to the port; see docs/ARCHITECTURE.md 6b).
+Missing (largest first): **world map, other ships + sea AI, cannons, sea HUD (battle interface)**, blocks/pistols/weapon models, trade/store flow,
 items/chests on the ground (code exists, untested), key-binding screen, save thumbnails, mouse look, polishing of the machine translation.

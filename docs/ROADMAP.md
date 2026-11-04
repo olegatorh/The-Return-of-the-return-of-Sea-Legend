@@ -3,7 +3,7 @@
 Legend: effort S (hours) / M (a day) / L (days+). "Hint" says where to start.
 
 ## A. Needed to play beyond the first island
-1. **Sea mode (L)** — `Ship`, `Island`, `Sail`, `Rope`, `Flag`, `Vant`, `SEA_CAMERAS`, `sea_ai`, `AIFort`, `AIBalls`, `battle_interface`, `ispyglass`.
+1. **Sea mode (L) — basics DONE** (own ship, sails, island, camera, mooring back; see ARCHITECTURE 6b). Still to do: HUD, other ships + AI, cannons/balls, forts, island collision, wake, sea sounds, storms. Original item: — `Ship`, `Island`, `Sail`, `Rope`, `Flag`, `Vant`, `SEA_CAMERAS`, `sea_ai`, `AIFort`, `AIBalls`, `battle_interface`, `ispyglass`.
    Hint: scripts `PROGRAM/SEA_AI`, `Ships/`, `BATTLE_INTERFACE`; entry `ReloadToSea` in `reload.c`; `sea` entity already renders a plane (`OutdoorEnv.cs`).
    The hero currently has no ship at the start; ships come from the shipyard (`LaunchShipyard`, needs gold) or quests.
 2. **World map (L)** — class `worldmap` (`PROGRAM/WorldMap`); `wdm*` script functions.

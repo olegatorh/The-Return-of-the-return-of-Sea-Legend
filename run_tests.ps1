@@ -2,7 +2,8 @@
 #   ./run_tests.ps1            unit tests (interpreter semantics, parser corpus, headless boot, format readers, language layer) + game build
 #   ./run_tests.ps1 -Smoke     + Godot main-menu smoke run (needs a window; ~10 s), fails on [errors]/[unresolved]/script exceptions
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
-param([switch]$Smoke, [switch]$Intro)
+#   ./run_tests.ps1 -Sea       + sea scenario from saves/quicksave (town port): leave the port, sail, turn, moor again (~1 min)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -15,7 +16,7 @@ Write-Host '== game build' -ForegroundColor Cyan
 dotnet build "$root\game\SeaDogs.csproj" -nologo -v q
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
-function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec) {
+function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [string[]]$mustContain = @()) {
     $godot = "$root\godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe"
     $shot = "$root\game\smoke_$name.png"
     $log = "$root\game\smoke_$name.log"
@@ -27,6 +28,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec) {
     $text = (Get-Content $log, "$log.err" -ErrorAction SilentlyContinue) -join "`n"
     $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception' }
     if (-not (Test-Path $shot)) { Write-Host 'no screenshot was produced (the run did not reach the end)' -ForegroundColor Red; return 1 }
+    foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "expected in the log: $m" -ForegroundColor Red; return 1 } }
     if ($bad) { Write-Host 'problems:' -ForegroundColor Red; $bad | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }; return 1 }
     Write-Host "ok (screenshot: game\smoke_$name.png, log: game\smoke_$name.log)" -ForegroundColor Green
     return 0
@@ -37,6 +39,15 @@ if ($Intro) {
     $a = @('--click=B_NEWGAME@200', '--click=RUNGAME@400')
     foreach ($i in 0..12) { $a += "--answer=1@$(2700 + 100 * $i)" }
     $fail += Invoke-Godot 'intro' ($a + @('--shot-frame=9500')) 600
+}
+
+if ($Sea) {
+    if (-not (Test-Path "$root\saves\quicksave.sdsave")) { Write-Host 'no saves\quicksave.sdsave: play to the first town and press F4, or skip -Sea' -ForegroundColor Yellow }
+    else {
+        $a = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+               '--sail=+1@700', '--sail=+1@705', '--move=1,0@900-1100', '--act@1500', '--shot-frame=1900')
+        $fail += Invoke-Godot 'sea' $a 300 @('[sea] ship Blaze', '[sea] action: Moor', 'locations=1')
+    }
 }
 
 if ($fail -gt 0) { Write-Host "FAILED ($fail)" -ForegroundColor Red; exit 1 }

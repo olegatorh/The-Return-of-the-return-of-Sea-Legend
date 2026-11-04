@@ -43,6 +43,7 @@ public partial class SeaView : Node3D
     float camYawOff, camPitch = 0.30f, camDist = -1f;
     bool camInit;
     int logCounter;
+    float situationTimer = 1f;
 
     public bool Active => ships.Count > 0 || island != null || it.Entities.Any(e => !e.Deleted && e.Class.Equals("sea_ai", StringComparison.OrdinalIgnoreCase));
     public Vector3 PlayerPosition => ships.FirstOrDefault(s => s.IsPlayer) is { } p ? new Vector3(p.X, 0, -p.Z) : Vector3.Zero;
@@ -339,10 +340,34 @@ public partial class SeaView : Node3D
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
             if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
+            if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); } }
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
         UpdateCamera(dt, inputEnabled);
+    }
+
+    /// <summary>
+    /// The engine's sea AI keeps SeaAI.Update.{Ships,Forts} of the player's character: the nearby ships (idx, Distance, relation, d_ay, RelativeSpeed) and forts.
+    /// The script (Ship_CheckMainCharacter) decides from them whether the player may board, moor, enter the map...
+    /// </summary>
+    void UpdateSituation(ShipRt p)
+    {
+        var upd = p.Chr.Find("SeaAI.Update", true)!;
+        upd.Remove("Ships"); upd.Remove("Forts");
+        var list = upd.GetOrCreate("Ships");
+        upd.GetOrCreate("Forts");
+        int k = 0;
+        foreach (var o in ships)
+        {
+            if (ReferenceEquals(o, p)) continue;
+            var n = list.GetOrCreate("s" + k++);
+            n.GetOrCreate("idx").Value = o.Index.ToString();
+            SetF(n, "Distance", MathF.Sqrt((o.X - p.X) * (o.X - p.X) + (o.Z - p.Z) * (o.Z - p.Z)));
+            n.GetOrCreate("relation").Value = Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(o.Index))).ToString();
+            SetF(n, "d_ay", MathF.Cos(o.Ay - p.Ay));
+            SetF(n, "RelativeSpeed", MathF.Abs(o.Speed - p.Speed));
+        }
     }
 
     public void SailKey(int dir)

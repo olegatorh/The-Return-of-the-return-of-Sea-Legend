@@ -40,6 +40,7 @@ public partial class Main : Node
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
     Queue<string>? fuzzQueue;
     readonly List<(int frame, string loc)> gotos = new();
+    readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     int controlAt = -1;
 
@@ -62,6 +63,7 @@ public partial class Main : Node
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--act@")) seaActions.Add(int.Parse(a.Substring(6)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
@@ -309,6 +311,12 @@ public partial class Main : Node
         }
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.W or Key.S } sk && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
             sea.SailKey(sk.Keycode == Key.W ? 1 : -1);
+        if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
+        {
+            string? ctl = sk2.Keycode switch { Key.M => "BI_MapEnter", Key.Key1 => "BI_ChargeCannonballs", Key.Key2 => "BI_ChargeGrapes", Key.Key3 => "BI_ChargeKnippels", Key.Key4 => "BI_ChargeBombs", _ => null };
+            if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
+            if (sk2.Keycode is Key.Enter or Key.KpEnter or Key.Space) SeaAction();
+        }
         // F = draw/sheathe the sword (the original used E; E talks here)
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F } && dialogView == null && view == null)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
@@ -453,6 +461,14 @@ public partial class Main : Node
 
     LocationView? CurrentLocation() { foreach (var l in locations.Values) return l; return null; }
 
+    /// <summary>Executes the sea action the HUD offers (Moor / Board / LandTroops / Map ...): the engine's battle interface raised "BI_FastCommand" with its name.</summary>
+    void SeaAction()
+    {
+        string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
+        GD.Print("[sea] action: " + act);
+        if (act.Length > 0 && act != "Nothing") host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) });
+    }
+
     /// <summary>An interface screen is on display (the xinterface entity also exists, empty, while the sea HUD talks to it).</summary>
     bool UiOpen => view != null && view.GetChildCount() > 0;
 
@@ -503,6 +519,7 @@ public partial class Main : Node
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
+        foreach (var f in seaActions) if (f == frames) SeaAction();
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);

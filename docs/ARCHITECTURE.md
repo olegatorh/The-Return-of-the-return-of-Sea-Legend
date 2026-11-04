@@ -82,6 +82,22 @@ Scripts create engine objects with `CreateEntity(&obj, "class")` and talk to the
 `LoadEngineState(name)` → load saved segments, `Interp.RestoreState`, then (next frame) call script `OnLoad()` which recreates interfaces/quests and re-enters the
 location (`TLPCHRPOSITIONS` puts people back). Entities are never serialised. Save UI helpers: `SaveFiles.cs` + messages 45035..45048.
 
+## 6b. Sea mode (`game/Sea.cs`, class `SeaView`)
+Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI/sea.c`) unloads the location and creates the entities `sea_ai`, `Ship`, `Island`,
+`SEA_CAMERAS`, `battle_interface` ... Everything the port needs to know arrives as messages:
+* `sea_ai` (51xxx): `AI_MESSAGE_GROUP_SET_XYZ_AY` (group position), `..SET_COMMANDER` (also sets `chr.SeaAI.Group.Name`), `AI_MESSAGE_ADD_SHIP` (character, ship type) →
+  `SeaView.AddShip`: model assembled from the hull's `geometry/mastN` labels, a mast's `geometry/rey_*` labels and a yard's `sail1..sail4` corner labels
+  (`ships\parus_<nation>.tga`), then events `ShpCreate` (idx, ship attr) and `Shp_UpdParams` (idx, sail state).
+* The port writes back every frame: `Ship.Pos.x/y/z`, `Ship.Ang.y`, `Ship.Speed.z`; every second `SeaAI.Update.Ships/Forts` of the player (the script checks them in
+  `Ship_CheckMainCharacter` to decide `bCanEnterToLand`, boarding ...). Speed/turn limits are **computed by the script** (`Ship_UpdateParameters` → `Ship.MaxSpeedZ/MaxSpeedY`
+  from wind `Weather.Wind.*`, load, sail damage, skills); the port only integrates them (`SeaView.Tick`).
+* Island: `Island` message 50100 loads `MODELS\<filespath.models>\<model>.gm` with the `<model>_<light>.col` vertex colours. The engine class `locator` (message 1504
+  `LM_LOCATE_I`, `SeaView.LocateIsland`) fills `Islands[n].reload.lK.{x,y,z,ay}` and `.ships.l0..` from `<island>_locators.gm`; this is refilled after a load (`RelocateIslands`).
+* Controls (no engine control system yet): W/S sail up/down, A/D turn, arrows/PgUp/PgDn camera, Enter/Space = execute the HUD action (`g_ActiveActionName` → event `BI_FastCommand`:
+  Moor/Board/Map...), M/1..4 → `Control Activation` (`BI_MapEnter`, `BI_Charge*`). Ship camera parameters come from the `SHIP_CAMERA` entity attributes.
+* Units: 1 unit = 1 m, engine heading `ay`: forward = (sin ay, cos ay) in (x, z); Godot z = -z, node yaw = -ay.
+* Missing: sea HUD (`battle_interface` 46xxx), other ships/AI (`AI_MESSAGE_SHIP_SET_TASK`...), cannons/balls, forts, island collisions, wake/foam, rocking, world map.
+
 ## 7. Pitfalls found the hard way (read before debugging)
 1. **`ClearEvents()` must keep `#event_handler` registrations** — otherwise AI templates silently die after "new game".
 2. The dialog class restores `TimeScale` to 1 when it is deleted; the script only sets 0.
@@ -93,7 +109,8 @@ location (`TLPCHRPOSITIONS` puts people back). Entities are never serialised. Sa
 7. Sky/sea/fog and weather are **entities created by the script** (`CreateWeatherEnvironment`); the port reads their attributes each frame.
 8. Hero models in `HeroDescribe.txt` are comma lists; the first name is the model. Hero type/nation values in that file are used by scripts verbatim — never translate them.
 9. Script defects exist (missing `if`, stray `)`, Cyrillic letters in identifiers): `docs/source_defects.md`; the parser recovers.
-10. After a code change that "does nothing": check `[unresolved]`, `[nohandler]`, then trace with `SEADOGS_TRACE`.
+10. `Bring2Range(min1,max1,min2,max2,v)` maps v from [min2,max2] ONTO [min1,max1] (it was reversed once; unit-tested).
+11. After a code change that "does nothing": check `[unresolved]`, `[nohandler]`, then trace with `SEADOGS_TRACE`.
 
 ## 8. Formats (all little endian; readers in StormScript/Formats and tools/*.py)
 `.tx` 24-byte header + DXT/uncompressed mips; `.gm` "RDF 1.05" geometry (materials, labels = locators, objects, vertex types 0/1/4); `.an` skeleton animation
