@@ -18,6 +18,8 @@ public partial class CharacterView : Node3D
     enum Task { None, Stay, Goto, Run, Follow, Fight, Escape, Dead }
 
     public static readonly Dictionary<Attr, CharacterView> All = new();
+    /// <summary>EX_MSG "FindDialogCharacter": index of the character the player can talk to, -1 = nobody (set by Main).</summary>
+    public static Func<int>? FindDialog;
 
     readonly Interp it;
     public readonly Entity Ent;
@@ -633,6 +635,7 @@ public partial class CharacterView : Node3D
                     case "SetSex": case "SetFightWOWeapon": case "LockFightMode": return V.Int(1);
                     case "IsFightMode": return V.Int(fightMode ? 1 : 0);
                     case "IsDead": return V.Int(task == Task.Dead ? 1 : 0);
+                    case "FindDialogCharacter": return V.Int(FindDialog?.Invoke() ?? -1);
                     default: return V.Int(0);                                              // IsActive, FindDialogCharacter, ...
                 }
             case 30370: return V.Int(0);                                                   // FINDNEAR

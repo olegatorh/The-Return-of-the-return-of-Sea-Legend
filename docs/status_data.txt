@@ -14,6 +14,7 @@ Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scr
 Interface | Main menu, options, character, items, quest book screens | PORT | 80 | V | options fully usable (game/beta settings, sound, video, controls)
 Interface | Store, shipyard, trade, cargo transfer screens | PORT | 55 | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work
 Interface | Key bindings | APPROX | 70 | T | own table in settings.ini instead of the script control system; mouse buttons not remappable
+Interface | Land HUD (battle_land_interface) and command menu | PORT | 75 | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner
 Interface | Sea HUD (battle_interface) and command menu | APPROX | 60 | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested
 Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | 75 | V | flags, rigging ropes, sail animation missing
 Sea | Ship movement physics | APPROX | 50 | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling
@@ -46,7 +47,7 @@ Entity class | WMVideoPlay | STUB | 0 | E |
 Entity class | HELPCHOOSER | STUB | 0 | E |
 Entity class | InfoHandler | STUB | 0 | E |
 Entity class | Animals | STUB | 0 | E |
-Entity class | battle_land_interface | STUB | 0 | E |
+Entity class | battle_land_interface | PORT | 75 | V | LandHud.cs: portraits of hero+officers with HP/reload bars, pistol charges, message icons, alarm/poison blink; command menu (Enter) with the script's Commands/UserIcons (talk, fast travel, door, potions, chest ...); exact draw order/blending of the C++ class unknown
 Entity class | ispyglass | STUB | 0 | E |
 Entity class | CharacterAnimationKipper | STUB | 0 | E |
 Entity class | AISeaGoods | STUB | 0 | E |

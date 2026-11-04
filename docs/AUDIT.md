@@ -33,7 +33,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `CharacterAnimationKipper` | тримає анімації в пам'яті | ⚪ | — | — |
 | `obj_strservice`, `FINDFILESINTODIRECTORY`, `FINDDIALOGNODES` | тексти, пошук файлів | ✅ | `Builtins`/`Language.cs` | — |
 | `ILogAndActions` | журнал і підказка дії | ✅ (`LOG_LAUNCH_ACTIONS` 45023, `LI_OTHER_MSG` 45029 не використовуються) | `LogHud.cs` | — |
-| `battle_land_interface` | земний HUD: портрети героя й офіцерів зі смугами HP, іконки команд | ❌ (`[nohandler] 46013, 46100-46102`) | усі `smoke_*.log` | **реалізувати** (видно в кожній локації оригіналу) |
+| `battle_land_interface` | земний HUD: портрети героя й офіцерів зі смугами HP, іконки команд | ✅ 46013/46100-46104: портрети (HP, перезарядка, заряди пістоля, іконки повідомлень, блимання тривоги/отрути), меню команд по Enter (`BI_SetPossibleCommands` / `BI_CommandEndChecking` / `BI_LaunchCommand`, `UserIcons`, `ComState`); точне змішування/порядок малювання C++ невідомі | `LandHud.cs`, тест `landhud`, `review/land*.png` | — |
 | `Animals` (animals) | чайки, риби, метелики, акули | ❌ (`[nohandler] 77100-77109`) | `smoke_sea.log`, `smoke_fight.log` | чайки/метелики — дешева атмосфера |
 | `blots` (Blot) | сліди від ударів на корпусі/фортах | ❌ (`[nohandler] 30600`) | `smoke_*` | низький пріоритет |
 | `Sound` (SOUND, SoundService) | аліаси, схеми, 3D | 🟡 немає `SET_3D_PARAM`, `DUPLICATE`, `GET_POSITION`, позиції камери 77001/77002; **`Greetings_alias.ini` не завантажується** (680 привітань NPC) | `SoundView.cs:44-49, 244-269` | завантажити Greetings_alias.ini |
@@ -111,7 +111,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Земля | діалоги | ✅ текст; ❌ голова, голосові привітання | `Dialog.cs` | Greetings |
 | Земля | предмети на землі, скрині | 🟡 скриня відкривається (`review/chest.png`, `bx*.png`), підбір ❓ | `Main.cs:238` | сценарій тесту |
 | Земля | квести, кат-сцени | 🟡 логіка скриптова ✅; рух камери `MSG_CAMERA_MOVE`, `WideScreen`, відео ❌ | `quests_movie.c` | — |
-| Земля | земний HUD (`battle_land_interface`) | ❌ | `[nohandler] 461xx` | **пріоритет** |
+| Земля | земний HUD (`battle_land_interface`) | ✅ портрети + меню команд (розмова, швидкий перехід, двері, зілля, скриня) | `LandHud.cs`, тест `landhud` | — |
 | Море | кораблі, рух, хвилі, зіткнення | ✅/🟡 | `smoke_sea.log`, STATUS 50-75 % | — |
 | Море | ШІ кораблів | 🟡 задачі move/attack/follow/defend/flee; немає переслідування групи, зміни груп/відносин | `Sea.cs:180` | 51012/51016/51019/51020 |
 | Море | гармати, ядра, пошкодження, потоплення | 🟡 без вогню на палубі, без дірок у вітрилах, без падіння щогли, без SINKEFFECT | `SeaCombat.cs` | — |
@@ -132,7 +132,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Переклад | UI ~100 %, діалоги ~79 % машинний | 🟡 | `docs/STATUS.md` | редагування перших годин |
 
 ## 5. Наступні кроки (за помітністю для гравця)
-1. **Земний HUD `battle_land_interface`** (46013, 46100-46104): портрети героя/офіцерів зі смугами HP та іконки дій — видно в кожній локації оригіналу.
+1. ~~**Земний HUD `battle_land_interface`**~~ — зроблено (`LandHud.cs`).
 2. **Повний цикл абордажу і захоплення**: `AI_MESSAGE_SWAP_SHIPS` 51014, `SET_OFFICER_2_SHIP` 51013, `CHARACTER_DEAD` 51026, `IBoardingStatus`, екрани `ransack_*`; сценарій тесту від зіткнення до призового корабля.
 3. **Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.
 4. **Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).

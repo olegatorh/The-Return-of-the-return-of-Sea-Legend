@@ -47,8 +47,9 @@ Scripts create engine objects with `CreateEntity(&obj, "class")` and talk to the
 | `Sound` | `SoundView.cs` | aliases (`INI/ALIASES`), schemes (`INI/sound_scheme.ini`), OGG music |
 | `Sky`, `sea` | `OutdoorEnv.cs` | sky box, water plane + fog from the script's attributes |
 | `ILogAndActions` | `LogHud.cs` | message log + action hint ("Reload", "Pick", ...) |
+| `battle_land_interface` | `LandHud.cs` | portraits with HP/reload bars, message icons; land command menu (Enter): script events BI_SetPossibleCommands / BI_CommandEndChecking / BI_LaunchCommand |
 | `MODELR`, `MODEL` | `Main.cs` | free-standing models (items/chests); untested |
-| `CharactersGroups`, `battle_land_interface`, `particles`, `Animals`, `Ship`, `Island`, `Sail`, `worldmap`, ... | **not implemented** (messages ignored, return 0) | `[nohandler]` lines show the traffic |
+| `CharactersGroups`, `particles`, `Animals`, `Ship`, `Island`, `Sail`, `worldmap`, ... | **not implemented** (messages ignored, return 0) | `[nohandler]` lines show the traffic |
 
 ## 4. Characters, locations, locators
 * Coordinates: scripts/files use **Direct3D space (left-handed, y up)**; Godot rendering negates z. `CharacterView` keeps script-space `x,y,z,ay` and converts in `Apply()`.

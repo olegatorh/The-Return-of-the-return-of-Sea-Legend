@@ -17,16 +17,16 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 30 subsystems below): **67 %**
+* Overall (mean of the 31 subsystems below): **67 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **12531** lines of C# (`StormScript/` library + `game/`)
+* Port code: **13013** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
-| PORT | 14 | 77 % |
+| PORT | 15 | 77 % |
 | APPROX | 13 | 54 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
@@ -49,6 +49,7 @@ Layers (where the behaviour comes from):
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
 | Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
+| Interface | Land HUD (battle_land_interface) and command menu | PORT | ███████░░░ 75 % | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██████░░░░ 60 % | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |
 | Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
@@ -72,12 +73,12 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 22 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| PORT | 23 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
 | APPROX | 10 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%), `PEOPLE_ON_SHIP` (50%) |
-| STUB | 25 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| STUB | 24 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **32 of 66** (48 %); stubs: 25, missing: 9.
+Classes with real behaviour: **33 of 66** (50 %); stubs: 24, missing: 9.
 
 ## How accuracy is checked (and what is still unchecked)
 

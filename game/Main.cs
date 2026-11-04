@@ -15,6 +15,7 @@ public partial class Main : Node
     FaderView? fader;
     DialogView? dialogView;
     LogHud? logHud;
+    LandHud? landHud;
     bool rebuildWorld;
     float clockAcc;
     SoundView? sound;
@@ -278,6 +279,12 @@ public partial class Main : Node
             if (logHud == null) { logHud = new LogHud(); AddChild(logHud); }
             return logHud.OnMessage(fmt, d);
         };
+        // "battle_land_interface": portraits of the hero and the officers, the land command menu
+        host.It.EntityHandlers["battle_land_interface"] = (e, fmt, d) =>
+        {
+            if (landHud == null) { landHud = new LandHud(host.It); AddChild(landHud); }
+            return landHud.OnMessage(e, fmt, d);
+        };
         // "dialog": NPC line + answers (messages 0/1 name the two participants)
         host.It.EntityHandlers["dialog"] = (e, fmt, d) =>
         {
@@ -303,6 +310,7 @@ public partial class Main : Node
         };
         sea.Register(host.It);
         worldMap.Register(host.It);
+        CharacterView.FindDialog = () => NearestTalkable() is { } nt && nt.Ent.Root.Get("index")?.Value is { } ix ? (int)Conv.ParseFloatPrefix(ix) : -1;
         host.It.EntityHandlers["NPCharacter"] = chr;
         host.It.EntityHandlers["Character"] = chr;
         host.It.EntityHandlers["Player"] = chr;
@@ -316,6 +324,7 @@ public partial class Main : Node
             if (e.Class == "location") GD.Print($"[main] location entity {e.Id} deleted ({e.Root.Path}), view known: {locations.ContainsKey(e)}");
             if (modelNodes.Remove(e, out var mn)) { mn.QueueFree(); modelDirs.Remove(e); }
             if (e.Class == "ILogAndActions" && logHud != null) { logHud.QueueFree(); logHud = null; }
+            landHud?.OnDeleted(e);
             if (e.Class == "location")      // the location owns the people standing in it
                 foreach (var cls in new[] { "NPCharacter", "Player", "Character" }) host.It.DeleteAllEntities(cls);
             if (e.Class.Equals("locationcamera", StringComparison.OrdinalIgnoreCase)) { camMode = 1; camInit = false; }
@@ -393,11 +402,19 @@ public partial class Main : Node
             sea.OpenCommands();
             return;
         }
+        // the land command menu has the keyboard while it is open (the original switches to "BattleInterfaceControls")
+        if (landHud != null && landHud.MenuOpen && e is InputEventKey { Pressed: true, Echo: false } lk && locations.Count > 0 && !UiOpen && dialogView == null)
+        {
+            landHud.KeyPress(lk.PhysicalKeycode);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {
             string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
+            if (ctl == "LICommandsActivate" && locations.Count > 0) landHud?.Command(ctl);       // Enter opens the land command menu
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (ck.PhysicalKeycode == Key.Space && locations.Count > 0) LandAction();
         }
@@ -507,34 +524,20 @@ public partial class Main : Node
     {
         var player = characters.Values.FirstOrDefault(c => c.IsPlayer);
         if (player == null || !player.Placed) return null;
-        var near = characters.Values.Where(c => !c.IsPlayer && c.Placed && c.Ent.Root.Find("Dialog.Filename", false)?.Value is { Length: > 0 })
+        var near = characters.Values.Where(c => !c.IsPlayer && c.Placed && c.Visible && c.IsAlive && c.Ent.Root.Find("Dialog.Filename", false)?.Value is { Length: > 0 })
             .OrderBy(c => c.Position.DistanceTo(player.Position)).FirstOrDefault();
         return near != null && near.Position.DistanceTo(player.Position) < 3.2f ? near : null;
     }
 
-    bool talkHint;
-
-    /// <summary>Offers "Talk" in the action hint while somebody is within reach and nothing else (door, item) is offered; takes it back when the character is gone.</summary>
-    void UpdateTalkHint()
-    {
-        if (frames % 6 != 0) return;
-        string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
-        bool busy = dialogView != null || UiOpen || locations.Count == 0;
-        bool someone = !busy && NearestTalkable() != null;
-        if (someone && (act.Length == 0 || act == "Nothing")) { host.It.CallTop("Log_SetActiveAction", V.Str("Talk")); talkHint = true; }
-        else if (talkHint && (!someone || act != "Talk")) { if (act == "Talk") host.It.CallTop("Log_SetActiveAction", V.Str("Nothing")); talkHint = false; }
-    }
-
     void UpdateWorld(float delta)
     {
-        UpdateTalkHint();
         float scale = host.It.TimeScale;
         float dt = delta * scale;
         var list = characters.Values.ToList();
         var player = list.FirstOrDefault(c => c.IsPlayer);
 
         // player input: only when no dialog/interface has the keyboard
-        bool free = dialogView == null && !UiOpen && !flyMode;
+        bool free = dialogView == null && !UiOpen && !flyMode && landHud?.MenuOpen != true;
         if (player != null)
         {
             var mv = Vector2.Zero;
@@ -717,7 +720,6 @@ public partial class Main : Node
     {
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
         GD.Print("[land] action: " + (act.Length == 0 ? "Nothing" : act));
-        if (act == "Talk") { var who = NearestTalkable(); if (who != null) StartDialog(who.Ent.Root.Get("id")?.Value ?? ""); return; }
         if (act.Length == 0 || act == "Nothing" || act == "Closed")
         {
             host.It.FireEvent("Control Activation", new List<V> { V.Str("ChrAction") });       // a closed door answers with the knock
@@ -785,6 +787,8 @@ public partial class Main : Node
             host.It.CallTop("OnLoad");
         }
         if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
+        if (landHud != null) landHud.Suppressed = dialogView != null || UiOpen || locations.Count == 0;
+        if (logHud != null) logHud.ActionSuppressed = landHud?.MenuOpen == true;
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         UpdateWorld((float)delta);
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -827,7 +831,7 @@ public partial class Main : Node
         if (controlAt == frames) host.It.CallTop("LAi_SetPlayerType", host.It.CallTop("GetMainCharacter"));    // test hook: end the scripted intro
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
-        foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
+        foreach (var (f, n) in ctls) if (f == frames) { if (landHud?.Command(n) != true) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) }); }
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
         SeaTestHooks();
@@ -855,6 +859,7 @@ public partial class Main : Node
             GD.Print($"[main] TimeScale={host.It.TimeScale}, locations={locations.Count}, entities alive: " + string.Join(", ", host.It.Entities.Where(en => !en.Deleted).GroupBy(en => en.Class).Select(g => g.Key + "x" + g.Count())));
             foreach (var ch in GetChildren()) GD.Print($"[tree] {ch.Name} {ch.GetType().Name} children={ch.GetChildCount()} queued={ch.IsQueuedForDeletion()}");
             foreach (var c in characters.Values) GD.Print("[chars] " + c.DebugState());
+            if (landHud != null) GD.Print("[landhud] " + landHud.DebugState());
             foreach (var m in modelNodes.Values)
                 foreach (var part in m.GetChildren().OfType<Node3D>()) GD.Print($"[models] {part.Name} at {m.GlobalPosition} visible={m.Visible} size={(m.Basis * ModelFactory.Bounds(part).Size).Abs()}"
                         + (GetViewport().GetCamera3D() is { } cam && !cam.IsPositionBehind(m.GlobalPosition) ? $" screen={cam.UnprojectPosition(m.GlobalPosition)}" : " off-screen"));

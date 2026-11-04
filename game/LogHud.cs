@@ -17,6 +17,10 @@ public partial class LogHud : Control
     bool visibleLog = true, visibleAction = true;
     string actionName = "Nothing";
     public Func<string, string> Translate = s => s;
+    bool actionSuppressed;
+
+    /// <summary>The land command menu is open: it offers the same actions as icons, so the text hint steps aside.</summary>
+    public bool ActionSuppressed { set { if (value != actionSuppressed) { actionSuppressed = value; Refresh(); } } }
 
     static readonly Dictionary<string, string> ActionText = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -76,7 +80,7 @@ public partial class LogHud : Control
 
     void Refresh()
     {
-        bool show = visibleAction && !actionName.Equals("Nothing", StringComparison.OrdinalIgnoreCase) && actionName.Length > 0;
+        bool show = visibleAction && !actionSuppressed && !actionName.Equals("Nothing", StringComparison.OrdinalIgnoreCase) && actionName.Length > 0;
         action.Visible = show;
         if (show) action.Text = "[Пробіл]  " + (ActionText.TryGetValue(actionName, out var t) ? t : actionName);
     }
