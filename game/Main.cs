@@ -352,7 +352,7 @@ public partial class Main : Node
             var w = GetWindow();
             w.Mode = w.Mode == Window.ModeEnum.Fullscreen ? Window.ModeEnum.Windowed : Window.ModeEnum.Fullscreen;
         }
-        if (sea.Active && sea.CommandsOpen && e is InputEventKey { Pressed: true, Echo: false } cmk && locations.Count == 0)
+        if (sea.Active && sea.CommandsOpen && e is InputEventKey { Pressed: true, Echo: false } cmk && locations.Count == 0 && !UiOpen && dialogView == null)
         {
             sea.CommandKey(cmk.PhysicalKeycode);
             GetViewport().SetInputAsHandled();
@@ -497,6 +497,9 @@ public partial class Main : Node
             return;
         }
 
+        // the sea HUD and its command menu belong to the open sea only: on a deck or in a cabin (a location while the sea is still alive) they would hang there frozen
+        sea.SuspendHud(locations.Count > 0 || worldMap.Active || UiOpen || dialogView != null);
+
         // sea mode: the ship camera replaces the location camera
         if (sea.Active && locations.Count == 0)
         {
@@ -549,7 +552,7 @@ public partial class Main : Node
             // attack with the sword when it is drawn
             var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
             if (pl != null && pl.FightMode && pl.Placed) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en); }
-            else if (pl != null && !sea.Active && locations.Count > 0) LandAction();          // the original: the left mouse button is ChrAction
+            else if (pl != null && locations.Count > 0) LandAction();          // the original: the left mouse button is ChrAction
         }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(-1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(-1); else camDist = Math.Max(1.5f, camDist - 0.3f); }

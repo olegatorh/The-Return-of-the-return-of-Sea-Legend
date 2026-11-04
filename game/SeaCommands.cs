@@ -46,6 +46,13 @@ public partial class SeaView
 
     public bool CommandsOpen => menuLevel != MenuLevel.None;
 
+    /// <summary>The HUD is hidden (and the command menu dropped) while a location, the world map or an interface owns the screen.</summary>
+    public void SuspendHud(bool suspended)
+    {
+        hud.Suspended = suspended;
+        if (suspended && menuLevel != MenuLevel.None) CloseCommands();
+    }
+
     Attr? BI => it.Globals.TryGetValue("BattleInterface", out var b) ? b.Val.Attr : null;
 
     /// <summary>Texture of an icon of the command textures list (BattleInterface.CommandTextures.list.t&lt;N&gt;: file, columns, rows); the right half of the file holds the highlighted copy.</summary>

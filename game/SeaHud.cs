@@ -246,10 +246,15 @@ public partial class SeaHud : CanvasLayer
     static Texture2D? NationFlag(HudShip s) => s.NationGroup == "" ? null : Atlas.Get(s.NationGroup, s.NationName);
     static Texture2D? ShipIcon(HudShip s) => Atlas.Get("SHIPS16", s.Type) ?? Atlas.Get("Ships16", s.Type);
 
+    bool suspended;
+    bool lastOn;
+    public bool Suspended { get => suspended; set { suspended = value; Visible = lastOn && !suspended; } }
+
     public void Update(HudData d)
     {
-        Visible = d.On;
-        if (!d.On) return;
+        lastOn = d.On;
+        Visible = d.On && !suspended;
+        if (!d.On || suspended) return;
         // navigator
         float heading = d.Heading;
         ((Control)compassBox.GetChild(0)).Rotation = -heading;
