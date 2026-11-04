@@ -46,7 +46,82 @@ public partial class CharacterView : Node3D
     bool fightMode;
     float atkCooldown, atkHitIn = -1f;
     CharacterView? atkTarget;
-    public bool FightMode { get => fightMode; set => fightMode = value; }
+    public bool FightMode
+    {
+        get => fightMode;
+        set
+        {
+            if (fightMode == value) return;
+            fightMode = value;
+            if (rig != null && Placed && rig.Play(value ? "Normal to fight" : "Fight to normal", false, true)) playing = "draw";
+        }
+    }
+
+    // ---- melee / pistol: block, hit reactions, gun
+    public bool Blocking;                          // the player holds the block key / an NPC raised its sword for a moment
+    float blockUntil, hitUntil, gunCooldown, shotIn = -1f;
+    CharacterView? shotTarget;
+    bool Busy => playing is "draw" or "block_hit" or "Shot" || playing.StartsWith("attack") || playing.StartsWith("hit");
+
+    float Skill(string key, float def) => Ent.Root.Find("chr_ai." + key, false)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
+
+    /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock, no damage) or takes the damage (Location_CharacterAttack).</summary>
+    public bool Defends(CharacterView attacker)
+    {
+        if (!fightMode || !IsAlive) return false;
+        if (Blocking) return true;
+        if (IsPlayer) return false;
+        if (idleRng.NextDouble() < Math.Clamp(Skill("block", 0.1f) * 2.5f, 0.05f, 0.7f)) { blockUntil = 0.5f; return true; }     // NPCs raise the sword by chance of their block skill
+        return false;
+    }
+
+    void PlayReaction(bool blocked)
+    {
+        if (rig == null || !IsAlive) return;
+        string a = blocked ? "block_hit" : "hit_" + (idleRng.Next(3) + 1);
+        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = 0.35f; }
+    }
+
+    /// <summary>Pistol shot (the original control ChrFire): the nearest living target in front within reach; the script applies the damage.</summary>
+    public bool TryFire()
+    {
+        if (!fightMode || !IsAlive || gunCooldown > 0f || shotIn >= 0f || rig == null) return false;
+        if (Skill("charge", 0f) < 1f) { it.FireEvent("Location_CharacterNoCharge"); return false; }
+        CharacterView? best = null; float bd = 24f * 24f;
+        foreach (var c in All.Values)
+        {
+            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive) continue;
+            float dx = c.x - x, dz = c.z - z, d2 = dx * dx + dz * dz;
+            if (d2 > bd) continue;
+            float da = MathF.Abs(Angle(dx, dz) - ay); while (da > MathF.PI) da = MathF.Abs(da - MathF.Tau);
+            if (da < 0.45f) { bd = d2; best = c; }
+        }
+        shotTarget = best; shotIn = 0.25f; gunCooldown = 1.2f;
+        if (best != null) ay = Angle(best.x - x, best.z - z);
+        if (rig.Play("Shot", false, true)) playing = "Shot";
+        return true;
+    }
+
+    void TickGun(float dt)
+    {
+        gunCooldown -= dt;
+        if (hitUntil > 0f) hitUntil -= dt;
+        if (blockUntil > 0f) { blockUntil -= dt; if (blockUntil <= 0f) Blocking = false; else Blocking = true; }
+        // the engine recharges the gun after a shot: chr_ai.charge grows by charge_dlt per second while chargeprc = 1
+        if (Ent.Root.Find("chr_ai.chargeprc", false) is { } cp && Conv.ParseFloatPrefix(cp.Value) > 0f)
+        {
+            float c = Skill("charge", 0f) + Skill("charge_dlt", 0.125f) * dt, mx = Skill("charge_max", 1f);
+            var ca = Ent.Root.Find("chr_ai.charge", true)!;
+            if (c >= mx) { ca.Value = Conv.FloatToConcat(mx); cp.Value = "0"; } else ca.Value = Conv.FloatToConcat(c);
+        }
+        if (shotIn < 0f) return;
+        shotIn -= dt;
+        if (shotIn >= 0f) return;
+        var t = shotTarget; shotTarget = null;
+        float d = t == null ? 0f : MathF.Sqrt((t.x - x) * (t.x - x) + (t.z - z) * (t.z - z));
+        it.FireEvent("Location_CharacterFire", new List<V> { V.A(Ent.Root), V.A(t?.Ent.Root), V.Float(Math.Clamp(1f - d / 24f, 0f, 1f)), V.Int(t != null ? 1 : 0) });
+        t?.PlayReaction(false);
+    }
     public Vector3 ScriptPos => new(x, y, z);
     public bool IsAlive => task != Task.Dead && Ent.Root.Find("chr_ai.hp", false) is { } hp && Conv.ParseFloatPrefix(hp.Value) >= 1f;                // 0 = not reported yet, 1 = walking after the target, 2 = arrived (events FollowGo / FollowStay)
     string scriptAction = "";
@@ -126,7 +201,10 @@ public partial class CharacterView : Node3D
     // ------------------------------------------------------------------ per-frame update (called by the main loop)
     void PlayMove(string action)
     {
-        if (rig == null || playing == action) return;
+        if (rig == null) return;
+        if (fightMode) action = action switch { "walk" => "fight walk", "run" => "fight run", _ => action };
+        if (playing == action) return;
+        if (Busy && !rig.Finished) return;
         if (rig.Play(action, true)) playing = action;
     }
 
@@ -144,7 +222,13 @@ public partial class CharacterView : Node3D
     void PlayIdle()
     {
         if (rig == null) return;
-        if (playing.StartsWith("attack") && !rig.Finished) return;        // let a swing finish
+        if (Busy && !rig.Finished) return;                                  // let a swing, a draw, a shot or a reaction finish
+        if (Blocking && fightMode) { if (playing != "block" && rig.Play("block", true)) playing = "block"; return; }
+        if (fightMode)
+        {
+            if (playing != "fight stand_1" && rig.Play("fight stand_1", true)) playing = "fight stand_1";
+            return;
+        }
         if (scriptAction.Length == 0)
         {
             var list = IdleList();
@@ -273,7 +357,7 @@ public partial class CharacterView : Node3D
         if (!Placed || rig == null) return;
         Detect(dt);
         UpdateEquipment();
-        if (dt > 0f) TickSwing(dt);
+        if (dt > 0f) { TickSwing(dt); TickGun(dt); }
         if (inDialog || dt <= 0f) { PlayIdle(); return; }
 
         float walk = rig.ActionSpeed("walk", 1.6f), run = rig.ActionSpeed("run", 3.3f), turn = rig.ActionTurnSpeed("walk", 5.5f);
@@ -376,7 +460,11 @@ public partial class CharacterView : Node3D
         {
             float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
             if (atkTarget.IsAlive && IsAlive && d2 < 2.3f * 2.3f)
-                it.FireEvent("Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(1f), V.Float(1f) });
+            {
+                bool blocked = atkTarget.Defends(this);
+                it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(1f), V.Float(1f) });
+                atkTarget.PlayReaction(blocked);
+            }
         }
         atkTarget = null;
     }

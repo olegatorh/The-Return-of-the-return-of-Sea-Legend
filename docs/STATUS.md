@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **64 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **10882** lines of C# (`StormScript/` library + `game/`)
+* Port code: **10974** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -42,7 +42,7 @@ Layers (where the behaviour comes from):
 | Language | Ukrainian translation layer | PORT | ███████░░░ 70 % | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality) |
 | Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 85 % | V | compared with screenshots; no shadows or animated props |
 | Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | ████████░░ 80 % | V | walk/run/follow/fight tasks work; ragdoll and many animations missing |
-| Land | Melee combat (swings, damage by script, death) | APPROX | █████░░░░░ 55 % | V | timing and attacks are mine; sword and pistol on the body (labels Saber_hand/Saber_belt/Gun_Belt: sword in the hand in fight mode); no blocks, parry, pistol shots |
+| Land | Melee combat (swings, damage by script, death) | APPROX | █████░░░░░ 55 % | V | timing and attacks are mine; sword and pistol on the body; fight stance, draw/sheathe, block (Ctrl; NPCs by their block skill; script event Location_CharacterBlock), hit reactions, pistol shot (Q; engine recharge of chr_ai.charge); not verified in a live fight, no parry/recoil |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
 | Land | Items on the ground, chests | PORT | ████░░░░░░ 40 % | E | code exists, barely tested |
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |

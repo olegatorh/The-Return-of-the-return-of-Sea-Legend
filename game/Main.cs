@@ -384,6 +384,9 @@ public partial class Main : Node
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
         }
+        // Q = pistol shot (the original ChrFire)
+        if (e is InputEventKey { Pressed: true, Echo: false } qk && Keys.Is(qk, "LandFire") && dialogView == null && !UiOpen && locations.Count > 0)
+            characters.Values.FirstOrDefault(c => c.IsPlayer)?.TryFire();
         // F = draw/sheathe the sword (the original used E; E talks here)
         if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
@@ -461,6 +464,7 @@ public partial class Main : Node
             }
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) mv = dir;     // test hook
             player.Input = mv;
+            player.Blocking = free && player.FightMode && Keys.Down("LandBlock");
             player.Run = Keys.Down("LandRun");
             player.CameraYaw = camYaw;
         }
