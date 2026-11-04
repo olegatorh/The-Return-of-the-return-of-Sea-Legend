@@ -85,7 +85,7 @@ static class RiggingFx
     /// <summary>A rope as two crossed ribbons along a gently sagging curve.</summary>
     static void AddRope(SurfaceTool st, Vector3 a, Vector3 b)
     {
-        const float width = 0.06f, segLen = 2.0f;
+        const float width = 0.028f, segLen = 2.0f;       // half width; rigging.ini fWIDTH = 0.025
         float len = a.DistanceTo(b);
         if (len < 0.3f) return;
         int seg = Math.Max(2, (int)MathF.Ceiling(len / segLen));
