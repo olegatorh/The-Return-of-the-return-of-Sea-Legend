@@ -43,7 +43,22 @@ public partial class SeaView
 
     // ---- wake: a translucent white wedge behind a moving ship, its width and strength follow the speed
     readonly Dictionary<ShipRt, MeshInstance3D> wakes = new();
-    static StandardMaterial3D? wakeMat;
+    static ShaderMaterial? wakeMat;
+    // soft foam: dense in the middle and near the hull, streaky, fading out sideways and towards the tail (the old flat white wedge looked like a sheet of paper)
+    const string WakeShader = @"
+shader_type spatial;
+render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
+varying vec3 lp;
+void vertex() { lp = VERTEX; }
+void fragment() {
+    float u = abs(UV.x - 0.5) * 2.0;                  // 0 centre .. 1 edge
+    float v = UV.y;                                    // 0 bow .. 1 tail
+    float streak = 0.55 + 0.45 * sin(lp.x * 1.9 + lp.z * 0.35) * sin(lp.x * 0.7 - lp.z * 0.9 + 1.3);
+    float a = (1.0 - smoothstep(0.15, 1.0, u)) * (1.0 - smoothstep(0.05, 1.0, v));
+    a *= streak * 0.55;
+    ALBEDO = vec3(0.92, 0.96, 1.0);
+    ALPHA = clamp(a, 0.0, 0.6);
+}";
 
     void UpdateWake(ShipRt s)
     {
@@ -58,11 +73,7 @@ public partial class SeaView
             foreach (var (p, uv) in new[] { (a, new Vector2(0.5f, 0)), (b, new Vector2(0, 0.4f)), (d, new Vector2(1, 0.4f)), (b, new Vector2(0, 0.4f)), (c, new Vector2(0, 1)), (e, new Vector2(1, 1)),
                                             (b, new Vector2(0, 0.4f)), (e, new Vector2(1, 1)), (d, new Vector2(1, 0.4f)) })
             { st.SetUV(uv); st.AddVertex(p); }
-            wakeMat ??= new StandardMaterial3D
-            {
-                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, Transparency = BaseMaterial3D.TransparencyEnum.Alpha, CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-                AlbedoColor = new Color(1f, 1f, 1f, 0.28f), NoDepthTest = false, DisableFog = false,
-            };
+            wakeMat ??= new ShaderMaterial { Shader = new Shader { Code = WakeShader } };
             m = new MeshInstance3D { Mesh = st.Commit(), MaterialOverride = wakeMat, Name = "Wake", CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
             s.Node.AddChild(m);
             wakes[s] = m;

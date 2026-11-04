@@ -439,6 +439,7 @@ public partial class SeaView : Node3D
         foreach (var sail in s.Sails) sail.Visible = s.Sail > 0.01f;
     }
 
+    const float MassInertia = 0.1f, KnotsToMs = 0.514444f;       // ship.cpp: fMassInertia, KNOTS2METERS
     public float TestTurn;     // test hook (--move): steering without the keyboard
 
     public void Tick(float dt, bool inputEnabled)
@@ -469,20 +470,22 @@ public partial class SeaView : Node3D
                 if (turnIn != 0f && s.Task == 7) s.Task = -1;
                 else if (s.Task == 7) turnIn = Steer(s, sh, dt);
             }
-            // the ship type's inertia (Ships_init.c: InertiaAccelerationZ/BrakingZ for the speed, ...Y for turning, ...X for sliding sideways) sets how lively it is
-            float accZ = TypeF(sh, "InertiaAccelerationZ", 1f), brkZ = TypeF(sh, "InertiaBrakingZ", 1f), accY = TypeF(sh, "InertiaAccelerationY", 1f), brkX = TypeF(sh, "InertiaBrakingX", 1f);
+            // the engine's ApplyStrength (ship.cpp): per axis, with a commanded target the value is pulled to it by dt * 0.1 * (target - v) * InertiaAcceleration,
+            // without one it brakes by dt * 0.1 * v * InertiaBraking. Speed is in knots (MaxSpeedZ = SpeedRate * wind ... from the script), turn rate in rad/s (MaxSpeedY)
+            float accZ = TypeF(sh, "InertiaAccelerationZ", 1f), brkZ = TypeF(sh, "InertiaBrakingZ", 1f), accY = TypeF(sh, "InertiaAccelerationY", 1f), brkY = TypeF(sh, "InertiaBrakingY", 1f), brkX = TypeF(sh, "InertiaBrakingX", 1f);
+            float fK = dt * MassInertia;
             float target = maxZ * s.Sail;
-            float k = target > s.Speed ? 0.06f + 0.012f * accZ : 0.08f + 0.02f * brkZ;
-            s.Speed += (target - s.Speed) * Math.Min(1f, k * dt);
+            if (target > 0.00002f) s.Speed += fK * (target - s.Speed) * accZ; else s.Speed -= fK * s.Speed * brkZ;
+            if (MathF.Abs(s.Speed) < 0.001f && target <= 0.00002f) s.Speed = 0f;
             float wantTurn = turnIn * maxY;
-            float kTurn = Math.Clamp(1f + 0.15f * accY, 1f, 3.5f);
-            s.TurnRate += (wantTurn - s.TurnRate) * Math.Min(1f, kTurn * dt);
-            float steer = 0.2f + 0.8f * Math.Clamp(s.Speed / Math.Max(1f, maxZ * 0.6f), 0f, 1f);     // the rudder needs water flowing past it
-            s.Ay += s.TurnRate * dt * steer;
-            // in a turn the hull slides outwards: lateral speed grows with speed * turn rate and dies out with the ship's sideways braking
-            s.Drift += (-s.TurnRate * s.Speed * 0.5f - s.Drift * (0.8f + 0.5f * brkX)) * dt;
+            if (MathF.Abs(wantTurn) > 0.00002f) s.TurnRate += fK * (wantTurn - s.TurnRate) * accY; else s.TurnRate -= fK * s.TurnRate * brkY;
+            if (MathF.Abs(s.TurnRate) < 0.001f && wantTurn == 0f) s.TurnRate = 0f;
+            s.Ay += s.TurnRate * dt;              // the script already scales MaxSpeedY by speed, sail state, load, crew and skill
+            float vms = s.Speed * KnotsToMs;
+            // in a turn the hull slides outwards: lateral speed grows with speed * turn rate and dies out with the ship's sideways braking (InertiaBrakingX)
+            s.Drift += (-s.TurnRate * vms * 0.5f - s.Drift * Math.Min(8f, fK / dt * 10f * brkX)) * dt;
             float sn0 = MathF.Sin(s.Ay), cs0 = MathF.Cos(s.Ay);
-            float nx = s.X + (sn0 * s.Speed + cs0 * s.Drift) * dt, nz = s.Z + (cs0 * s.Speed - sn0 * s.Drift) * dt;
+            float nx = s.X + (sn0 * vms + cs0 * s.Drift) * dt, nz = s.Z + (cs0 * vms - sn0 * s.Drift) * dt;
             if (island != null && s.Speed > 0.01f && AgroundAt(s, nx, nz, s.Ay) && !AgroundAt(s, s.X, s.Z, s.Ay))
             {
                 if (!s.Aground)
@@ -710,7 +713,7 @@ public partial class SeaView : Node3D
         if (s.AvoidT <= 0f)
         {
             s.AvoidT = 0.35f + 0.1f * (s.Index % 3);
-            float look = Math.Clamp(s.Speed * 12f, 70f, 260f);
+            float look = Math.Clamp(s.Speed * KnotsToMs * 12f, 70f, 260f);
             s.AvoidOff = 0f;
             foreach (float off in new[] { 0f, 0.45f, -0.45f, 0.9f, -0.9f, 1.4f, -1.4f, 2.0f, -2.0f })
             {
