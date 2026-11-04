@@ -14,7 +14,8 @@ public partial class OutdoorEnv : Node3D
     Node3D? sky;
     string skyDir = "";
     MeshInstance3D? sea;
-    ShaderMaterial? seaMat;
+    ShaderMaterial? seaMat, farMat;
+    MeshInstance3D? seaFar;
     WorldEnvironment? world;
     float time;
 
@@ -30,17 +31,34 @@ render_mode unshaded, cull_disabled;
 uniform vec3 water_color;
 uniform vec3 sky_color;
 uniform float t;
+uniform float wave_k[3];
+uniform float wave_w[3];
+uniform float wave_a[3];
+uniform vec2 wave_dir[3];
 varying vec3 wpos;
-void vertex() { wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+varying vec2 slope;
+void vertex() {
+    vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    float h = 0.0; vec2 s = vec2(0.0);
+    for (int i = 0; i < 3; i++) {
+        float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t;
+        h += wave_a[i] * sin(ph);
+        s += wave_a[i] * wave_k[i] * cos(ph) * wave_dir[i];
+    }
+    VERTEX.y += h;
+    slope = s;
+    wpos = w + vec3(0.0, h, 0.0);
+}
 void fragment() {
     vec3 V = normalize(CAMERA_POSITION_WORLD - wpos);
     float a = wpos.x * 0.7 + t * 1.3;
     float b = wpos.z * 0.9 - t * 1.1;
     float c = (wpos.x + wpos.z) * 0.37 + t * 0.7;
-    vec3 n = normalize(vec3(cos(a) * 0.06 + cos(c) * 0.03, 1.0, cos(b) * 0.06 + cos(c) * 0.03));
+    vec3 n = normalize(vec3(-slope.x + cos(a) * 0.04 + cos(c) * 0.02, 1.0, -slope.y + cos(b) * 0.04 + cos(c) * 0.02));
     float f = pow(1.0 - clamp(dot(V, n), 0.0, 1.0), 3.0);
-    float w = (sin(a) + sin(b) + sin(c)) * 0.012;
-    ALBEDO = mix(water_color, sky_color, clamp(f * 0.85 + 0.12, 0.0, 1.0)) + vec3(w);
+    float w = (sin(a) + sin(b) + sin(c)) * 0.010;
+    float crest = clamp((wpos.y) * 0.5, 0.0, 0.25);
+    ALBEDO = mix(water_color, sky_color, clamp(f * 0.85 + 0.12, 0.0, 1.0)) + vec3(w + crest * 0.25);
 }";
 
     public void Sync(Interp it, Camera3D? cam, float dt)
@@ -73,19 +91,37 @@ void fragment() {
             if (sea == null)
             {
                 seaMat = new ShaderMaterial { Shader = new Shader { Code = SeaShader } };
-                sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(8000, 8000) }, MaterialOverride = seaMat, Name = "Sea" };
+                // a fine grid near the camera carries the waves; the far sea is a flat plane under the fog
+                sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(1600, 1600), SubdivideWidth = 399, SubdivideDepth = 399 }, MaterialOverride = seaMat, Name = "Sea", CustomAabb = new Aabb(new Vector3(-800, -20, -800), new Vector3(1600, 40, 1600)) };
+                farMat = new ShaderMaterial { Shader = seaMat.Shader };
+                seaFar = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(12000, 12000) }, MaterialOverride = farMat, Name = "SeaFar" };
+                AddChild(seaFar);
                 AddChild(sea);
             }
             seaMat!.SetShaderParameter("water_color", new Vector3(water.R * 2.2f, water.G * 2.2f, water.B * 2.2f));
             seaMat.SetShaderParameter("sky_color", new Vector3(fog.R * 0.8f, fog.G * 0.8f, fog.B * 0.85f));
             seaMat.SetShaderParameter("t", time);
-            if (cam != null) sea.GlobalPosition = new Vector3(cam.GlobalPosition.X, 0, cam.GlobalPosition.Z);
+            SeaWaves.Time = time; SeaWaves.Configure(root);
+            seaMat.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); seaMat.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone()); seaMat.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); seaMat.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
+            if (cam != null)
+            {
+                // the wave grid follows the camera in whole 4 m steps (the waves are a function of the world position, so the surface does not swim)
+                sea.GlobalPosition = new Vector3(MathF.Round(cam.GlobalPosition.X / 4f) * 4f, 0, MathF.Round(cam.GlobalPosition.Z / 4f) * 4f);
+                if (seaFar != null) seaFar.GlobalPosition = new Vector3(cam.GlobalPosition.X, -0.7f, cam.GlobalPosition.Z);
+            }
+            if (farMat != null)
+            {
+                foreach (var prm in new[] { "water_color", "sky_color", "t" }) farMat.SetShaderParameter(prm, seaMat.GetShaderParameter(prm));
+                farMat.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); farMat.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
+                farMat.SetShaderParameter("wave_a", new float[3]); farMat.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
+            }
             float density = root.Find("Fog.Density", false)?.Value is { } d && float.TryParse(d, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv) ? dv : 0.001f;
             SetEnvironment(fog, density * 1.2f);
         }
         else
         {
             if (sea != null) { sea.QueueFree(); sea = null; seaMat = null; }
+            if (seaFar != null) { seaFar.QueueFree(); seaFar = null; farMat = null; }
             if (world != null) { world.QueueFree(); world = null; }
         }
     }

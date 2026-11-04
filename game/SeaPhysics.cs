@@ -18,18 +18,26 @@ public partial class SeaView
         waveClock = clock;
         float wind = 0f;
         if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) wind = F(wa, "Wind.Speed");
-        float amp = Math.Clamp(0.012f + wind * 0.0016f, 0.01f, 0.05f);
-        float ph = s.Index * 1.7f;
-        float size = Math.Clamp(30f / Math.Max(10f, s.Length), 0.5f, 1.3f);        // small ships rock more
-        float roll = amp * size * (MathF.Sin(waveClock * 0.9f + ph) + 0.5f * MathF.Sin(waveClock * 1.7f + ph * 2f));
-        float pitch = amp * 0.6f * size * MathF.Sin(waveClock * 0.7f + ph + 1f);
+        // the ship rides the wave field of the sea (SeaWaves, the same function that displaces the water): lifted by the surface under it, pitched and rolled by its slope
+        float sn = MathF.Sin(s.Ay), cs = MathF.Cos(s.Ay);
+        float px = s.X, pz = -s.Z;                                          // Godot world position
+        var fwd = new Vector2(sn, -cs);                                      // bow direction in Godot x,z
+        var right = new Vector2(cs, sn);
+        float lh = s.Length * 0.4f, bh = Math.Max(3f, s.Length * 0.12f);
+        float hC = SeaWaves.Height(px, pz);
+        float hBow = SeaWaves.Height(px + fwd.X * lh, pz + fwd.Y * lh), hStern = SeaWaves.Height(px - fwd.X * lh, pz - fwd.Y * lh);
+        float hR = SeaWaves.Height(px + right.X * bh, pz + right.Y * bh), hL = SeaWaves.Height(px - right.X * bh, pz - right.Y * bh);
+        float size = Math.Clamp(30f / Math.Max(10f, s.Length), 0.5f, 1.3f);        // small ships follow the surface more closely
+        float pitch = MathF.Atan2(hBow - hStern, 2f * lh) * (0.6f + 0.3f * size);
+        float roll = MathF.Atan2(hR - hL, 2f * bh) * (0.6f + 0.3f * size);
+        float heave = hC * 0.9f;
         // heel: outwards in a turn, and away from the wind under sail (the wind pushes the sails, strongest abeam)
         float windAng = 0f;
         if (it.Globals.TryGetValue("Weather", out var w2) && w2.Val.Attr is { } wb) windAng = F(wb, "Wind.Angle");
         float side = MathF.Sin(windAng - s.Ay);                                   // > 0: the wind blows towards the starboard side
         float heel = -s.TurnRate * Math.Clamp(s.Speed / 8f, 0f, 1.5f) * 0.6f + s.Sail * Math.Clamp(wind / 18f, 0f, 1f) * 0.11f * side * Math.Clamp(s.Speed / 5f, 0.3f, 1f);
         s.Node.Rotation = new Vector3(pitch, -s.Ay, roll + heel);
-        s.Node.Position = new Vector3(s.X, 0.15f * MathF.Sin(waveClock * 1.1f + ph) * size, -s.Z);
+        s.Node.Position = new Vector3(s.X, heave, -s.Z);
         UpdateWake(s);
     }
 

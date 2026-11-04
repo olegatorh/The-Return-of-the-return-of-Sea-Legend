@@ -115,7 +115,10 @@ public partial class ScrollImageView : Control
         string? file = pic.Find("descr", false)?.Value;
         if (k == "1" && img == "corruptsave" && !string.IsNullOrEmpty(file)) t = SaveFiles.ReadThumbnail(file) ?? t;
         if (t == null) return;
-        cell.AddChild(new TextureRect { Texture = t, Size = new Vector2(itemW, itemH), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });
+        bool shot = t is ImageTexture;                   // a save thumbnail (4:3) fills the square cell without distortion
+        var tr = new TextureRect { Texture = t, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = shot ? TextureRect.StretchModeEnum.KeepAspectCovered : TextureRect.StretchModeEnum.Scale, ClipContents = shot, MouseFilter = MouseFilterEnum.Ignore };
+        tr.Size = new Vector2(itemW, itemH);
+        cell.AddChild(tr);
     }
 
     public override void _Process(double delta)

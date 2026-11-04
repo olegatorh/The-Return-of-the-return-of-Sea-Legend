@@ -383,7 +383,8 @@ public partial class XView : Control
                 "QUESTTITLE" => MakeQuestTitle(P, pos),
                 "QUESTTEXT" => MakeQuestText(pos),
                 "CONTEXTHELP" => new Control { MouseFilter = MouseFilterEnum.Ignore },
-                "CHANGER" => new Control { MouseFilter = MouseFilterEnum.Ignore },    // selectable rows: selection not drawn yet
+                "CHANGER" => new Control { MouseFilter = MouseFilterEnum.Ignore },
+                "GLOWS" or "GLOWCURSOR" or "XBOX" or "KEYCHOOSER" or "EDITBOX" => new Control { MouseFilter = MouseFilterEnum.Ignore },   // purely decorative / console / replaced by the port's own key binding screen    // selectable rows: selection not drawn yet
                 _ => null,
             };
             if (node == null) { Warn($"node type {type}"); continue; }

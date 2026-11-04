@@ -150,7 +150,6 @@ public partial class SeaHud : CanvasLayer
         arrow.PivotOffset = new Vector2(9, S * 0.40f);
         windBox.AddChild(arrow);
         nav.AddChild(windBox);
-        speedText.Position = new Vector2(0, S - 6); nav.AddChild(speedText);
         sailText.Position = new Vector2(0, S + 14);
         foreach (var l in new[] { speedText, sailText }) { l.AddThemeFontSizeOverride("font_size", 15); l.AddThemeColorOverride("font_color", new Color(1f, 0.95f, 0.8f)); l.AddThemeColorOverride("font_outline_color", Colors.Black); l.AddThemeConstantOverride("outline_size", 4); l.MouseFilter = Control.MouseFilterEnum.Ignore; }
         speedText.Position = new Vector2(S / 2 - 50, S / 2 + 30); speedText.Size = new Vector2(100, 20); speedText.HorizontalAlignment = HorizontalAlignment.Center;
