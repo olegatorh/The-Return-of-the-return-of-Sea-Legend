@@ -210,6 +210,29 @@ public partial class CharacterView : Node3D
 
     static float Num(Attr? a) => Conv.ParseFloatPrefix(a?.Value);
 
+    string equipSig = "";
+
+    /// <summary>Model file of an item id (Items[GetItemIndex(id)].model); items whose model is not in the game folder get a similar one.</summary>
+    string? ItemModel(string? id, string fallback)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        int idx = Conv.ToInt(it.CallTop("GetItemIndex", V.Str(id)));
+        string? model = idx >= 0 && it.Globals.TryGetValue("Items", out var items) && items.Arr != null && idx < items.Arr.Length ? items.Arr[idx].Val.Attr?.Get("model")?.Value : null;
+        if (!string.IsNullOrEmpty(model) && System.IO.File.Exists(GameAssets.Resource("MODELS\\Items\\" + model + ".gm"))) return model;
+        return fallback;
+    }
+
+    /// <summary>The sword and the pistol on the body follow the character's equipment (equip.blade / equip.gun) and the fight mode.</summary>
+    void UpdateEquipment()
+    {
+        if (rig == null) return;
+        string blade = Ent.Root.Find("equip.blade", false)?.Value ?? "", gun = Ent.Root.Find("equip.gun", false)?.Value ?? "";
+        string sig = $"{model}|{blade}|{gun}|{fightMode}";
+        if (sig == equipSig) return;
+        equipSig = sig;
+        rig.Equip(ItemModel(blade, "blade1"), ItemModel(gun, "pistol4"), fightMode);
+    }
+
     void Detect(float dt)
     {
         if (detectGroups.Count == 0 || dt <= 0f) return;
@@ -249,6 +272,7 @@ public partial class CharacterView : Node3D
     {
         if (!Placed || rig == null) return;
         Detect(dt);
+        UpdateEquipment();
         if (dt > 0f) TickSwing(dt);
         if (inDialog || dt <= 0f) { PlayIdle(); return; }
 

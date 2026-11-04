@@ -66,7 +66,11 @@ public partial class CharacterRig : Node3D
         rig.BuildSkeleton();
         try
         {
-            rig.AddMesh(GmFile.Parse(File.ReadAllBytes(body)), model);
+            var gmBody = GmFile.Parse(File.ReadAllBytes(body));
+            rig.labels = gmBody.Labels;
+            rig.AddMesh(gmBody, model);
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)
+                foreach (var l in gmBody.Labels) GD.Print($"[rig] {model} label '{l.Group}/{l.Name}' bone {l.Bone} at ({l.X:0.00},{l.Y:0.00},{l.Z:0.00})");
             // the head models (Heads\h_*.gm) are modelled around the head joint and belong to the dialog window's portrait; the body model has its own head
             if (!string.IsNullOrEmpty(head) && System.Environment.GetEnvironmentVariable("SEADOGS_WORLDHEADS") != null)
             {
@@ -77,6 +81,44 @@ public partial class CharacterRig : Node3D
         catch (Exception e) { GD.PrintErr($"[rig] {model}: {e.Message}"); return null; }
         rig.Play(rig.ani.Actions.ContainsKey("idle_2") ? "idle_2" : "idle_1", true);
         return rig;
+    }
+
+    List<GmFile.Label> labels = new();
+    Transform3D[] restGlobal = [];
+    readonly List<Node3D> equipment = new();
+
+    /// <summary>
+    /// Weapons on the body: the model carries labels (Saber_hand, Saber_belt, Gun_Hand, Gun_Belt) with the bone they hang on and a matrix in the model's rest pose.
+    /// The sword is in the hand while the fight mode is on and on the belt otherwise; the pistol stays on the belt.
+    /// </summary>
+    public void Equip(string? blade, string? gun, bool drawn)
+    {
+        foreach (var n in equipment) n.QueueFree();
+        equipment.Clear();
+        if (!string.IsNullOrEmpty(blade)) Attach(blade, drawn ? "Saber_hand" : "Saber_belt");
+        if (!string.IsNullOrEmpty(gun)) Attach(gun, "Gun_Belt");
+    }
+
+    void Attach(string itemModel, string label)
+    {
+        var l = labels.Find(x => x.Name.Equals(label, StringComparison.OrdinalIgnoreCase));
+        string path = GameAssets.Resource("MODELS\\Items\\" + itemModel + ".gm");
+        if (l == null || l.Bone < 0 || l.Bone >= restGlobal.Length || !File.Exists(path)) return;
+        try
+        {
+            var item = ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(path)), itemModel, "items", null);
+            // label matrix (D3D, row vectors, left-handed) -> Godot: mirror z
+            var m = l.M;
+            var basis = new Basis(new Vector3(m[0], m[1], -m[2]), new Vector3(m[4], m[5], -m[6]), new Vector3(-m[8], -m[9], m[10]));
+            var world = new Transform3D(basis.Orthonormalized(), new Vector3(m[12], m[13], -m[14]));
+            var att = new BoneAttachment3D { Name = "Eq_" + label };
+            skel.AddChild(att);
+            att.BoneIdx = l.Bone;
+            item.Transform = restGlobal[l.Bone].AffineInverse() * world;
+            att.AddChild(item);
+            equipment.Add(att);
+        }
+        catch (Exception e) { GD.PrintErr($"[rig] item {itemModel}: {e.Message}"); }
     }
 
     void BuildSkeleton()
@@ -97,6 +139,7 @@ public partial class CharacterRig : Node3D
             skin.AddBind(j, global[j].AffineInverse());
         }
         skel.ResetBonePoses();
+        restGlobal = global;
         AddChild(skel);
     }
 
