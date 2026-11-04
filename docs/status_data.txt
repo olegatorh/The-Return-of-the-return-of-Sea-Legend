@@ -1,0 +1,98 @@
+# area | item | layer | accuracy % | by (T test, V visual check, E estimate) | notes
+# layers: SCRIPT original script interpreted unchanged | NATIVE original data file read directly | PORT re-implemented from the engine contract | APPROX own approximation | STUB accepted, no effect | MISSING
+Core | Storm Script interpreter (lexer, parser, VM, events, attributes) | PORT | 95 | T | 28 unit tests + headless boot of 2520 functions without errors; semantics found by trial (docs/vm_semantics.md)
+Core | Original game logic (quests, dialogs, economy, AI templates, combat formulas) | SCRIPT | 100 | T | runs unchanged from addon/merged/PROGRAM; 12 known source defects tolerated
+Core | Save / load (OnSave/OnLoad, attribute snapshot) | PORT | 85 | T | round-trip unit test + load in game; thumbnails missing
+Data | Textures .tx, geometry .gm, animation .an/.ani, patches .ptc, lighting .col, ini, texts | NATIVE | 90 | V | read from the original files; some .gm versions and effects unsupported
+Language | Ukrainian translation layer | PORT | 70 | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality)
+Land | Locations (models, lighting, locators, collisions, camera) | PORT | 85 | V | compared with screenshots; no shadows or animated props
+Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | 80 | V | walk/run/follow/fight tasks work; ragdoll and many animations missing
+Land | Melee combat (swings, damage by script, death) | APPROX | 55 | V | timing and attacks are mine; no blocks, parry, pistols, weapons in hands
+Land | Dialogs (window, answers, links) | PORT | 90 | V | works with real quest dialogs
+Land | Items on the ground, chests | PORT | 40 | E | code exists, barely tested
+Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | 80 | V | most screens render; SCROLLER, KEYCHOOSER, EDITBOX, XBOX, GLOWS missing
+Interface | Main menu, options, character, items, quest book screens | PORT | 80 | V | options fully usable (game/beta settings, sound, video, controls)
+Interface | Store, shipyard, trade, cargo transfer screens | STUB | 10 | E | shell opens, trade tables not implemented
+Interface | Key bindings | APPROX | 70 | T | own table in settings.ini instead of the script control system; mouse buttons not remappable
+Interface | Sea HUD (battle_interface) and command menu | APPROX | 20 | V | simplified own HUD; original icons and menu missing
+Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | 75 | V | flags, rigging ropes, sail animation missing
+Sea | Ship movement physics | APPROX | 50 | V | speeds from the script; acceleration, turning, heel are my model; no wave coupling
+Sea | Wind, weather, sky, fog | PORT | 60 | V | script drives them, port renders; no storm, rain, lightning visuals
+Sea | Island, collisions, mooring | APPROX | 60 | V | collision by raycast of visible geometry; grounding events approximate
+Sea | Ship AI | APPROX | 35 | E | move/attack/follow/runaway; no formations, boarding AI, fleeing logic
+Sea | Cannons, balls, damage, sinking | APPROX | 65 | V | real ballistics and script damage; sound and smoke exactness missing
+Sea | Forts | APPROX | 55 | V | cannons from locators, shooting, damage by script
+Sea | Boarding | SCRIPT | 30 | E | script flow starts; deck fight uses the land combat engine; grapple scene missing
+Sea | Telescope, cabin, deck cameras, people on deck | MISSING | 0 | - | not started
+Map | World map scene, ship, zones, date | PORT | 70 | V | works; weather, sky, compass simplified
+Map | Map encounters (merchant, follow, war) | APPROX | 55 | V | spawn, move, contact; storms missing
+Effects | Particles (smoke, blast, splash) | APPROX | 25 | V | generic CPU particles, not the original particle ini
+Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | 70 | E | 3D positioning approximate; speech volume unused
+Engine | Controls and mouse look | APPROX | 60 | E | sensitivity and invert from the options
+Engine | Colour correction, screen effects | APPROX | 60 | V | gamma, contrast, brightness shader
+Entity class | fader | PORT | 90 | E |
+Entity class | Ship | PORT | 70 | E |
+Entity class | MODELR | PORT | 85 | E |
+Entity class | MODEL | PORT | 85 | E |
+Entity class | location | PORT | 85 | E |
+Entity class | Sound | PORT | 70 | E |
+Entity class | Island | PORT | 70 | E |
+Entity class | ActivePerkShower | STUB | 0 | E |
+Entity class | blast | STUB | 0 | E |
+Entity class | dialog | PORT | 90 | E |
+Entity class | scrshoter | STUB | 0 | E |
+Entity class | CAviPlayer | STUB | 0 | E |
+Entity class | WMVideoPlay | STUB | 0 | E |
+Entity class | HELPCHOOSER | STUB | 0 | E |
+Entity class | InfoHandler | STUB | 0 | E |
+Entity class | Animals | STUB | 0 | E |
+Entity class | battle_land_interface | STUB | 0 | E |
+Entity class | ispyglass | STUB | 0 | E |
+Entity class | CharacterAnimationKipper | STUB | 0 | E |
+Entity class | AISeaGoods | STUB | 0 | E |
+Entity class | CharactersGroups | APPROX | 70 | E |
+Entity class | SunGlow | STUB | 0 | E |
+Entity class | obj_strservice | PORT | 80 | E |
+Entity class | rain | STUB | 0 | E |
+Entity class | Lightning | STUB | 0 | E |
+Entity class | Sky | PORT | 70 | E |
+Entity class | Tornado | MISSING | 0 | E |
+Entity class | Sail | PORT | 60 | E |
+Entity class | Rope | MISSING | 0 | E |
+Entity class | Flag | MISSING | 0 | E |
+Entity class | Vant | MISSING | 0 | E |
+Entity class | WideScreen | STUB | 0 | E |
+Entity class | AIBalls | APPROX | 65 | E |
+Entity class | artifact | STUB | 0 | E |
+Entity class | AIFort | APPROX | 55 | E |
+Entity class | blots | STUB | 0 | E |
+Entity class | sea | PORT | 60 | E |
+Entity class | SEA_CAMERAS | PORT | 60 | E |
+Entity class | FREE_CAMERA | MISSING | 0 | E |
+Entity class | SHIP_CAMERA | APPROX | 60 | E |
+Entity class | DECK_CAMERA | MISSING | 0 | E |
+Entity class | battle_interface | APPROX | 20 | E |
+Entity class | shippointer | STUB | 0 | E |
+Entity class | locationcamera | PORT | 80 | E |
+Entity class | particles | APPROX | 25 | E |
+Entity class | ILogAndActions | PORT | 70 | E |
+Entity class | IBoardingStatus | STUB | 0 | E |
+Entity class | worldmap | PORT | 70 | E |
+Entity class | Weather | PORT | 60 | E |
+Entity class | sea_ai | APPROX | 55 | E |
+Entity class | touch | STUB | 0 | E |
+Entity class | BallSplash | APPROX | 60 | E |
+Entity class | SINKEFFECT | STUB | 0 | E |
+Entity class | PEOPLE_ON_SHIP | STUB | 0 | E |
+Entity class | SeaLocatorShow | STUB | 0 | E |
+Entity class | TELESCOPE | MISSING | 0 | E |
+Entity class | Sharks | MISSING | 0 | E |
+Entity class | Seafoam | MISSING | 0 | E |
+Entity class | TMPTELEPORT | STUB | 0 | E |
+Entity class | FINDFILESINTODIRECTORY | PORT | 80 | E |
+Entity class | FINDDIALOGNODES | PORT | 80 | E |
+Entity class | controls_container | STUB | 0 | E |
+Entity class | env | STUB | 0 | E |
+Entity class | xinterface | PORT | 80 | E |
+Entity class | locator | PORT | 70 | E |
+Entity class | scriptscreen | STUB | 0 | E |
