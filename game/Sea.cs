@@ -72,6 +72,7 @@ public partial class SeaView : Node3D
     public void Register(Interp i)
     {
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
+        i.EntityHandlers["AIFort"] = (e, fmt, d) => { int m = d.Length > 0 ? Conv.ToInt(d[0]) : 0; return m == 51005 ? AddFort(d) : m == 51008 ? FortHit(d) : V.Int(1); };
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
         i.EntityHandlers["locator"] = (e, fmt, d) => d.Length > 1 && Conv.ToInt(d[0]) == 1504 && d[1].Attr is { } isl ? LocateIsland(isl) : V.Int(0);
@@ -143,7 +144,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -175,6 +176,19 @@ public partial class SeaView : Node3D
                     if (d.Length > 5 && d[4].T != VT.Attr) { sh.TaskX = Fl(4); sh.TaskZ = Fl(5); }
                     else if (d.Length > 4) sh.TaskTarget = d[4].Attr;
                 }
+                return V.Int(1);
+            }
+            case 51027:                                                                   // AI_MESSAGE_GET_RELATION "laae": two characters, &relation
+                if (d.Length > 3 && d[1].Attr is { } ra && d[2].Attr is { } rb) it.WriteRef(d[3], V.Int(Relation((int)F(ra, "index"), (int)F(rb, "index"))));
+                return V.Int(1);
+            case 51023:                                                                   // AI_MESSAGE_SHIP_GET_ATTACK_HP "lafe": character, distance, &hp: damage per volley that it can deal at that distance
+                if (d.Length > 3 && d[1].Attr is { } ca) it.WriteRef(d[3], V.Float(AttackHp(ca, Fl(2))));
+                return V.Int(1);
+            case 51024:                                                                   // AI_MESSAGE_GROUP_GET_ATTACK_HP "lsfe"
+            {
+                float tot = 0f;
+                foreach (var gs in ships.Where(x => (x.Chr.Find("SeaAI.Group.Name", false)?.Value ?? "") == S(1))) tot += AttackHp(gs.Chr, Fl(2));
+                if (d.Length > 3) it.WriteRef(d[3], V.Float(tot));
                 return V.Int(1);
             }
             case AI_UNLOAD: Clear(); return V.Int(1);
@@ -453,6 +467,7 @@ public partial class SeaView : Node3D
         }
         ResolveShipCollisions();
         TickCombat(dt);
+        TickForts(dt);
         UpdateCamera(dt, inputEnabled);
         UpdateHud();
     }
@@ -554,6 +569,18 @@ public partial class SeaView : Node3D
         if (p == null || o == null) { GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return; }
         o.X = p.X + MathF.Cos(p.Ay) * DuelDist; o.Z = p.Z - MathF.Sin(p.Ay) * DuelDist; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
         GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
+    }
+
+    /// <summary>What a ship can do to an enemy at the given distance in one volley (used by the script's AI to decide whether to attack): its side guns times the ball's hull damage.</summary>
+    float AttackHp(Attr chr, float dist)
+    {
+        var sh = chr.Find("Ship", false);
+        if (sh == null) return 0f;
+        float v0 = F(sh, "Cannons.SpeedV0", 0f), range = v0 * v0 / G;
+        if (dist > range) return 0f;
+        int cannons = (int)F(sh, "Cannons.Borts.cannonr.quantity", 0f);
+        int total = ships.FirstOrDefault(s => ReferenceEquals(s.Chr, chr))?.Cannons.Count(c => c.bort == "cannonr") ?? Math.Max(cannons, 4);
+        return total * 20f * (1f - dist / Math.Max(1f, range) * 0.5f);
     }
 
     public void SailKey(int dir)

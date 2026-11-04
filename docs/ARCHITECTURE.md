@@ -100,7 +100,11 @@ Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI
 * Combat (`game/SeaCombat.cs`): LMB / `--fire@N` fires the broadside facing the camera; cannon positions = hull labels `cannonl/cannonr/cannonf/cannonb`, ammunition by event `CannLoad`, reload by `CannGRTime`,
   ball speed `Ship.Cannons.SpeedV0` (ballistics g = 9.81), hits raise `Shp_HullHit` (damage is the script's), `Ball_WaterHit`, `Ball_IslandHit`. A ship whose `Ship.HP` reaches 0 sinks and is removed.
   Beware: in `AI_MESSAGE_ADD_SHIP` the second argument is an entity, not the character index (use `chr.index`).
-* Missing: original battle_interface HUD (46xxx), forts (AIFort), boarding, sail/mast damage, wake/foam, rocking, balls splash/smoke visuals, map encounters.
+* Physics (`game/SeaPhysics.cs`): wave rocking and heel, wake wedge, ship-ship collisions (`Shp_Ship2ShipColl`), shore touches (`Shp_ShipIslColl`); the script converts impacts to damage.
+* Forts (`game/SeaForts.cs`, class `AIFort`): `AI_MESSAGE_ADD_FORT` -> cannons = `cannon_N/culverin_N` labels of `<fort>_locators.gm`, events `FortCreate`, `FortCDamage`; they shoot enemies (relation = script `GetRelation`).
+* Map encounters (`game/WorldEncounters.cs`): messages 311xx spawn merchant/follow/war ships on the map; contact raises `WorldMap_ShipEncounter` (the script shows the Attack/Flee screen) and the
+  ships are logged into the sea through `wdmLoginToSea.encounters`. `worldMap.encounter.cur` is an SPI attribute (write hook `Attr.OnWrite`).
+* Missing: original battle_interface HUD (46xxx), sail/mast damage and fires, storms/tornado, telescope, cabin/deck cameras, balls splash/smoke visuals, sea sounds, sail trim by wind.
 
 ## 6c. World map (`game/WorldMap.cs`, class `WorldMapView`)
 `Sea_MapLoad` (script) fades out, `Sea_MapEndFade` calls `wdmCreateMap` which creates the entity `worldmap`; the object `worldMap` holds all data (islands with `position.x/z`, `rx/rz`

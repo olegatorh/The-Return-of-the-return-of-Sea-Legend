@@ -156,7 +156,8 @@ public partial class SeaView
             if (!done && island != null && b.P.Y < LandHeight(b.P.X, b.P.Z) && b.P.Y > -5f)
             {
                 SetBallType(b);
-                it.FireEvent("Ball_IslandHit", new List<V> { V.Int(b.Owner), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z) });
+                if (NearFort(b.P.X, b.P.Z)) it.FireEvent("Ball_FortHit", new List<V> { V.Int(b.Owner), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z) });
+                else it.FireEvent("Ball_IslandHit", new List<V> { V.Int(b.Owner), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z) });
                 done = true;
             }
             if (!done && b.P.Y < 0f)
