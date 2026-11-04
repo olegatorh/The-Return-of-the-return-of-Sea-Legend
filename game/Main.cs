@@ -628,6 +628,8 @@ public partial class Main : Node
 
     public override void _Process(double delta)
     {
+        // scripted test runs (--shot) advance a fixed 1/100 s per frame (the speed the hooks were written at): the frame-numbered hooks then mean the same game time whatever the machine's frame rate is
+        if (shotPath != null && System.Environment.GetEnvironmentVariable("SEADOGS_REALDT") == null) delta = 1.0 / 100.0;
         if (!started)
         {
             started = true;
