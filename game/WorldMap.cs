@@ -170,14 +170,14 @@ public partial class WorldMapView : Node3D
         float turn = TestTurn;
         if (input)
         {
-            if (Godot.Input.IsKeyPressed(Key.A)) turn -= 1f;
-            if (Godot.Input.IsKeyPressed(Key.D)) turn += 1f;
-            if (Godot.Input.IsKeyPressed(Key.Left)) camYawOff += 1.2f * dt;
-            if (Godot.Input.IsKeyPressed(Key.Right)) camYawOff -= 1.2f * dt;
-            if (Godot.Input.IsKeyPressed(Key.Up)) camPitch = Math.Clamp(camPitch + 0.7f * dt, 0.25f, 1.45f);
-            if (Godot.Input.IsKeyPressed(Key.Down)) camPitch = Math.Clamp(camPitch - 0.7f * dt, 0.25f, 1.45f);
-            if (Godot.Input.IsKeyPressed(Key.Pageup)) camDist = Math.Max(60f, camDist - 120f * dt);
-            if (Godot.Input.IsKeyPressed(Key.Pagedown)) camDist = Math.Min(900f, camDist + 120f * dt);
+            if (Godot.Input.IsPhysicalKeyPressed(Key.A)) turn -= 1f;
+            if (Godot.Input.IsPhysicalKeyPressed(Key.D)) turn += 1f;
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Left)) camYawOff += 1.2f * dt;
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Right)) camYawOff -= 1.2f * dt;
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Up)) camPitch = Math.Clamp(camPitch + 0.7f * dt, 0.25f, 1.45f);
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Down)) camPitch = Math.Clamp(camPitch - 0.7f * dt, 0.25f, 1.45f);
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Pageup)) camDist = Math.Max(60f, camDist - 120f * dt);
+            if (Godot.Input.IsPhysicalKeyPressed(Key.Pagedown)) camDist = Math.Min(900f, camDist + 120f * dt);
         }
         if (SeaSpeedRate() is var rate && dt > 0f)
         {

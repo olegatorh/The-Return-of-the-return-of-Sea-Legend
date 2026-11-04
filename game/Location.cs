@@ -219,13 +219,13 @@ public partial class FlyCam : Camera3D
     {
         if (!Enabled) return;
         var dir = Vector3.Zero;
-        if (Input.IsKeyPressed(Key.W)) dir -= GlobalTransform.Basis.Z;
-        if (Input.IsKeyPressed(Key.S)) dir += GlobalTransform.Basis.Z;
-        if (Input.IsKeyPressed(Key.A)) dir -= GlobalTransform.Basis.X;
-        if (Input.IsKeyPressed(Key.D)) dir += GlobalTransform.Basis.X;
-        if (Input.IsKeyPressed(Key.E)) dir += Vector3.Up;
-        if (Input.IsKeyPressed(Key.Q)) dir -= Vector3.Up;
-        float speed = Input.IsKeyPressed(Key.Shift) ? 20f : 5f;
+        if (Input.IsPhysicalKeyPressed(Key.W)) dir -= GlobalTransform.Basis.Z;
+        if (Input.IsPhysicalKeyPressed(Key.S)) dir += GlobalTransform.Basis.Z;
+        if (Input.IsPhysicalKeyPressed(Key.A)) dir -= GlobalTransform.Basis.X;
+        if (Input.IsPhysicalKeyPressed(Key.D)) dir += GlobalTransform.Basis.X;
+        if (Input.IsPhysicalKeyPressed(Key.E)) dir += Vector3.Up;
+        if (Input.IsPhysicalKeyPressed(Key.Q)) dir -= Vector3.Up;
+        float speed = Input.IsPhysicalKeyPressed(Key.Shift) ? 20f : 5f;
         GlobalPosition += dir * speed * (float)delta;
     }
 }

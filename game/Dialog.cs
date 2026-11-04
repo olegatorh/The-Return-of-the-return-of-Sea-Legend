@@ -116,9 +116,9 @@ public partial class DialogView : Control
 
     public override void _UnhandledKeyInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true } k && k.Keycode >= Key.Key1 && k.Keycode <= Key.Key9)
+        if (e is InputEventKey { Pressed: true } k && k.PhysicalKeycode >= Key.Key1 && k.PhysicalKeycode <= Key.Key9)
         {
-            Choose((int)(k.Keycode - Key.Key1));
+            Choose((int)(k.PhysicalKeycode - Key.Key1));
             GetViewport().SetInputAsHandled();
         }
     }
