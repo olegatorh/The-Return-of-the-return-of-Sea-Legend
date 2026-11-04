@@ -195,7 +195,7 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Sails = model.Sails; rt.Cannons = model.Cannons;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Cannons = model.Cannons;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
@@ -208,7 +208,7 @@ public partial class SeaView : Node3D
         GD.Print($"[sea] ship {chr.Get("id")?.Value} group='{group}' groups=[{string.Join(",", groupPos.Keys)}] type={name} at ({rt.X:0},{rt.Z:0}) ay={rt.Ay:0.00} sail={rt.Sail} length={rt.Length:0.0}");
     }
 
-    sealed class ShipModel { public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f; }
+    sealed class ShipModel { public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f, Width = 8f; }
 
     /// <summary>Row-major D3D label matrix (vx, vy, vz, pos) -> Godot transform (z negated).</summary>
     static Transform3D LabelTransform(float[] m) =>
@@ -240,7 +240,7 @@ public partial class SeaView : Node3D
         var hullNode = ModelFactory.Build(hull, typeName, "ships", null);
         sm.Root.AddChild(hullNode);
         var b = ModelFactory.Bounds(hullNode);
-        sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y;
+        sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y; sm.Width = Math.Min(b.Size.Z, b.Size.X);
         foreach (var l in hull.Labels.Where(l => l.Group.StartsWith("cannon", StringComparison.OrdinalIgnoreCase)))
             sm.Cannons.Add((l.Group.ToLowerInvariant(), new Vector3(l.M[12], l.M[13], l.M[14])));
         var sailTex = GameAssets.Texture(SailTexture(nation));
@@ -500,7 +500,7 @@ public partial class SeaView : Node3D
             SetF(n, "Distance", MathF.Sqrt((o.X - p.X) * (o.X - p.X) + (o.Z - p.Z) * (o.Z - p.Z)));
             n.GetOrCreate("relation").Value = Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(o.Index))).ToString();
             SetF(n, "d_ay", MathF.Cos(o.Ay - p.Ay));
-            SetF(n, "RelativeSpeed", MathF.Abs(o.Speed - p.Speed));
+            SetF(n, "RelativeSpeed", MathF.Sqrt(MathF.Pow(MathF.Sin(o.Ay) * o.Speed - MathF.Sin(p.Ay) * p.Speed, 2) + MathF.Pow(MathF.Cos(o.Ay) * o.Speed - MathF.Cos(p.Ay) * p.Speed, 2)));
         }
     }
 
@@ -546,11 +546,13 @@ public partial class SeaView : Node3D
     }
 
     /// <summary>Test hook: park the first other ship 80 m abeam (right) of the player and stop it.</summary>
+    static readonly float DuelDist = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_DUELDIST"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dd) ? dd : 80f;
+
     public void Duel()
     {
         var p = ships.FirstOrDefault(s => s.IsPlayer); var o = ships.FirstOrDefault(s => !s.IsPlayer);
         if (p == null || o == null) { GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return; }
-        o.X = p.X + MathF.Cos(p.Ay) * 80f; o.Z = p.Z - MathF.Sin(p.Ay) * 80f; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
+        o.X = p.X + MathF.Cos(p.Ay) * DuelDist; o.Z = p.Z - MathF.Sin(p.Ay) * DuelDist; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
         GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
     }
 

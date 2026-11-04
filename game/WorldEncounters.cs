@@ -28,6 +28,7 @@ public partial class WorldMapView
         public Node3D Node = null!;
     }
 
+    static readonly Random Rng = int.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_SEED"), out var seed) ? new Random(seed) : new Random();   // SEADOGS_SEED: reproducible encounters for tests
     readonly List<Enc> encs = new();
     bool encHooked;
 
@@ -86,7 +87,7 @@ public partial class WorldMapView
 
     bool Spawn(EncKind kind, int type, string model, string island, float kSpeed, float life)
     {
-        var rnd = Random.Shared;
+        var rnd = Rng;
         float brnMin = F(Root, "enemyshipBrnDistMin", 65f), brnMax = F(Root, "enemyshipBrnDistMax", 140f);
         float a = (float)rnd.NextDouble() * MathF.Tau, r = brnMin + (float)rnd.NextDouble() * (brnMax - brnMin);
         float x = shipX + MathF.Sin(a) * r, z = shipZ + MathF.Cos(a) * r;
@@ -105,7 +106,7 @@ public partial class WorldMapView
 
     bool SpawnWar(int t1, string m1, int t2, string m2, float life)
     {
-        var rnd = Random.Shared;
+        var rnd = Rng;
         float brnMin = F(Root, "enemyshipBrnDistMin", 65f), brnMax = F(Root, "enemyshipBrnDistMax", 140f);
         float a = (float)rnd.NextDouble() * MathF.Tau, r = brnMin + (float)rnd.NextDouble() * (brnMax - brnMin);
         float x = shipX + MathF.Sin(a) * r, z = shipZ + MathF.Cos(a) * r;
