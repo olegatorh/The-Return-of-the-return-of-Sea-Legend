@@ -482,13 +482,25 @@ public partial class Main : Node
             if (pl != null && pl.FightMode && pl.Placed) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en); }
         }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
-        else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) camDist = Math.Max(1.5f, camDist - 0.3f);
-        else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true }) camDist = Math.Min(9f, camDist + 0.3f);
+        else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(-1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(-1); else camDist = Math.Max(1.5f, camDist - 0.3f); }
+        else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(1); else camDist = Math.Min(9f, camDist + 0.3f); }
         else if (e is InputEventMouseMotion mm && rmbDown && !flyMode)
         {
-            camYaw -= mm.Relative.X * 0.005f;
-            camPitch = Math.Clamp(camPitch + mm.Relative.Y * 0.004f, 0.05f, 1.3f);
+            // the mouse sensitivity sliders and the invert option of the options screen live in InterfaceStates (script), 0.5 = normal
+            float sx = RealSens("mouse.x_sens"), sy = RealSens("mouse.y_sens");
+            bool inv = host.It.Globals.TryGetValue("InterfaceStates", out var ist) && ist.Val.Attr?.Get("InvertCameras")?.Value == "1";
+            float dx = mm.Relative.X * sx, dy = mm.Relative.Y * sy * (inv ? -1f : 1f);
+            if (sea.Active && locations.Count == 0) sea.Look(dx, dy);
+            else if (worldMap.Active && locations.Count == 0) worldMap.Look(dx, dy);
+            else { camYaw -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.3f); }
         }
+    }
+
+    float RealSens(string path)
+    {
+        float f = 0.5f;
+        if (host.It.Globals.TryGetValue("InterfaceStates", out var g) && g.Val.Attr?.Find(path, false)?.Value is { Length: > 0 } v) f = Conv.ParseFloatPrefix(v);
+        return f <= 0.5f ? 0.5f + f : f * 2f;          // SetRealMouseSensitivity() of CONTROLS\controls.c
     }
 
     LocationView? CurrentLocation() { foreach (var l in locations.Values) return l; return null; }

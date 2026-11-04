@@ -142,6 +142,7 @@ public partial class XView : Control
             if (list.Count > 0) tr.Texture = GameAssets.Texture(list[rng.Next(list.Count)]);
             return;
         }
+        if (c is SliderView sv && code == 0) { sv.Value = Conv.ParseFloatPrefix(param); return; }      // set the slider position (0..1)
         Warn($"node message {code} for {c.GetType().Name}");
     }
 

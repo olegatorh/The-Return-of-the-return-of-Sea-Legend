@@ -215,6 +215,9 @@ public partial class WorldMapView : Node3D
         return pc.Attr != null ? Math.Max(4f, Conv.ToFloat(it.CallTop("GetCharacterShipSpeedRate", pc))) : 12f;
     }
 
+    public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.25f, 1.45f); }
+    public void Zoom(int dir) { camDist = Math.Clamp(camDist + dir * 25f, 60f, 900f); }
+
     public void SailKey(int dir) => sail = Math.Clamp(sail + 0.5f * dir, 0f, 1f);
 
     string DateText(Attr root)

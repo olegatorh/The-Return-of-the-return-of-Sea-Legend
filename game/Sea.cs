@@ -597,6 +597,9 @@ public partial class SeaView : Node3D
         return total * 20f * (1f - dist / Math.Max(1f, range) * 0.5f);
     }
 
+    public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.4f); }
+    public void Zoom(int dir) { camDist = Math.Clamp((camDist < 0 ? 40f : camDist) + dir * 4f, 12f, 120f); }
+
     public void SailKey(int dir)
     {
         if (ships.FirstOrDefault(s => s.IsPlayer) is not { } p) return;
