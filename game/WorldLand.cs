@@ -18,15 +18,19 @@ public sealed class WorldLand
     {
         var tris = new System.Collections.Generic.List<(float x0, float z0, float x1, float z1, float x2, float z2)>();
         float lx = float.MaxValue, lz = float.MaxValue, hx = float.MinValue, hz = float.MinValue;
+        int oi = -1;
         foreach (var o in g.Objects)
         {
+            oi++;
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_MAPOBJ") is { } only && only != oi.ToString()) continue;
             var m = g.ExtractObject(o);
             if (m == null) continue;
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_MAPLOG") != null) { float mn = float.MaxValue, mx = float.MinValue; for (int k = 1; k < m.Pos.Length; k += 3) { mn = Math.Min(mn, m.Pos[k]); mx = Math.Max(mx, m.Pos[k]); } Godot.GD.Print($"[map] Islands.gm object {oi}: {m.Pos.Length / 3} vertices, y {mn:0.0}..{mx:0.0}, material {o.Material}"); }
             for (int i = 0; i + 2 < m.Index.Length; i += 3)
             {
                 int a = m.Index[i], b = m.Index[i + 1], c = m.Index[i + 2];
                 float ya = m.Pos[a * 3 + 1], yb = m.Pos[b * 3 + 1], yc = m.Pos[c * 3 + 1];
-                if (Math.Max(ya, Math.Max(yb, yc)) < 0.15f) continue;                 // below the water line: not land
+                if (Math.Max(ya, Math.Max(yb, yc)) < (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_MAPY"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ymin) ? ymin : 0.15f)) continue;                 // below the water line: not land
                 float x0 = m.Pos[a * 3], z0 = m.Pos[a * 3 + 2], x1 = m.Pos[b * 3], z1 = m.Pos[b * 3 + 2], x2 = m.Pos[c * 3], z2 = m.Pos[c * 3 + 2];
                 tris.Add((x0, z0, x1, z1, x2, z2));
                 lx = Math.Min(lx, Math.Min(x0, Math.Min(x1, x2))); hx = Math.Max(hx, Math.Max(x0, Math.Max(x1, x2)));
@@ -47,6 +51,12 @@ public sealed class WorldLand
                     float px = land.minX + (cx + 0.5f) * Cell, pz = land.minZ + (cz + 0.5f) * Cell;
                     if (Inside(px, pz, x0, z0, x1, z1, x2, z2, Cell * 0.6f)) land.grid[cz * land.w + cx] = 1;
                 }
+        }
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_MAPMASK") is { } mp)
+        {
+            var img = Godot.Image.CreateEmpty(land.w, land.h, false, Godot.Image.Format.L8);
+            for (int z = 0; z < land.h; z++) for (int x = 0; x < land.w; x++) img.SetPixel(x, land.h - 1 - z, land.grid[z * land.w + x] != 0 ? Godot.Colors.White : Godot.Colors.Black);
+            img.SavePng(mp);
         }
         int n = 0; foreach (var b in land.grid) if (b != 0) n++;
         Godot.GD.Print($"[map] land mask {land.w}x{land.h} cells, {n} land cells ({n * Cell * Cell / 1000f:0} k units2)");

@@ -136,6 +136,18 @@ public partial class Main : Node
         host.It.Language = new LanguageService(game, Path.Combine(portDir, "lang"), language);
         host.It.Log = s => GD.Print("[script] " + s);
         EngineStubs.Install(host.It);
+        // videos (.avi) are not played; the "you died" films of the game over get a black screen with a caption so the return to the main menu is not a surprise
+        host.It.EntityHandlers["CAviPlayer"] = (e, fmt, d) =>
+        {
+            if (d.Length > 0 && Conv.ToInt(d[0]) == 49000)
+            {
+                string vid = d.Length > 1 ? Conv.ToStr(d[1]).ToLowerInvariant() : "";
+                bool death = vid.Contains("dead") || vid.Contains("skeleton") || vid.Contains("undersea") || vid.Contains("mutiny");
+                if (death) ShowCaption("Ви загинули.\nГру завершено.", 4.5f);
+                host.It.PostEventInternal("ievntEndVideo", death ? 4600 : 50, new List<V>());
+            }
+            return V.Int(1);
+        };
         SaveFiles.Dir = Path.Combine(portDir, "saves");
         host.It.SaveHook = name =>
         {
@@ -464,6 +476,19 @@ public partial class Main : Node
             logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str("Звіт збережено: reports\\" + Path.GetFileName(dir)) });
         }
         catch (Exception e) { GD.PrintErr("[report] failed: " + e.Message); }
+    }
+
+    /// <summary>A black full-screen caption for a few seconds (game over).</summary>
+    void ShowCaption(string text, float seconds)
+    {
+        var layer = new CanvasLayer { Layer = 95, Name = "Caption" };
+        var back = new ColorRect { Color = Colors.Black, MouseFilter = Control.MouseFilterEnum.Ignore }; back.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        var lab = new Label { Text = text, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MouseFilter = Control.MouseFilterEnum.Ignore };
+        lab.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        lab.AddThemeFontSizeOverride("font_size", 34); lab.AddThemeColorOverride("font_color", new Color(0.9f, 0.82f, 0.55f));
+        layer.AddChild(back); layer.AddChild(lab);
+        AddChild(layer);
+        GetTree().CreateTimer(seconds).Timeout += () => layer.QueueFree();
     }
 
     /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
