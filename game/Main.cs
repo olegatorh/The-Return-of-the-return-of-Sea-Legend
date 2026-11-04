@@ -573,6 +573,7 @@ public partial class Main : Node
             if (f == frames)
             {
                 // "Func" or "Func(arg,arg)": integers, strings (+ = space) and #CharacterId
+                if (fn.StartsWith("seg:")) { host.LoadSegment(fn.Substring(4).Replace('/', '\\').Replace('+', ' ')); continue; }    // test hook: load a script segment (dialog file)
                 int lp = fn.IndexOf('(');
                 var args = new List<V>();
                 string name = lp < 0 ? fn : fn.Substring(0, lp);

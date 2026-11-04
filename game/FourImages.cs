@@ -114,7 +114,7 @@ public partial class FourImagesView : Control
             int idx = i;
             cell.GuiInput += e =>
             {
-                if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }) { Current = idx; command("click", node); }
+                if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true }) { bool again = Current == idx; Current = idx; command("click", node); if (again) command("activate", node); }   // a second click on the chosen item activates it
             };
             AddChild(cell);
             pieces.Add(cell);
