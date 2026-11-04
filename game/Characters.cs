@@ -58,10 +58,18 @@ public partial class CharacterView : Node3D
     }
 
     // ---- melee / pistol: block, hit reactions, gun
-    public bool Blocking;                          // the player holds the block key / an NPC raised its sword for a moment
+    bool blocking;
+    float blockAge;                                // seconds since the sword went up: a hit in the first moments is parried
+    public bool Blocking
+    {
+        get => blocking;
+        set { if (value && !blocking) blockAge = 0f; blocking = value; }
+    }
+    float atkDamage = 1f;
+    public enum Strike { Normal, Strong, Fast }
     float blockUntil, hitUntil, gunCooldown, shotIn = -1f;
     CharacterView? shotTarget;
-    bool Busy => playing is "draw" or "block_hit" or "Shot" || playing.StartsWith("attack") || playing.StartsWith("hit");
+    bool Busy => playing is "draw" or "block_hit" or "Shot" or "Recoil" || playing.StartsWith("attack") || playing.StartsWith("hit");
 
     float Skill(string key, float def) => Ent.Root.Find("chr_ai." + key, false)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
 
@@ -105,6 +113,7 @@ public partial class CharacterView : Node3D
     void TickGun(float dt)
     {
         gunCooldown -= dt;
+        if (blocking) blockAge += dt;
         if (hitUntil > 0f) hitUntil -= dt;
         if (blockUntil > 0f) { blockUntil -= dt; if (blockUntil <= 0f) Blocking = false; else Blocking = true; }
         // the engine recharges the gun after a shot: chr_ai.charge grows by charge_dlt per second while chargeprc = 1
@@ -166,6 +175,13 @@ public partial class CharacterView : Node3D
 
     // ------------------------------------------------------------------ placement
     /// <summary>The engine puts a character on the nearest point of the location's walkable patch.</summary>
+    /// <summary>Test hook: stand <paramref name="dist"/> metres in front of another character, facing it.</summary>
+    public void PlaceNear(CharacterView o, float dist)
+    {
+        x = o.x + MathF.Sin(o.ay) * dist; z = o.z + MathF.Cos(o.ay) * dist; y = o.y; ay = o.ay + MathF.PI;
+        SnapToPatch(); Apply();
+    }
+
     void SnapToPatch()
     {
         if (getPatch() is { } p && p.Snap(x, y, z, out var nx, out var ny, out var nz)) { x = nx; y = ny; z = nz; }
@@ -462,22 +478,46 @@ public partial class CharacterView : Node3D
             if (atkTarget.IsAlive && IsAlive && d2 < 2.3f * 2.3f)
             {
                 bool blocked = atkTarget.Defends(this);
-                it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(1f), V.Float(1f) });
+                bool parried = blocked && atkTarget.blockAge < 0.3f;                 // a block raised just in time throws the attacker off balance
+                it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
                 atkTarget.PlayReaction(blocked);
+                if (parried) Stagger();
             }
         }
         atkTarget = null;
     }
 
     /// <summary>Begins a sword swing at a target in reach (no-op while the previous swing is still running).</summary>
-    public bool StartSwing(CharacterView enemy)
+    public bool StartSwing(CharacterView enemy, Strike kind = Strike.Normal)
     {
         if (atkCooldown > 0f || atkHitIn >= 0f || !IsAlive) return false;
         ay = Angle(enemy.x - x, enemy.z - z);
-        atkCooldown = 1.5f; atkHitIn = 0.35f; atkTarget = enemy;
-        string a = "attack_" + (idleRng.Next(4) + 1);
-        if (rig != null && rig.Play(a, false, true)) playing = a;
+        atkTarget = enemy;
+        string a;
+        switch (kind)
+        {
+            case Strike.Strong: atkCooldown = 2.0f; atkHitIn = 0.6f; atkDamage = 1.7f; a = "attack_" + (idleRng.Next(4) + 5); break;       // a wind-up: slower, harder
+            case Strike.Fast: atkCooldown = 0.9f; atkHitIn = 0.22f; atkDamage = 0.7f; a = idleRng.Next(2) == 0 ? "attack_right_1" : "attack_left_1"; break;
+            default: atkCooldown = 1.5f; atkHitIn = 0.35f; atkDamage = 1f; a = "attack_" + (idleRng.Next(4) + 1); break;
+        }
+        if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
         return true;
+    }
+
+    /// <summary>Thrown off balance by a parry (or a step back, the original control ChrRecoil): the "Recoil" animation and a pause before the next swing.</summary>
+    public void Stagger()
+    {
+        atkCooldown = Math.Max(atkCooldown, 1.2f); atkHitIn = -1f; atkTarget = null;
+        if (rig != null && rig.Play("Recoil", false, true)) playing = "Recoil";
+    }
+
+    /// <summary>Step back from the enemy (the original control ChrRecoil): moves away a little while the animation plays.</summary>
+    public void Recoil()
+    {
+        if (!fightMode || !IsAlive || Busy) return;
+        Stagger(); atkCooldown = 0.4f;
+        float bx = -MathF.Sin(ay) * 1.4f, bz = -MathF.Cos(ay) * 1.4f;
+        Step(bx, bz, true);
     }
 
     void Swing(CharacterView enemy, float dt)

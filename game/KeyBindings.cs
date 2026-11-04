@@ -18,7 +18,7 @@ public static class Keys
     {
         new("LandForward", "На суші", "Рух вперед", Key.W), new("LandBack", "На суші", "Рух назад", Key.S),
         new("LandLeft", "На суші", "Крок вліво", Key.A), new("LandRight", "На суші", "Крок вправо", Key.D),
-        new("LandRun", "На суші", "Біг", Key.Shift), new("LandTalk", "На суші", "Розмова", Key.E), new("LandSword", "На суші", "Дістати / сховати шаблю", Key.F), new("LandBlock", "На суші", "Блок (утримувати, шабля добута)", Key.Ctrl), new("LandFire", "На суші", "Постріл з пістоля", Key.Q),
+        new("LandRun", "На суші", "Біг", Key.Shift), new("LandTalk", "На суші", "Розмова", Key.E), new("LandSword", "На суші", "Дістати / сховати шаблю", Key.F), new("LandBlock", "На суші", "Блок (утримувати, шабля добута)", Key.Ctrl), new("LandFire", "На суші", "Постріл з пістоля", Key.Q), new("LandRecoil", "На суші", "Відскок назад", Key.Z),
         new("LandCamLeft", "На суші", "Камера вліво", Key.Left), new("LandCamRight", "На суші", "Камера вправо", Key.Right),
         new("LandCamUp", "На суші", "Камера вгору", Key.Up), new("LandCamDown", "На суші", "Камера вниз", Key.Down),
 

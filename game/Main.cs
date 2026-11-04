@@ -73,6 +73,7 @@ public partial class Main : Node
             else if (a.StartsWith("--lang=")) language = a.Substring(7);
             else if (a.StartsWith("--shot=")) shotPath = a.Substring(7);
             else if (a.StartsWith("--shot-frame=")) shotAtFrame = int.Parse(a.Substring(13));
+            else if (a.StartsWith("--bring=")) { var p = a.Substring(8).Split('@'); brings.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }       // test hook: put a character 1.6 m in front of the player
             else if (a.StartsWith("--dialog=")) { var p = a.Substring(9).Split('@'); dialogTests.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }
             else if (a.StartsWith("--set=")) { var p = a.Substring(6).Split('@'); var kv = p[0].Split('='); sets.Add((int.Parse(p[1]), kv[0], kv[1])); }
             else if (a.StartsWith("--call="))  { var p = a.Substring(7).Split('@'); calls.Add((int.Parse(p[1]), p[0])); }
@@ -389,6 +390,9 @@ public partial class Main : Node
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
         }
+        // Z = step back (the original ChrRecoil)
+        if (e is InputEventKey { Pressed: true, Echo: false } zk && Keys.Is(zk, "LandRecoil") && dialogView == null && !UiOpen && locations.Count > 0)
+            characters.Values.FirstOrDefault(c => c.IsPlayer)?.Recoil();
         // Q = pistol shot (the original ChrFire)
         if (e is InputEventKey { Pressed: true, Echo: false } qk && Keys.Is(qk, "LandFire") && dialogView == null && !UiOpen && locations.Count > 0)
             characters.Values.FirstOrDefault(c => c.IsPlayer)?.TryFire();
@@ -419,6 +423,8 @@ public partial class Main : Node
     Vector3 camToPos;
     float camYaw, camPitch = 0.38f, camDist = 3.6f;
     bool camInit, flyMode, rmbDown;
+    ulong lmbDownAt;
+    readonly List<(int frame, string id)> brings = new();
     bool nameTags;
 
     /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
@@ -563,8 +569,19 @@ public partial class Main : Node
         {
             // attack with the sword when it is drawn
             var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
-            if (pl != null && pl.FightMode && pl.Placed) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en); }
+            if (pl != null && pl.FightMode && pl.Placed)
+            {
+                // a quick click strikes normally; sideways keys give a fast side cut; holding the button winds up a strong blow (released below)
+                if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en, CharacterView.Strike.Fast); }
+                else lmbDownAt = Time.GetTicksMsec();
+            }
             else if (pl != null && locations.Count > 0) LandAction();          // the original: the left mouse button is ChrAction
+        }
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } && lmbDownAt > 0)
+        {
+            var pl2 = characters.Values.FirstOrDefault(c => c.IsPlayer);
+            ulong held = Time.GetTicksMsec() - lmbDownAt; lmbDownAt = 0;
+            if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { var en = pl2.NearestInFront(2.2f); if (en != null) pl2.StartSwing(en, held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
         }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(-1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(-1); else camDist = Math.Max(1.5f, camDist - 0.3f); }
@@ -666,6 +683,7 @@ public partial class Main : Node
         }
         frames++;
 
+        foreach (var (f, id) in brings) if (f == frames && characters.Values.FirstOrDefault(c => c.IsPlayer) is { } bp && characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == id) is { } bn) bn.PlaceNear(bp, 1.6f);
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
         foreach (var (f, n) in mouseClicks) if (f == frames) view?.MouseClick(n);
         foreach (var (f, k, v) in sets) if (f == frames) host.It.SetGlobal(k, v);

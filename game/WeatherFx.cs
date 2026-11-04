@@ -33,6 +33,26 @@ void vertex() {
 }
 void fragment() { ALBEDO = color.rgb; ALPHA = color.a * (UV.x > 0.5 ? 0.5 : 1.0); }";
 
+    static readonly string TornadoShader = @"
+shader_type spatial;
+render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
+uniform float t;
+void vertex() {
+    float h = UV.y;
+    VERTEX.x += sin(t * 1.3 + h * 6.0) * 6.0 * h;
+    VERTEX.z += cos(t * 1.1 + h * 5.0) * 6.0 * h;
+}
+void fragment() {
+    float band = 0.5 + 0.5 * sin(UV.x * 6.2832 * 4.0 + UV.y * 22.0 - t * 5.0);
+    float fade = smoothstep(0.0, 0.12, UV.y) * (1.0 - smoothstep(0.85, 1.0, UV.y) * 0.4);
+    ALBEDO = mix(vec3(0.16, 0.17, 0.19), vec3(0.46, 0.47, 0.5), band);
+    ALPHA = (0.28 + 0.4 * band) * fade;
+}";
+
+    MeshInstance3D? tornado;
+    Vector2 tornadoPos, tornadoDir;
+    float tornadoRadius = 400f;
+
     MeshInstance3D? rain;
     ShaderMaterial? rainMat;
     int rainDrops;
@@ -85,6 +105,29 @@ void fragment() { ALBEDO = color.rgb; ALPHA = color.a * (UV.x > 0.5 ? 0.5 : 1.0)
             rainMat.SetShaderParameter("wind", wind);
             rainMat.SetShaderParameter("color", new Vector4(c.R, c.G, c.B, c.A));
             rain.GlobalPosition = Vector3.Zero;
+        }
+        // ---- tornado (entity "Tornado": the script gives only the size; the engine moves it and reports the position with the event TornadoDamage)
+        Entity? torEnt = null;
+        foreach (var e in it.Entities) if (!e.Deleted && e.Class.Equals("Tornado", StringComparison.OrdinalIgnoreCase)) torEnt = e;
+        if (torEnt == null || cam == null) { if (tornado != null) { tornado.QueueFree(); tornado = null; } }
+        else
+        {
+            if (tornado == null)
+            {
+                var mat = new ShaderMaterial { Shader = new Shader { Code = TornadoShader } };
+                tornado = new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 70f, BottomRadius = 7f, Height = 420f, RadialSegments = 28, Rings = 24, CapTop = false, CapBottom = false }, MaterialOverride = mat, Name = "Tornado", CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+                AddChild(tornado);
+                float a = (float)Random.Shared.NextDouble() * MathF.Tau;
+                tornadoPos = new Vector2(cam.GlobalPosition.X + MathF.Sin(a) * 900f, cam.GlobalPosition.Z - MathF.Cos(a) * 900f);
+                tornadoDir = new Vector2(MathF.Cos(a + 1.2f), MathF.Sin(a + 1.2f));
+            }
+            // it wanders, drifting slowly towards the observer
+            var toCam = new Vector2(cam.GlobalPosition.X, cam.GlobalPosition.Z) - tornadoPos;
+            tornadoDir = (tornadoDir + toCam.Normalized() * 0.05f * dt + new Vector2((float)Random.Shared.NextDouble() - 0.5f, (float)Random.Shared.NextDouble() - 0.5f) * 0.2f * dt).Normalized();
+            tornadoPos += tornadoDir * 5f * dt;
+            tornado.GlobalPosition = new Vector3(tornadoPos.X, 210f, tornadoPos.Y);
+            ((ShaderMaterial)tornado.MaterialOverride!).SetShaderParameter("t", time);
+            it.FireEvent("TornadoDamage", new List<V> { V.Float(dt), V.Float(tornadoPos.X), V.Float(-tornadoPos.Y) });
         }
         // ---- lightning
         if (lightEnt != null)
