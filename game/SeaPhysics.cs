@@ -106,7 +106,9 @@ void fragment() {
                     }
                 if (best >= 0f) continue;
                 var n = (pa - pb); n = n.LengthSquared() < 1e-4f ? new Vector2(1, 0) : n.Normalized();
+                float ax0 = a.X, az0 = a.Z, bx0 = b.X, bz0 = b.Z;
                 a.X += n.X * -best * 0.5f; a.Z += n.Y * -best * 0.5f; b.X -= n.X * -best * 0.5f; b.Z -= n.Y * -best * 0.5f;
+                KeepOffLand(a, ax0, az0); KeepOffLand(b, bx0, bz0);       // a push must not shove a hull onto the island
                 float rel = MathF.Abs(a.Speed - b.Speed) + 0.5f * MathF.Abs(a.Speed) * 0.2f;
                 a.Speed *= 0.6f; b.Speed *= 0.6f;
                 var key = (a.Index, b.Index);

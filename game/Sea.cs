@@ -34,7 +34,7 @@ public partial class SeaView : Node3D
         public int Task = -1;                 // AITASK_*: 0 drift, 1 attack, 2 follow, 3 defend, 6 runaway, 7 move
         public Attr? TaskTarget;
         public float TaskX, TaskZ;
-        public float Length = 30f, Height = 12f;
+        public float Length = 30f, Height = 12f, Width = 8f;
         public List<Node3D> Sails = new();
         public List<(Node3D node, List<Node3D> sails)> Masts = new();
         public readonly HashSet<int> MastsDown = new();
@@ -234,7 +234,7 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
@@ -394,6 +394,7 @@ public partial class SeaView : Node3D
 
     // ------------------------------------------------------------------ island collision
     StaticBody3D? islandBody;
+    Aabb islandBox;
 
     /// <summary>
     /// A static trimesh of the island (without piers and palms) so that ships can ask "is there land under this point". The engine used a dedicated
@@ -408,8 +409,10 @@ public partial class SeaView : Node3D
         {
             string n = mi.Name.ToString();
             if (n.StartsWith("Palm", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Prichal", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Pier", StringComparison.OrdinalIgnoreCase)) continue;
-            faces.AddRange(mi.Mesh.GetFaces());
+            var xf = mi.Transform;
+            foreach (var f in mi.Mesh.GetFaces()) faces.Add(xf * f);
         }
+        if (faces.Count > 0) { var bx = new Aabb(faces[0], Vector3.Zero); foreach (var f in faces) bx = bx.Expand(f); islandBox = bx; }
         var shape = new ConcavePolygonShape3D { Data = faces.ToArray(), BackfaceCollision = true };
         islandBody.AddChild(new CollisionShape3D { Shape = shape });
         AddChild(islandBody);
@@ -430,15 +433,7 @@ public partial class SeaView : Node3D
     /// <summary>True if any of the ship's four corner points (bow, stern, sides) is over land shallower than the draught.</summary>
     bool AgroundAt(ShipRt s, float x, float z, float ay)
     {
-        float sn = MathF.Sin(ay), cs = MathF.Cos(ay);
-        float hl = s.Length * 0.38f, hb = s.Length * 0.08f;
-        foreach (var (lx, lz) in new[] { (0f, hl), (0f, -hl), (hb, 0f), (-hb, 0f) })
-        {
-            // local (lx right, lz forward) -> world engine: forward = (sin, cos), right = (cos, -sin)
-            float wx = x + lx * cs + lz * sn, wz = z - lx * sn + lz * cs;
-            if (LandHeight(wx, wz) > -3.0f) return true;
-        }
-        return false;
+        return OnLand(s, x, z, ay);
     }
 
     // ------------------------------------------------------------------ per frame
@@ -493,23 +488,14 @@ public partial class SeaView : Node3D
             float wantTurn = turnIn * maxY;
             if (MathF.Abs(wantTurn) > 0.00002f) s.TurnRate += fK * (wantTurn - s.TurnRate) * accY; else s.TurnRate -= fK * s.TurnRate * brkY;
             if (MathF.Abs(s.TurnRate) < 0.001f && wantTurn == 0f) s.TurnRate = 0f;
+            float oldAy = s.Ay;
             s.Ay += s.TurnRate * dt;              // the script already scales MaxSpeedY by speed, sail state, load, crew and skill
             float vms = s.Speed * KnotsToMs;
             // in a turn the hull slides outwards: lateral speed grows with speed * turn rate and dies out with the ship's sideways braking (InertiaBrakingX)
             s.Drift += (-s.TurnRate * vms * 0.5f - s.Drift * Math.Min(8f, fK / dt * 10f * brkX)) * dt;
             float sn0 = MathF.Sin(s.Ay), cs0 = MathF.Cos(s.Ay);
             float nx = s.X + (sn0 * vms + cs0 * s.Drift) * dt, nz = s.Z + (cs0 * vms - sn0 * s.Drift) * dt;
-            if (island != null && s.Speed > 0.01f && AgroundAt(s, nx, nz, s.Ay) && !AgroundAt(s, s.X, s.Z, s.Ay))
-            {
-                if (!s.Aground)
-                {
-                    s.Aground = true; GD.Print($"[sea] {s.Chr.Get("id")?.Value} touches the shore at ({nx:0},{nz:0})");
-                    // the script turns the impact into hull damage: (ours, other (-1), power, slide, touch point, x, y, z)
-                    it.FireEvent("Shp_ShipIslColl", new List<V> { V.Int(s.Index), V.Int(-1), V.Float(s.Speed * 0.5f), V.Float(0.3f), V.Int(0), V.Float(nx), V.Float(0f), V.Float(nz) });
-                }
-                s.Speed = 0f;                                              // stopped by the shore: only turning gets it free again
-            }
-            else { if (s.Aground && s.Speed > 0.5f) s.Aground = false; s.X = nx; s.Z = nz; }
+            MoveInWater(s, nx, nz, oldAy);                                  // never onto / into the island (SeaGrounding.cs)
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
             if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
