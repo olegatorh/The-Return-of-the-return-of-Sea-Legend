@@ -27,6 +27,7 @@ public static class GameAssets
                 var d = TxDecoder.Decode(File.ReadAllBytes(p));
                 for (int i = 3; i < d.Rgba.Length; i += 4) if (d.Rgba[i] < 250) { alphaTex.Add(name); break; }
                 var img = Image.CreateFromData(d.Width, d.Height, false, Image.Format.Rgba8, d.Rgba);
+                if (d.Width >= 16 && d.Height >= 16 && !name.StartsWith("interfaces", System.StringComparison.OrdinalIgnoreCase)) img.GenerateMipmaps();       // no shimmering at a distance
                 tex = ImageTexture.CreateFromImage(img);
             }
             else GD.PrintErr("texture not found: " + name);

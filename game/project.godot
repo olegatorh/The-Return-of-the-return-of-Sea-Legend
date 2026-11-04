@@ -21,5 +21,7 @@ file_logging/max_log_files=5
 project/assembly_name="SeaDogs"
 
 [rendering]
+textures/default_filters/anisotropic_filtering_level=4
+anti_aliasing/quality/msaa_3d=2
 renderer/rendering_method="gl_compatibility"
 textures/canvas_textures/default_texture_filter=1

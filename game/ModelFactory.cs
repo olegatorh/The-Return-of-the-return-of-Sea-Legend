@@ -85,6 +85,7 @@ public static class ModelFactory
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
             CullMode = BaseMaterial3D.CullModeEnum.Disabled,
             VertexColorUseAsAlbedo = lit,
+            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmapsAnisotropic,
         };
         string? file = index >= 0 && index < g.Materials.Count ? g.Materials[index].Textures[0] : null;
         if (file != null)
