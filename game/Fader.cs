@@ -48,6 +48,7 @@ public partial class FaderView : TextureRect
             // reload.c does the heavy loading in that handler and starts the fade-in itself
             if (--holdFrames > 0) return;
             mode = Mode.None;
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_FADERLOG") != null) GD.Print("[fader] EndFade (after hold)");
             fire("FaderEvent_EndFade");
             if (autoDelete) { deleteEntity(); QueueFree(); }      // a fade-out with "delete" lives until its EndFade has been reported (sea -> map)
             return;
@@ -59,6 +60,7 @@ public partial class FaderView : TextureRect
         var finished = mode;
         mode = finished == Mode.Out ? Mode.Hold : Mode.None;
         holdFrames = 2;
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_FADERLOG") != null) GD.Print("[fader] finished " + finished);
         fire(finished == Mode.In ? "FaderEvent_EndFade" : "FaderEvent_StartFade");
         if (autoDelete && finished == Mode.In) { deleteEntity(); QueueFree(); }
     }

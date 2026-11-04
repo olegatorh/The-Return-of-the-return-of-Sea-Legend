@@ -188,6 +188,10 @@ public partial class SeaView : Node3D
             case AI_GROUP_XYZ_AY: groupPos[S(1)] = (Fl(2), Fl(4), Fl(5)); return V.Int(1);
             case AI_GROUP_COMMANDER: if (d.Length > 2 && d[2].Attr is { } cmd) { groupCommander[S(1)] = cmd; cmd.Find("SeaAI.Group.Name", true)!.Value = S(1); } return V.Int(1);
             case AI_ADD_SHIP: if (d.Length > 3 && d[2].Attr is { } chr && d[3].Attr is { } type) AddShip((int)F(chr, "index"), chr, type); return V.Int(1);
+            case 51018: SailToPoint(Fl(1), Fl(3), null, 0f, 0f); return V.Int(1);                          // AI_MESSAGE_SAIL_2_LOCATOR "lfff": the port's reload locator (x, y, z)
+            case 51017:                                                                                     // AI_MESSAGE_SAIL_2_CHARACTER "laff": character, distance, angle
+                if (d.Length > 1 && d[1].Attr is { } toChr && ships.FirstOrDefault(s => ReferenceEquals(s.Chr, toChr)) is { } to) SailToPoint(to.X, to.Z, to, Fl(2), Fl(3));
+                return V.Int(1);
             case AI_SHIP_SAIL_STATE:                                                      // "lif": character index, sail state
             {
                 int idx = Conv.ToInt(d.Length > 1 ? d[1] : V.Int(-1));

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 
 namespace SeaDogs;
@@ -105,6 +106,38 @@ public partial class SeaView
             }
         }
         return (x, z);
+    }
+
+    /// <summary>
+    /// "Sail to" of the command menu (AI_MESSAGE_SAIL_2_LOCATOR / _CHARACTER): behind the fader the engine moves the player's squadron next to the port's
+    /// reload locator (which stands in the water of the mooring zone) or next to a ship. The place is pushed into free water, the bow turned away from the
+    /// island, the ships stopped; companions line up behind.
+    /// </summary>
+    void SailToPoint(float x, float z, ShipRt? nearShip, float dist, float ang)
+    {
+        var p = ships.FirstOrDefault(s => s.IsPlayer);
+        if (p == null) return;
+        if (nearShip != null) { x += MathF.Sin(ang) * Math.Max(dist, nearShip.Length + p.Length); z += MathF.Cos(ang) * Math.Max(dist, nearShip.Length + p.Length); }
+        // heading: away from the island's centre (seaward), so the ship can sail off after mooring is declined
+        float ay = p.Ay;
+        if (island != null && islandBox.Size.X > 0f)
+        {
+            var c = islandBox.GetCenter();          // godot space: engine z = -c.Z
+            ay = MathF.Atan2(x - c.X, z + c.Z);
+        }
+        float px = x, pz = z;
+        if (OnLand(p, px, pz, ay)) (px, pz) = NearestWater(p, px, pz, ay);
+        p.X = px; p.Z = pz; p.Ay = ay; p.Speed = 0f; p.Drift = 0f; p.TurnRate = 0f; p.Task = -1; p.Aground = false;
+        Publish(p);
+        int k = 0;
+        foreach (var s in ships.Where(s => !s.IsPlayer && !s.Dying && Relation(p.Index, s.Index) == 0 && Dist(p, s) < 3000f))
+        {
+            k++;
+            float bx = px - MathF.Sin(ay) * 70f * k, bz = pz - MathF.Cos(ay) * 70f * k;
+            if (OnLand(s, bx, bz, ay)) (bx, bz) = NearestWater(s, bx, bz, ay);
+            s.X = bx; s.Z = bz; s.Ay = ay; s.Speed = 0f; s.Drift = 0f; Publish(s);
+        }
+        GD.Print($"[sea] sail to ({x:0},{z:0}): player at ({px:0},{pz:0}) ay={ay:0.00}, {k} companions");
     }
 
     /// <summary>After ship-to-ship pushes: a ship shoved onto land goes back to where it was.</summary>
