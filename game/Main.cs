@@ -58,6 +58,8 @@ public partial class Main : Node
     readonly List<(int frame, string name)> saveAt = new();       // test hook --save=name@N: write SAVE\name through the script's own save path
     readonly List<(int frame, string name)> loadAt = new();       // test hook --load=name@N
     readonly List<int> seaDuels = new();                      // test hook --duel@N
+    int actRetryUntil;
+    readonly List<(int frame, float x, float z, float ay)> mapTeleports = new();      // test hook --mappos=x,z,ay@N: place the WORLD MAP ship once the map is built (retries every 10 frames)
     readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     int controlAt = -1;
@@ -82,13 +84,14 @@ public partial class Main : Node
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--mappos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
             else if (a.StartsWith("--save=")) { var p = a.Substring(7).Split('@'); saveAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
-            else if (a.StartsWith("--act@")) seaActions.Add(int.Parse(a.Substring(6)));
+            else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
@@ -691,10 +694,15 @@ public partial class Main : Node
     /// <summary>Executes the sea action the HUD offers (Moor / Board / LandTroops / Map ...): the engine's battle interface raised "BI_FastCommand" with its name.</summary>
     void SeaAction()
     {
-        if (worldMap.Active) { worldMap.Enter(); return; }
+        if (worldMap.Active)
+        {
+            if (worldMap.Inside.Length == 0 && frames < actRetryUntil) { seaActions.Add(frames + 10); return; }       // test hook: the island zone is not entered yet
+            worldMap.Enter(); return;
+        }
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
         GD.Print("[sea] action: " + act);
         if (act.Length > 0 && act != "Nothing") host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) });
+        else if (frames < actRetryUntil) seaActions.Add(frames + 20);          // test hook: the offer is not there yet (zone not entered), ask again
     }
 
     /// <summary>An interface screen is on display (the xinterface entity also exists, empty, while the sea HUD talks to it).</summary>
@@ -769,7 +777,7 @@ public partial class Main : Node
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
-        foreach (var f in seaActions) if (f == frames) SeaAction();
+        foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
         foreach (var f in seaFires) if (f == frames) sea.FirePlayer();
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
         foreach (var (f, nm) in loadAt) if (f == frames)
@@ -785,6 +793,7 @@ public partial class Main : Node
         }
         foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
+        foreach (var m in mapTeleports.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt) { worldMap.Teleport(m.x, m.z, m.ay); mapTeleports.Remove(m); }
         foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) { sea.Teleport(x, z, ay); worldMap.Teleport(x, z, ay); }
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);

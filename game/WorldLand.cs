@@ -79,6 +79,19 @@ public sealed class WorldLand
         return cx >= 0 && cz >= 0 && cx < w && cz < h && grid[cz * w + cx] != 0;
     }
 
+    /// <summary>The nearest water point to (x, z) (the point itself when it is water): used to put a ship that spawned on a coast cell back into the sea.</summary>
+    public (float x, float z) NearestSea(float x, float z)
+    {
+        if (!IsLand(x, z)) return (x, z);
+        for (float r = Cell; r <= 120f; r += Cell)
+            for (int k = 0; k < 24; k++)
+            {
+                float a = k * MathF.Tau / 24f, px = x + MathF.Cos(a) * r, pz = z + MathF.Sin(a) * r;
+                if (!IsLand(px, pz) && !IsLand(px + MathF.Cos(a) * Cell, pz + MathF.Sin(a) * Cell)) return (px, pz);     // one more cell of margin
+            }
+        return (x, z);
+    }
+
     /// <summary>True if land lies within <paramref name="r"/> of the point along the heading ahead.</summary>
     public bool LandAhead(float x, float z, float ay, float r) => IsLand(x + MathF.Sin(ay) * r, z + MathF.Cos(ay) * r) || IsLand(x + MathF.Sin(ay) * r * 0.5f, z + MathF.Cos(ay) * r * 0.5f);
 }

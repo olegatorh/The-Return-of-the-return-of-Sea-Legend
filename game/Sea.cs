@@ -730,6 +730,7 @@ public partial class SeaView : Node3D
         var p = ships.FirstOrDefault(s => s.IsPlayer); var o = ships.FirstOrDefault(s => !s.IsPlayer);
         if (p == null || o == null) { GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return; }
         o.X = p.X + MathF.Cos(p.Ay) * DuelDist; o.Z = p.Z - MathF.Sin(p.Ay) * DuelDist; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
+        foreach (var x in ships) if (!x.IsPlayer && x != o) { x.X = p.X + 3000f; x.Z = p.Z + 3000f; x.Task = -1; x.Speed = 0f; }       // the rest of the squadron out of the way
         GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
     }
 

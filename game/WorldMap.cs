@@ -23,6 +23,8 @@ public partial class WorldMapView : Node3D
     bool built;
     float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camPitch = 0.95f, camDist = 190f;
     string inside = "";
+    public bool IsBuilt => built;
+    public string Inside => inside;
     public WorldLand? land;
     float encTimer, dateTimer;
     double secOfDay;
@@ -103,6 +105,7 @@ public partial class WorldMapView : Node3D
 
         // towns, forts, bays; island names
         var isls = root.Get("islands");
+        if (land != null && System.Environment.GetEnvironmentVariable("SEADOGS_MAPLOG") != null && isls != null) LogIslandLand(isls);
         int placed = 0;
         if (isls != null)
             foreach (var isl in isls.Children)
@@ -147,6 +150,7 @@ public partial class WorldMapView : Node3D
         shipAy = F(root, "playerShipAY");
         secOfDay = F(root, "date.hour") * 3600 + F(root, "date.min") * 60 + F(root, "date.sec");
         PublishShip(true);
+        if (land != null && land.IsLand(shipX, shipZ)) { var (sx, sz) = land.NearestSea(shipX, shipZ); shipX = sx; shipZ = sz; }       // a spawn point on a coast cell: back into the water
         GD.Print($"[map] world map built: {isls?.Count} islands, {placed} markers; ship at ({shipX:0},{shipZ:0}) ay={shipAy:0.00}, from island '{curIsland}', date {F(root, "date.day"):0}.{F(root, "date.month"):0}.{F(root, "date.year"):0}");
     }
 
@@ -191,7 +195,7 @@ public partial class WorldMapView : Node3D
             float speed = rate * 0.7f * sail;
             float nx = shipX + MathF.Sin(shipAy) * speed * dt, nz = shipZ + MathF.Cos(shipAy) * speed * dt;
             // islands are solid for the ship (it can still sail out of a bay: only a move that ends on land is refused)
-            if (land == null || !land.IsLand(nx, nz) || land.IsLand(shipX, shipZ)) { shipX = nx; shipZ = nz; }
+            if (land == null || !land.IsLand(nx, nz)) { shipX = nx; shipZ = nz; }
         }
         PublishShip();
         UpdateDate(dt);
@@ -294,7 +298,21 @@ public partial class WorldMapView : Node3D
         it.FireEvent("ExitFromWorldMap");
     }
 
-    public void Teleport(float x, float z, float ay) { shipX = x; shipZ = z; shipAy = ay; if (built) PublishShip(); }
+    void LogIslandLand(Attr isls)
+    {
+        foreach (var i in isls.Children)
+        {
+            float x = F(i, "position.x"), z = F(i, "position.z"), rx = F(i, "position.rx"), rz = F(i, "position.rz");
+            GD.Print("[map] island " + i.Name + ": pos (" + x.ToString("0") + "," + z.ToString("0") + ") land=" + land!.IsLand(x, z) + ", rpos (" + rx.ToString("0") + "," + rz.ToString("0") + ") land=" + land.IsLand(rx, rz) + ", z mirrored land=" + land.IsLand(x, -z));
+        }
+    }
+
+    public void Teleport(float x, float z, float ay)
+    {
+        shipX = x; shipZ = z; shipAy = ay;
+        GD.Print($"[map] teleport to ({x:0},{z:0}) -> ({shipX:0},{shipZ:0}), built={built}");
+        if (built) PublishShip();
+    }
 }
 
 /// <summary>Date, heading and sail state of the map.</summary>
