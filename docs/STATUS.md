@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **65 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **11403** lines of C# (`StormScript/` library + `game/`)
+* Port code: **12464** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
 | PORT | 14 | 74 % |
-| APPROX | 13 | 53 % |
+| APPROX | 13 | 54 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -58,7 +58,7 @@ Layers (where the behaviour comes from):
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███░░░░░░░ 30 % | E | script flow starts; deck fight uses the land combat engine; grapple scene missing |
-| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██░░░░░░░░ 25 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; no people on deck, no deck camera |
+| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ███░░░░░░░ 35 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera |
 | Map | World map scene, ship, zones, date | PORT | ███████░░░ 70 % | V | works; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
 | Effects | Particles (smoke, blast, splash) | APPROX | ██░░░░░░░░ 25 % | V | generic CPU particles, not the original particle ini |
@@ -73,11 +73,11 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 | Layer | Count | Classes |
 |---|---|---|
 | PORT | 22 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 9 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%) |
-| STUB | 26 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `PEOPLE_ON_SHIP`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| APPROX | 10 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%), `PEOPLE_ON_SHIP` (50%) |
+| STUB | 25 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **31 of 66** (47 %); stubs: 26, missing: 9.
+Classes with real behaviour: **32 of 66** (48 %); stubs: 25, missing: 9.
 
 ## How accuracy is checked (and what is still unchecked)
 

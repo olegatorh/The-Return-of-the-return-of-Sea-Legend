@@ -54,9 +54,10 @@ public partial class CharacterRig : Node3D
     }
 
     /// <summary>Returns null (like the engine returning 0 for SETMODEL) if the model or animation cannot be loaded.</summary>
-    public static CharacterRig? Create(string model, string anim, string? head)
+    /// <param name="folder">model folder under MODELS (the sailors on deck use the low-poly "Lowcharacters")</param>
+    public static CharacterRig? Create(string model, string anim, string? head, string folder = "Characters")
     {
-        string body = GameAssets.Resource("MODELS\\Characters\\" + model + ".gm");
+        string body = GameAssets.Resource("MODELS\\" + folder + "\\" + model + ".gm");
         if (!File.Exists(body)) { GD.PrintErr("[rig] model not found: " + body); return null; }
         var a = LoadAnim(anim);
         if (a == null) { GD.PrintErr("[rig] animation not found: " + anim); return null; }

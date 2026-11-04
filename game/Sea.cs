@@ -100,6 +100,7 @@ public partial class SeaView : Node3D
         i.EntityHandlers["AIFort"] = (e, fmt, d) => { int m = d.Length > 0 ? Conv.ToInt(d[0]) : 0; return m == 51005 ? AddFort(d) : m == 51008 ? FortHit(d) : V.Int(1); };
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
+        i.EntityHandlers["PEOPLE_ON_SHIP"] = (e, fmt, d) => OnPeopleOnShip(e, d);      // sailors on deck (SeaSailors.cs)
         i.EntityHandlers["locator"] = (e, fmt, d) => d.Length > 1 && Conv.ToInt(d[0]) == 1504 && d[1].Attr is { } isl ? LocateIsland(isl) : V.Int(0);
     }
 
@@ -169,7 +170,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); ClearSailors(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -506,6 +507,7 @@ public partial class SeaView : Node3D
         ResolveShipCollisions();
         TickCombat(dt);
         TickForts(dt);
+        TickSailors(dt);
         RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0));
         UpdateCamera(dt, inputEnabled);
         UpdateHud();
