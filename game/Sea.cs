@@ -74,6 +74,16 @@ public partial class SeaView : Node3D
     public void Register(Interp i)
     {
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
+        i.EntityHandlers["particles"] = (e, fmt, d) =>
+        {
+            if (d.Length > 4 && Conv.ToInt(d[0]) == 10000) ParticleFx.Spawn(this, Conv.ToStr(d[1]), new Vector3(Conv.ToFloat(d[2]), Conv.ToFloat(d[3]), Conv.ToFloat(d[4])));
+            return V.Int(1);
+        };
+        i.EntityHandlers["BallSplash"] = (e, fmt, d) =>
+        {
+            if (d.Length > 3 && Conv.ToInt(d[0]) == 77200) ParticleFx.Splash(this, new Vector3(Conv.ToFloat(d[1]), Conv.ToFloat(d[2]), Conv.ToFloat(d[3])));
+            return V.Int(1);
+        };
         i.EntityHandlers["AIFort"] = (e, fmt, d) => { int m = d.Length > 0 ? Conv.ToInt(d[0]) : 0; return m == 51005 ? AddFort(d) : m == 51008 ? FortHit(d) : V.Int(1); };
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
