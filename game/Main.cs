@@ -42,6 +42,7 @@ public partial class Main : Node
     readonly List<(int frame, string loc)> gotos = new();
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
+    readonly List<(int frame, Key key)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
     readonly List<int> seaDuels = new();                      // test hook --duel@N
     readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
@@ -67,6 +68,7 @@ public partial class Main : Node
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
+            else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--act@")) seaActions.Add(int.Parse(a.Substring(6)));
@@ -322,7 +324,7 @@ public partial class Main : Node
     public override void _UnhandledKeyInput(InputEvent e)
     {
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
-        if (e is InputEventKey { Pressed: true, Echo: false } ck && view == null && dialogView == null)
+        if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {
             string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Space ? "ChrAction" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
@@ -342,7 +344,7 @@ public partial class Main : Node
             if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
         }
         // F = draw/sheathe the sword (the original used E; E talks here)
-        if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && view == null)
+        if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
         if (e is InputEventKey { Pressed: true } f9 && Keys.Is(f9, "FlyCam")) flyMode = !flyMode;          // free debug camera
         if (e is InputEventKey { Pressed: true } f3 && Keys.Is(f3, "NameTags"))                              // show/hide name tags
@@ -351,7 +353,7 @@ public partial class Main : Node
             foreach (var c in characters.Values) c.ShowNameTag(nameTags);
         }
         // E or T = talk to the nearest character within reach
-        if (e is InputEventKey { Pressed: true } tk && (Keys.Is(tk, "LandTalk") || tk.PhysicalKeycode == Key.T) && dialogView == null && view == null)
+        if (e is InputEventKey { Pressed: true } tk && (Keys.Is(tk, "LandTalk") || tk.PhysicalKeycode == Key.T) && dialogView == null && !UiOpen)
         {
             CharacterView? player = characters.Values.FirstOrDefault(c => c.IsPlayer);
             var near = characters.Values.Where(c => !c.IsPlayer && player != null && c.Placed).OrderBy(c => c.Position.DistanceTo(player!.Position)).FirstOrDefault();
@@ -378,7 +380,7 @@ public partial class Main : Node
         var player = list.FirstOrDefault(c => c.IsPlayer);
 
         // player input: only when no dialog/interface has the keyboard
-        bool free = dialogView == null && view == null && !flyMode;
+        bool free = dialogView == null && !UiOpen && !flyMode;
         if (player != null)
         {
             var mv = Vector2.Zero;
@@ -404,7 +406,7 @@ public partial class Main : Node
 
         // the game clock (the engine's weather module kept Environment.time running): one game minute per 2.5 s of running game time, only while a
         // location is shown and nothing (dialog, interface screen) freezes the game
-        if (locations.Count > 0 && dt > 0f && view == null && dialogView == null && host.It.Globals.ContainsKey("Environment"))
+        if (locations.Count > 0 && dt > 0f && !UiOpen && dialogView == null && host.It.Globals.ContainsKey("Environment"))
         {
             clockAcc += dt;
             while (clockAcc >= 2.5f)
@@ -478,7 +480,7 @@ public partial class Main : Node
     public override void _UnhandledInput(InputEvent e)
     {
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen) { sea.FirePlayer(); return; }
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && dialogView == null && view == null)
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && dialogView == null && !UiOpen)
         {
             // attack with the sword when it is drawn
             var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
@@ -542,7 +544,7 @@ public partial class Main : Node
             GD.Print("[save] OnLoad()");
             host.It.CallTop("OnLoad");
         }
-        if (logHud != null) logHud.Visible = dialogView == null && view == null;        // no log/action hint over dialogs and interface screens
+        if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
         UpdateWorld((float)delta);
         host.It.Advance((int)(delta * 1000));
         host.It.FireEvent("frame");
@@ -570,6 +572,7 @@ public partial class Main : Node
         foreach (var f in seaActions) if (f == frames) SeaAction();
         foreach (var f in seaFires) if (f == frames) sea.FirePlayer();
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
+        foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
         foreach (var f in seaDuels) if (f == frames) sea.Duel();
         foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) { sea.Teleport(x, z, ay); worldMap.Teleport(x, z, ay); }
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
