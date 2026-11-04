@@ -1,0 +1,65 @@
+sea_Cancel {Скасувати}
+sea_Moor {Причалити}
+sea_Cabin {Каюта}
+sea_SailTo {Допливти}
+sea_Board {Абордаж}
+sea_LandTroops {Десант}
+sea_Map {Мапа}
+sea_Attack {Атака}
+sea_Defend {Захист}
+sea_SailAway {Відплисти}
+sea_HeaveToDrift {Спустити вітрила}
+sea_Reload {Обмін}
+sea_Charge {Перезарядити}
+sea_Speed {Вітрила}
+sea_CCommand {Наказати}
+sea_Ability {Здібність}
+sea_ImmediateDeath {Знищити!}
+sea_HoistFlag {Чорний прапор}
+sea_EnglishFlag {Англія}
+sea_SpainFlag {Іспанія}
+sea_PortugalFlag {Португалія}
+sea_FranceFlag {Франція}
+sea_HollandFlag {Голландія}
+sea_Flags {Прапори}
+sea_Explosion {Підірвати}
+land_ItemsDead {Труп}
+land_FastReload {Перехід}
+land_ItemsUse {Використати}
+land_DialogStart {Говорити}
+land_ItemsChange {Обмінятися}
+land_TakeItem {Узяти}
+land_PlaceItem {Покласти}
+land_OutDoor {Відчинити}
+land_UseBox {Відчинити}
+land_ActivateRush {Лють}
+land_Look {Дивитися}
+land_Exit {Море}
+go_store {Магазин}
+go_shipyard {Верф}
+go_tavern {Таверна}
+go_residence {Резиденція}
+go_port {Порт}
+go_loanshark {Лихвар}
+go_church {Церква}
+go_prison {В'язниця}
+viper_changesails {Змінити вітрила}
+viper_plainsails {Вітрила за замовчуванням}
+viper_whitesails {Білі вітрила}
+viper_blacksails {Чорні вітрила}
+viper_tornsails {Подерті вітрила}
+viper_pirate0 {Генрі Евері}
+viper_pirate1 {Джека Ракгема}
+viper_pirate2 {Одноокого Джека}
+viper_pirate3 {Берегового Братства}
+viper_pirate4 {веселого Роджера}
+viper_pirate5 {Роджера з банданою}
+viper_pirate6 {Чорного Барта}
+viper_pirate7 {Чорної Бороди}
+viper_pirate8 {Томаса Тью}
+viper_pirate9 {Стіда Бонета}
+viper_pirate10 {Річарда Уорлі}
+viper_pirate11 {Чорного Барта 2}
+viper_pirate12 {Емануеля Вінна}
+viper_pirate13 {Часу Джейка}
+viper_pirate14 {Здобичі Джейка}

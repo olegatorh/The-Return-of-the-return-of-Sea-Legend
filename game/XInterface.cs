@@ -1,0 +1,784 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using StormScript.Runtime;
+
+namespace SeaDogs;
+
+/// <summary>
+/// The engine's "xinterface" class: builds a screen from an .ini file (list of nodes in a 640x480 virtual screen),
+/// talks to the script through SendMessage / events. Only the node types needed so far are implemented.
+/// </summary>
+public partial class XView : Control
+{
+    sealed record Cmd(string Name, List<string> Events, List<(string cmd, string node)> Coms, string? Select);
+
+    readonly Interp it;
+    public readonly Entity Ent;
+    readonly Dictionary<string, Control> nodes = new(StringComparer.OrdinalIgnoreCase);
+    readonly Dictionary<string, List<Cmd>> cmds = new(StringComparer.OrdinalIgnoreCase);
+    readonly Dictionary<string, Label> strings = new(StringComparer.OrdinalIgnoreCase);
+    readonly List<(Control c, float speed)> spinners = new();
+    readonly Random rng = new();
+    static readonly HashSet<string> warned = new(StringComparer.OrdinalIgnoreCase);
+
+    public XView(Interp it, Entity ent)
+    {
+        this.it = it;
+        Ent = ent;
+        Size = new Vector2(640, 480);
+        Position = new Vector2(40, 30);       // the visible interface area is x -40..680, y -30..510 (item positions are relative to the 640x480 core)
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
+
+    /// <summary>Node captions are keys of the global strings file (common.ini): "New Game" -> "Нова гра".</summary>
+    string Tr(string key) => it.Language?.Global(key) ?? key;
+
+    static void Warn(string what)
+    {
+        if (warned.Add(what)) GD.Print("[xinterface] not implemented: " + what);
+    }
+
+    // ------------------------------------------------------------------ script -> interface
+    public V OnMessage(string fmt, V[] d)
+    {
+        int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
+        string S(int i) => i < d.Length ? Conv.ToStr(d[i]) : "";
+        switch (msg)
+        {
+            case 45010: Load(S(1)); return V.Int(1);                       // MSG_INTERFACE_INIT
+            case 45011: Clear(); return V.Int(0);                          // MSG_INTERFACE_RELEASE
+            case 45024:                                                    // SET_SELECTABLE
+                if (nodes.TryGetValue(S(1), out var n) && n is Button b) b.Disabled = Conv.ToInt(d[2]) == 0;
+                return V.Int(0);
+            case 45026:                                                    // GET_SELECTABLE
+                return V.Int(nodes.TryGetValue(S(1), out var n2) && n2 is Button b2 && !b2.Disabled ? 1 : 0);
+            case 45016:                                                    // SET_NODE_USING
+                if (nodes.TryGetValue(S(1), out var n3)) n3.Visible = Conv.ToInt(d[2]) != 0;
+                return V.Int(0);
+            case 45017:
+            case 45021:                                                    // set current (focused) node
+                if (nodes.TryGetValue(S(1), out var n4) && n4 is Button b4 && !b4.Disabled) b4.GrabFocus();
+                return V.Int(0);
+            case 45028:                                                    // GET_CURRENT_NODE (output string)
+                it.WriteRef(d[1], V.Str(GetViewport()?.GuiGetFocusOwner() is Button fb ? fb.Name.ToString() : ""));
+                return V.Int(0);
+            case 45030:                                                    // GET_LANGUAGE_STRING: key -> text (no language files yet: echo)
+                it.WriteRef(d[2], V.Str(S(1)));
+                return V.Int(0);
+            case 45012: CreateString(d); return V.Int(0);                  // CREATE_STRING
+            case 45014:
+            case 45015:                                                    // ENABLE/DISABLE_STRING
+                if (strings.TryGetValue(S(1), out var lab)) lab.Visible = msg == 45014;
+                return V.Int(0);
+            case 45045: NodeMessage(S(1), Conv.ToInt(d[2]), d.Length > 4 ? S(4) : S(3)); return V.Int(0);   // MSG_TO_NODE
+            case 45013:                                                    // PLACE_IMAGE: node, ?, x1, y1, x2, y2
+                if (nodes.TryGetValue(S(1), out var pn) && d.Length >= 7)
+                {
+                    pn.Position = new Vector2(Conv.ToInt(d[3]), Conv.ToInt(d[4]));
+                    pn.Size = new Vector2(Conv.ToInt(d[5]) - Conv.ToInt(d[3]), Conv.ToInt(d[6]) - Conv.ToInt(d[4]));
+                }
+                return V.Int(0);
+            case 45051:                                                    // CHANGE_STR_COLOR: string key, argb
+                if (collectionStrings.TryGetValue(S(1), out var cl) || strings.TryGetValue(S(1), out cl))
+                {
+                    uint c = unchecked((uint)Conv.ToInt(d[2]));
+                    cl.AddThemeColorOverride("font_color", new Color((c >> 16 & 255) / 255f, (c >> 8 & 255) / 255f, (c & 255) / 255f, (c >> 24) / 255f));
+                }
+                return V.Int(0);
+            case 45033: ShowQuestText(d.Length > 2 ? d[2].Attr : null, d.Length > 3 ? Conv.ToInt(d[3]) : 0); return V.Int(0);   // INIT_QTEXT_SHOW
+            case 45018:                                                    // SCROLL_CHANGE: the script changed the lists of a scroll image
+                if (nodes.TryGetValue(S(1), out var sn) && sn is ScrollImageView ssv) ssv.Refresh();
+                return V.Int(0);
+            case 45056:                                                    // GETTIME: file ("" = now) -> time string, date string
+                it.WriteRef(d[2], V.Str(DateTime.Now.ToString("HH:mm:ss")));
+                it.WriteRef(d[3], V.Str(DateTime.Now.ToString("dd.MM.yyyy")));
+                return V.Int(0);
+            case 45038:                                                    // SET_FORMATEDTEXT: node, text
+                if (nodes.TryGetValue(S(1), out var ft) && ft is Label fl) fl.Text = S(2).Replace("\\n", "\n");
+                return V.Int(0);
+            case 45035: return FindSave(d);                                // SAVE_FILE_FIND (n, &name, &size)
+            case 45036: return V.Int(SaveFiles.Exists(S(1)) ? 1 : 0);      // NEW_SAVE_FILE_NAME: does this name exist already
+            case 45037: SaveFiles.Delete(S(1)); return V.Int(1);           // DELETE_SAVE_FILE
+            case 45047: SaveFiles.WriteDescription(S(1), S(2)); return V.Int(1);   // DO_SAVE_DATA
+            case 45048: it.WriteRef(d[2], V.Str(SaveFiles.ReadDescription(S(1)))); return V.Int(1);   // GET_SAVE_DATA
+            case 45055: it.WriteRef(d[2], V.Str(S(1))); return V.Int(1);   // FILENAME2DATASTR
+            case 45300: return V.Int(1000000);                             // GET_FREE_SPACE
+            case 45042: case 45043: case 45044: return V.Int(-1);          // screenshot thumbnails of saves: not stored
+            case 45053: case 45052: case 45022: case 45039: case 45046: return V.Int(0);
+            case 45031: SetQuestTitles(d); return V.Int(0);                 // SET_TITLE_STRINGS: node, QuestInfo, top
+        }
+        Warn($"message {msg} ({fmt})");
+        return V.Int(0);
+    }
+
+    void NodeMessage(string node, int code, string param)
+    {
+        if (!nodes.TryGetValue(node, out var c)) return;
+        if (c is TextureRect tr2 && code == 2)  // SetNewPicture: replace the texture by file
+        {
+            tr2.Texture = GameAssets.Texture(param);
+            return;
+        }
+        if (c is TextureRect tr && code == 3)   // "pick a picture from this folder"
+        {
+            var list = GameAssets.TexturesIn(param);
+            if (list.Count > 0) tr.Texture = GameAssets.Texture(list[rng.Next(list.Count)]);
+            return;
+        }
+        Warn($"node message {code} for {c.GetType().Name}");
+    }
+
+    void CreateString(V[] d)
+    {
+        // "lssllllf": msg, name, font, color, x, y, alignment, scale ; the text is the script attribute strings.<name>
+        string name = Conv.ToStr(d[1]);
+        string text = Ent.Root.Find("strings." + name, false)?.Value ?? "";
+        uint argb = unchecked((uint)Conv.ToInt(d[3]));
+        int x = Conv.ToInt(d[4]), y = Conv.ToInt(d[5]), align = Conv.ToInt(d[6]);
+        float scale = Conv.ToFloat(d[7]);
+        if (!strings.TryGetValue(name, out var lab))
+        {
+            lab = new Label { Name = "str_" + name, MouseFilter = MouseFilterEnum.Ignore };
+            strings[name] = lab;
+            AddChild(lab);
+        }
+        lab.Text = text;
+        // the original uses bitmap fonts by name; Dialog21 is the small one, Dialog2 a title size, interface_normal the menu size
+        string font = Conv.ToStr(d[2]);
+        float basePx = font.Equals("Dialog21", StringComparison.OrdinalIgnoreCase) ? 13f : font.Equals("Dialog2", StringComparison.OrdinalIgnoreCase) ? 24f : 26f;
+        lab.AddThemeFontSizeOverride("font_size", font.Contains("small", StringComparison.OrdinalIgnoreCase) ? FontPx(font, scale) : Math.Max(8, (int)(basePx * scale)));
+        lab.AddThemeColorOverride("font_color", new Color((argb >> 16 & 255) / 255f, (argb >> 8 & 255) / 255f, (argb & 255) / 255f, (argb >> 24) / 255f));
+        lab.AddThemeColorOverride("font_outline_color", Colors.Black);
+        lab.AddThemeConstantOverride("outline_size", 3);
+        // fixed-width box so alignment does not depend on the font being laid out yet: 0 = left, 1 = right, 2 = centre of x
+        const float W = 620;
+        lab.Size = new Vector2(W, 40);
+        lab.HorizontalAlignment = align == 1 ? HorizontalAlignment.Right : align == 2 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        lab.Position = new Vector2(align == 1 ? x - W : align == 2 ? x - W / 2 : x, y);
+    }
+
+    // ------------------------------------------------------------------ building the screen
+    public void Clear()
+    {
+        foreach (var c in GetChildren()) c.QueueFree();
+        nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
+    }
+
+    static Color Argb(string? s, Color def)
+    {
+        if (s == null) return def;
+        var p = s.Split(',').Select(x => int.TryParse(x.Trim(), out var v) ? v : 128).ToArray();
+        if (p.Length < 4) return def;
+        // the engine's interface colours are modulated "x2": 128 is neutral
+        return new Color(p[1] / 128f, p[2] / 128f, p[3] / 128f, p[0] / 255f);
+    }
+
+    static float[] Floats(string? s, int n)
+    {
+        var r = new float[n];
+        if (s == null) return r;
+        var p = s.Split(',');
+        for (int i = 0; i < n && i < p.Length; i++)
+            float.TryParse(p[i].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out r[i]);
+        return r;
+    }
+
+    public void Load(string iniFile)
+    {
+        Clear();
+        string path = System.IO.Path.IsPathRooted(iniFile) ? iniFile : System.IO.Path.Combine(GameAssets.GameDir, iniFile.Replace('\\', System.IO.Path.DirectorySeparatorChar));
+        if (!System.IO.File.Exists(path)) { GD.PrintErr("interface ini not found: " + iniFile); return; }
+        GD.Print("[xinterface] loading " + iniFile);
+        var ini = IniFile.Load(path);
+        var defs = IniFile.Load(GameAssets.Resource("INI\\INTERFACES\\defaultnode.ini"));
+        var main = ini.Get("MAIN");
+        if (main == null) return;
+
+        var order = new List<(int prio, int idx, string type, string name)>();
+        int idx = 0;
+        foreach (var line in main.All("item"))
+        {
+            var parts = line.Split(',').Select(x => x.Trim()).ToList();
+            int i = 0;
+            int prio = 80;                                  // items without a priority sit between the background layers (60) and the top ones (100+)
+            if (int.TryParse(parts[0], out int declared)) { prio = declared; i++; }
+            bool skip = false;
+            if (i < parts.Count && parts[i].Equals("PC", StringComparison.OrdinalIgnoreCase)) i++;
+            if (i + 1 < parts.Count && parts[i].Equals("LANG", StringComparison.OrdinalIgnoreCase))
+            {
+                skip = !parts[i + 1].Equals("English", StringComparison.OrdinalIgnoreCase);
+                i += 2;
+            }
+            if (skip || i + 1 >= parts.Count) continue;
+            string type = parts[i].ToUpperInvariant(), name = parts[i + 1];
+            if (order.Any(o => o.name.Equals(name, StringComparison.OrdinalIgnoreCase))) continue;
+            order.Add((prio, idx++, type, name));
+        }
+
+        foreach (var (_, _, type, name) in order.OrderBy(o => o.prio).ThenBy(o => o.idx))
+        {
+            var sec = ini.Get(name);
+            var def = defs.Get(type);
+            string? P(string key) => sec?.Get(key) ?? def?.Get(key);
+            bool hidden = sec?.Has("bNotUse") == true;
+
+            var pos = Floats(P("position"), 4);
+            if (int.TryParse(P("bAbsoluteRectangle"), out int snap))      // 1/2/4/8: left/top/right/bottom edge follows the screen edge
+            {
+                if ((snap & 1) != 0) pos[0] = -40;
+                if ((snap & 2) != 0) pos[1] = -30;
+                if ((snap & 4) != 0) pos[2] = 680;
+                if ((snap & 8) != 0) pos[3] = 510;
+            }
+            Control? node = type switch
+            {
+                "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
+                "TEXTBUTTON" => MakeButton(name, P, pos),
+                "BUTTON" => MakeIconButton(name, P, pos),
+                "RECTANGLE" => MakeRectangle(P, pos),
+                "BOUNDER" => MakeBounder(P, pos),
+                "TITLE" => MakeTitle(P, pos),
+                "IMAGECOLLECTION" => MakeCollection(sec, P),
+                "FORMATEDTEXT" => MakeFormatted(P, pos),
+                "VIDEO" => new Control { MouseFilter = MouseFilterEnum.Ignore },     // background video: not played
+                "STRINGCOLLECTION" => MakeStringCollection(sec),
+                "LINECOLLECTION" => MakeLineCollection(sec),
+                "STATUSLINE" => MakeStatusLine(P, pos),
+                "SCROLLIMAGE" => MakeScrollImage(name, P, pos),
+                "FOURIMAGES" => MakeFourImages(name, P),
+                "SLIDER" => new SliderView(Ent, name, pos[0], pos[1], pos[2], pos[3], P("baseTexture") ?? "", P("selectTexture") ?? "", P("pointerTexture") ?? "",
+                    Floats(P("pointerWidth"), 1)[0], Floats(P("pointerHeight"), 1)[0], Floats(P("baseLeft"), 1)[0]),
+                "QUESTTITLE" => MakeQuestTitle(P, pos),
+                "QUESTTEXT" => MakeQuestText(pos),
+                "CONTEXTHELP" => new Control { MouseFilter = MouseFilterEnum.Ignore },
+                "CHANGER" => new Control { MouseFilter = MouseFilterEnum.Ignore },    // selectable rows: selection not drawn yet
+                _ => null,
+            };
+            if (node == null) { Warn($"node type {type}"); continue; }
+            node.Name = name;
+            node.Visible = !hidden;
+            nodes[name] = node;
+            AddChild(node);
+
+            if (sec != null)
+            {
+                var list = new List<Cmd>();
+                foreach (var cl in sec.All("command"))
+                {
+                    var cp = cl.Split(',').Select(x => x.Trim()).ToList();
+                    var rest = cp.Skip(1).ToList();
+                    var coms = new List<(string, string)>();
+                    foreach (var x in rest.Where(x => x.StartsWith("com:", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var q = x.Split(':');
+                        if (q.Length >= 3) coms.Add((q[1], q[2]));
+                    }
+                    string? select = rest.FirstOrDefault(x => x.StartsWith("select:", StringComparison.OrdinalIgnoreCase))?.Substring(7);
+                    list.Add(new Cmd(cp[0], rest.Where(x => x.StartsWith("event:", StringComparison.OrdinalIgnoreCase)).Select(x => x.Substring(6)).ToList(), coms, select));
+                }
+                cmds[name] = list;
+            }
+        }
+        GD.Print($"[xinterface] built {nodes.Count} nodes");
+    }
+
+    Control MakePicture(Func<string, string?> P, float[] pos)
+    {
+        var tr = new TextureRect
+        {
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.Scale,
+            MouseFilter = MouseFilterEnum.Ignore,
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            Modulate = Argb(P("color"), Colors.White),
+        };
+        var tex = GameAssets.Texture(P("textureName") ?? "");
+        if (tex == null && P("group") != null && P("picture") != null)
+        {
+            tr.Texture = Atlas.Get(P("group")!, P("picture")!);
+            return tr;
+        }
+        if (tex != null)
+        {
+            var uv = Floats(P("textureRect"), 4);
+            if (uv[2] > 0 && uv[3] > 0 && (uv[2] < 1 || uv[3] < 1 || uv[0] > 0 || uv[1] > 0))
+            {
+                var at = new AtlasTexture { Atlas = tex };
+                float w = tex.GetWidth(), h = tex.GetHeight();
+                at.Region = new Rect2(uv[0] * w, uv[1] * h, (Math.Min(uv[2], 1) - uv[0]) * w, (Math.Min(uv[3], 1) - uv[1]) * h);
+                tr.Texture = at;
+            }
+            else tr.Texture = tex;
+        }
+        if (P("techniqueName") == "iRotate")
+        {
+            tr.PivotOffset = tr.Size / 2;
+            spinners.Add((tr, Floats(P("rotate"), 2)[0]));
+        }
+        return tr;
+    }
+
+    Control MakeButton(string name, Func<string, string?> P, float[] pos)
+    {
+        // some screens put their buttons at the very bottom edge (y up to 515 on a 480 high screen): keep the caption visible
+        float overflow = Math.Max(0, pos[3] - 482);
+        pos[1] -= overflow; pos[3] -= overflow;
+        var b = new Button
+        {
+            Text = Tr(P("string") ?? name),
+            Flat = true,
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            FocusMode = FocusModeEnum.All,
+        };
+        var empty = new StyleBoxEmpty();
+        foreach (var s in new[] { "normal", "hover", "pressed", "focus", "disabled" }) b.AddThemeStyleboxOverride(s, empty);
+        var gold = new Color(1f, 0.82f, 0.35f);
+        b.AddThemeColorOverride("font_color", new Color(1, 1, 1));
+        b.AddThemeColorOverride("font_hover_color", gold);
+        b.AddThemeColorOverride("font_focus_color", gold);
+        b.AddThemeColorOverride("font_pressed_color", gold);
+        b.AddThemeColorOverride("font_disabled_color", new Color(0.5f, 0.5f, 0.5f));
+        b.AddThemeColorOverride("font_outline_color", Colors.Black);
+        b.AddThemeConstantOverride("outline_size", 4);
+        b.AddThemeFontSizeOverride("font_size", 26);
+        b.Pressed += () => Click(name);
+        return b;
+    }
+
+    /// <summary>Pixel height for the engine's bitmap font names (interface_small, INTERFACE_ULTRASMALL, Dialog21, ...).</summary>
+    static int FontPx(string font, float scale)
+    {
+        string f = font.ToLowerInvariant();
+        float px = f.Contains("ultrasmall") ? 11 : f.Contains("small") ? 15 : f.Contains("title") ? 28 : f == "dialog21" ? 13 : f == "dialog2" ? 24 : 24;
+        return Math.Max(8, (int)(px * scale));
+    }
+
+    static Color Plain(string? s, Color def)
+    {
+        if (s == null) return def;
+        var p = s.Split(',').Select(x => int.TryParse(x.Trim(), out var v) ? v : 255).ToArray();
+        return p.Length < 4 ? def : new Color(p[1] / 255f, p[2] / 255f, p[3] / 255f, p[0] / 255f);
+    }
+
+    /// <summary>BUTTON: a picture from the atlas (group + picture) that clicks; shows a gold glow on mouse-over.</summary>
+    Control MakeIconButton(string name, Func<string, string?> P, float[] pos)
+    {
+        var b = new TextureButton
+        {
+            IgnoreTextureSize = true,
+            StretchMode = TextureButton.StretchModeEnum.Scale,
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            FocusMode = FocusModeEnum.All,
+            TextureNormal = Atlas.Get(P("group") ?? "ICONS", P("picture") ?? ""),
+        };
+        b.MouseEntered += () => b.Modulate = new Color(1.35f, 1.25f, 1f);
+        b.MouseExited += () => b.Modulate = Colors.White;
+        b.Pressed += () => Click(name);
+        return b;
+    }
+
+    sealed partial class RectDraw : Control
+    {
+        public Color Top, Bottom;
+        public override void _Draw()
+        {
+            DrawPolygon(new[] { Vector2.Zero, new Vector2(Size.X, 0), Size, new Vector2(0, Size.Y) }, new[] { Top, Top, Bottom, Bottom });
+        }
+    }
+
+    Control MakeRectangle(Func<string, string?> P, float[] pos)
+    {
+        return new RectDraw
+        {
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            Top = Plain(P("topColor"), new Color(0, 0, 0.3f, 0.8f)),
+            Bottom = Plain(P("bottomColor"), new Color(0, 0, 0.3f, 0.8f)),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+    }
+
+    sealed partial class BorderDraw : Control
+    {
+        public Texture2D? Angle, Line;
+        public override void _Draw()
+        {
+            if (Angle == null || Line == null) return;
+            float t = 16;
+            // edges: the line picture tiled along each side, corners with the angle picture rotated by 90 degrees steps
+            void Edge(Vector2 from, float len, float rot)
+            {
+                DrawSetTransform(from, rot, Vector2.One);
+                for (float x = t; x < len - t; x += Line.GetWidth())
+                    DrawTextureRect(Line, new Rect2(x, 0, Math.Min(Line.GetWidth(), len - t - x), t), false);
+            }
+            Edge(Vector2.Zero, Size.X, 0);
+            Edge(new Vector2(Size.X, 0), Size.Y, MathF.PI / 2);
+            Edge(Size, Size.X, MathF.PI);
+            Edge(new Vector2(0, Size.Y), Size.Y, -MathF.PI / 2);
+            DrawSetTransform(Vector2.Zero, 0, Vector2.One);
+            DrawTextureRect(Angle, new Rect2(0, 0, t, t), false);
+        }
+    }
+
+    Control MakeBounder(Func<string, string?> P, float[] pos)
+    {
+        string g = P("groupName") ?? "ICONS";
+        var pics = (P("pictures") ?? "border angle,border line").Split(',').Select(x => x.Trim()).ToArray();
+        return new BorderDraw
+        {
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            Angle = Atlas.Get(g, pics[0]),
+            Line = Atlas.Get(g, pics.Length > 1 ? pics[1] : pics[0]),
+            Modulate = Argb(P("color"), Colors.White),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+    }
+
+    /// <summary>TITLE: the screen header strip with the caption (GameInterface.title is a key of the global strings).</summary>
+    Control MakeTitle(Func<string, string?> P, float[] pos)
+    {
+        var box = new Control { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]), MouseFilter = MouseFilterEnum.Ignore };
+        var tiled = Atlas.Get(P("imgGroupName") ?? "ICONS", P("titleTiled") ?? "titleTiled");
+        if (tiled != null)
+            box.AddChild(new TextureRect { Texture = tiled, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, Size = box.Size, MouseFilter = MouseFilterEnum.Ignore });
+        string key = Ent.Root.Find("title", false)?.Value ?? "";
+        var lab = new Label
+        {
+            Text = key.Length == 0 ? "" : Tr(key),
+            Size = box.Size,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        lab.AddThemeFontSizeOverride("font_size", FontPx(P("font") ?? "interface_title", Floats(P("fontScale"), 1)[0] is var s && s > 0 ? s : 1f));
+        lab.AddThemeColorOverride("font_color", Colors.White);
+        lab.AddThemeColorOverride("font_outline_color", Colors.Black);
+        lab.AddThemeConstantOverride("outline_size", 4);
+        box.AddChild(lab);
+        return box;
+    }
+
+    /// <summary>IMAGECOLLECTION: several atlas pictures; "picture = name,col:{a,r,g,b},pos:{x1,y1,x2,y2}".</summary>
+    Control MakeCollection(IniFile.Section? sec, Func<string, string?> P)
+    {
+        var root = new Control { MouseFilter = MouseFilterEnum.Ignore };
+        string group = P("groupName") ?? "ICONS";
+        if (sec == null) return root;
+        foreach (var line in sec.All("picture"))
+        {
+            string name = line.Split(',')[0].Trim();
+            float[] rect = [0, 0, 0, 0];
+            var color = Colors.White;
+            int pi = line.IndexOf("pos:{", StringComparison.OrdinalIgnoreCase);
+            if (pi >= 0) rect = Floats(line.Substring(pi + 5, line.IndexOf('}', pi) - pi - 5), 4);
+            int ci = line.IndexOf("col:{", StringComparison.OrdinalIgnoreCase);
+            if (ci >= 0) color = Argb(line.Substring(ci + 5, line.IndexOf('}', ci) - ci - 5), Colors.White);
+            root.AddChild(new TextureRect
+            {
+                Texture = Atlas.Get(group, name),
+                ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+                StretchMode = TextureRect.StretchModeEnum.Scale,
+                Position = new Vector2(rect[0], rect[1]),
+                Size = new Vector2(rect[2] - rect[0], rect[3] - rect[1]),
+                Modulate = color,
+                MouseFilter = MouseFilterEnum.Ignore,
+            });
+        }
+        return root;
+    }
+
+    /// <summary>"key:{a,b,c}" -> the numbers inside the braces.</summary>
+    static float[] Braced(string line, string key, int n)
+    {
+        int i = line.IndexOf(key + ":{", StringComparison.OrdinalIgnoreCase);
+        if (i < 0) return new float[n];
+        int j = line.IndexOf('}', i);
+        return Floats(line.Substring(i + key.Length + 2, j - i - key.Length - 2), n);
+    }
+
+    static string? BracedText(string line, string key)
+    {
+        int i = line.IndexOf(key + ":", StringComparison.OrdinalIgnoreCase);
+        if (i < 0) return null;
+        int st = i + key.Length + 1;
+        int e = line.IndexOfAny(new[] { ',', '}' }, st);
+        return (e < 0 ? line.Substring(st) : line.Substring(st, e - st)).Trim();
+    }
+
+    /// <summary>STRINGCOLLECTION: "string = KEY,font:F,pos:{x,y},fc:{a,r,g,b},bc:{..},scale:S,state:{S}" - captions drawn at fixed places.</summary>
+    Control MakeStringCollection(IniFile.Section? sec)
+    {
+        var root = new Control { MouseFilter = MouseFilterEnum.Ignore };
+        if (sec == null) return root;
+        foreach (var line in sec.All("string"))
+        {
+            string key = line.Split(',')[0].Trim();
+            var pos = Braced(line, "pos", 2);
+            var fc = Braced(line, "fc", 4);
+            float scale = float.TryParse(BracedText(line, "scale"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1f;
+            var lab = new Label { Text = Tr(key), Position = new Vector2(pos[0], pos[1] - 2), MouseFilter = MouseFilterEnum.Ignore, Name = "cs_" + key };
+            int px = FontPx(BracedText(line, "font") ?? "interface_normal", scale);
+            lab.AddThemeFontSizeOverride("font_size", px);
+            lab.AddThemeColorOverride("font_color", new Color(fc[1] / 255f, fc[2] / 255f, fc[3] / 255f, fc[0] / 255f));
+            lab.AddThemeColorOverride("font_outline_color", Colors.Black);
+            lab.AddThemeConstantOverride("outline_size", 3);
+            root.AddChild(lab);
+            collectionStrings[key] = lab;
+        }
+        return root;
+    }
+
+    sealed partial class LinesDraw : Control
+    {
+        public readonly List<(Vector2 a, Vector2 b, Color c)> Lines = new();
+        public override void _Draw() { foreach (var (a, b, c) in Lines) DrawLine(a, b, c, 1.2f); }
+    }
+
+    /// <summary>LINECOLLECTION: "line = (x1,y1)-(x2,y2),col:{a,r,g,b}".</summary>
+    Control MakeLineCollection(IniFile.Section? sec)
+    {
+        var d = new LinesDraw { MouseFilter = MouseFilterEnum.Ignore };
+        if (sec == null) return d;
+        foreach (var line in sec.All("line"))
+        {
+            var nums = System.Text.RegularExpressions.Regex.Matches(line.Split("col:")[0], @"-?\d+(\.\d+)?")
+                .Select(m => float.Parse(m.Value, System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+            if (nums.Length < 4) continue;
+            var c = Braced(line, "col", 4);
+            d.Lines.Add((new Vector2(nums[0], nums[1]), new Vector2(nums[2], nums[3]), new Color(c[1] / 255f, c[2] / 255f, c[3] / 255f, c[0] / 255f)));
+        }
+        return d;
+    }
+
+    /// <summary>STATUSLINE: a thin bar (empty picture + filled part) used for experience/health/reputation.</summary>
+    Control MakeStatusLine(Func<string, string?> P, float[] pos)
+    {
+        var box = new Control { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], Math.Max(pos[3] - pos[1], 4)), MouseFilter = MouseFilterEnum.Ignore };
+        var empty = Atlas.Get("ICONS", "status line empty");
+        if (empty != null) box.AddChild(new TextureRect { Texture = empty, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, Size = box.Size, MouseFilter = MouseFilterEnum.Ignore });
+        return box;
+    }
+
+    readonly Dictionary<string, Label> collectionStrings = new(StringComparer.OrdinalIgnoreCase);
+
+    Control MakeFourImages(string name, Func<string, string?> P)
+    {
+        var rects = new Rect2[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var p = Floats(P("position" + (i + 1)), 4);
+            rects[i] = new Rect2(p[0], p[1], p[2] - p[0], p[3] - p[1]);
+        }
+        return new FourImagesView(Ent, name, rects, P("oneString") ?? "", P("twoString") ?? "", (cmd, n) => Run(n, cmd, 0));
+    }
+
+    V FindSave(V[] d)
+    {
+        var list = SaveFiles.List();
+        int idx = d.Length > 1 ? Conv.ToInt(d[1]) : 0;
+        if (idx < 0 || idx >= list.Count) return V.Int(0);
+        it.WriteRef(d[2], V.Str(list[idx].name));
+        it.WriteRef(d[3], V.Int((int)Math.Min(list[idx].size, int.MaxValue)));
+        return V.Int(1);
+    }
+
+    // ------------------------------------------------------------------ quest book
+    Control? questTitleNode;
+    Attr? questInfo;
+    int questTop;
+    float questLine = 28;
+    string questIconGroup = "ICONS", questDoneIcon = "complete", questOpenIcon = "noncomplete";
+    Label? questTextLabel;
+
+    Control MakeQuestTitle(Func<string, string?> P, float[] pos)
+    {
+        var c = new Control { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]), MouseFilter = MouseFilterEnum.Ignore };
+        float ls = Floats(P("lineSpace"), 1)[0];
+        questLine = ls > 0 ? ls : 28;
+        questIconGroup = P("iconGroup") ?? "ICONS";
+        questDoneIcon = P("completeIcon") ?? "complete";
+        questOpenIcon = P("noncompleteIcon") ?? "noncomplete";
+        questTitleNode = c;
+        return c;
+    }
+
+    /// <summary>MSG_INTERFACE_SET_TITLE_STRINGS (msg, node, QuestInfo, top): shows the list of quests starting at `top`.</summary>
+    public V SetQuestTitles(V[] a)
+    {
+        questInfo = a.Length > 2 ? a[2].Attr : null;
+        questTop = a.Length > 3 ? Conv.ToInt(a[3]) : 0;
+        GD.Print($"[xinterface] quest titles: {questInfo?.Count} quests, top {questTop}, node={(questTitleNode != null)}");
+        RefreshQuestTitles();
+        return V.Void;
+    }
+
+    void RefreshQuestTitles()
+    {
+        if (questTitleNode == null) return;
+        foreach (var ch in questTitleNode.GetChildren()) ch.QueueFree();
+        if (questInfo == null) return;
+        int rows = Math.Max(1, (int)(questTitleNode.Size.Y / questLine));
+        int lang = it.Language?.Open("QuestBook.txt") ?? -1;
+        for (int r = 0; r < rows; r++)
+        {
+            var q = questInfo.ChildAt(questTop + r);
+            if (q == null) break;
+            bool done = q.Get("Complete") != null;
+            string title = it.Language?.Convert(lang, q.Name + "_title") ?? q.Name;
+            if (string.IsNullOrEmpty(title)) title = q.Name;
+            var row = new Button { Flat = true, Position = new Vector2(0, r * questLine), Size = new Vector2(questTitleNode.Size.X, questLine), Alignment = HorizontalAlignment.Left, FocusMode = FocusModeEnum.None };
+            var empty = new StyleBoxEmpty();
+            foreach (var sname in new[] { "normal", "pressed", "focus", "disabled" }) row.AddThemeStyleboxOverride(sname, empty);
+            row.AddThemeStyleboxOverride("hover", new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0.18f) });
+            row.Text = "      " + title.Replace("\\n", " ");
+            row.AddThemeFontSizeOverride("font_size", 15);
+            row.AddThemeColorOverride("font_color", done ? new Color(0.5f, 0.5f, 0.5f) : Colors.White);
+            row.AddThemeColorOverride("font_hover_color", new Color(1f, 0.9f, 0.5f));
+            var icon = Atlas.Get(questIconGroup, done ? questDoneIcon : questOpenIcon);
+            if (icon != null) row.AddChild(new TextureRect { Texture = icon, Size = new Vector2(questLine - 4, questLine - 4), Position = new Vector2(2, 2), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });
+            int idx = r;
+            row.Pressed += () => it.FireEvent("QuestActivate", new List<V> { V.Int(idx) });
+            questTitleNode.AddChild(row);
+        }
+        it.Language?.Close(lang);
+    }
+
+    Control MakeQuestText(float[] pos)
+    {
+        var c = new Control { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]), MouseFilter = MouseFilterEnum.Ignore, ClipContents = true };
+        questTextLabel = new Label { Size = c.Size, AutowrapMode = TextServer.AutowrapMode.WordSmart, MouseFilter = MouseFilterEnum.Ignore };
+        questTextLabel.AddThemeFontSizeOverride("font_size", 15);
+        questTextLabel.AddThemeColorOverride("font_color", Colors.White);
+        questTextLabel.AddThemeColorOverride("font_outline_color", Colors.Black);
+        questTextLabel.AddThemeConstantOverride("outline_size", 2);
+        c.AddChild(questTextLabel);
+        return c;
+    }
+
+    static readonly System.Text.RegularExpressions.Regex TagRx = new(@"#([sdfSDF])([^#\s]+)#");
+
+    /// <summary>MSG_INTERFACE_INIT_QTEXT_SHOW (node, QuestInfo, index): composes the records of one quest ("@date@id,@date@id,...") from QuestBook.txt.</summary>
+    void ShowQuestText(Attr? info, int qnum)
+    {
+        if (questTextLabel == null) return;
+        var q = info?.ChildAt(qnum);
+        if (q == null) { questTextLabel.Text = ""; return; }
+        int lang = it.Language?.Open("QuestBook.txt") ?? -1;
+        var sb = new System.Text.StringBuilder();
+        foreach (var rec in (q.Get("Text")?.Value ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(rec, "^@([^@]*)@(.*)$");
+            if (!m.Success) continue;
+            string date = m.Groups[1].Value, id = m.Groups[2].Value;
+            string dateKey = "at" + new string(date.Where(char.IsDigit).ToArray());
+            var prm = q.Find(id + "." + dateKey, false);
+            string text = it.Language?.Convert(lang, q.Name + "_" + id) ?? "";
+            text = StormScript.Runtime.Builtins.AssembleString(text, prm);
+            sb.Append(date).Append('\n').Append(text.Trim()).Append("\n\n");
+        }
+        questTextLabel.Text = sb.ToString();
+        it.Language?.Close(lang);
+    }
+
+    Control MakeFormatted(Func<string, string?> P, float[] pos)
+    {
+        string al = (P("alignment") ?? "center").ToLowerInvariant();
+        var lab = new Label
+        {
+            Position = new Vector2(pos[0], pos[1]),
+            Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            HorizontalAlignment = al == "left" ? HorizontalAlignment.Left : al == "right" ? HorizontalAlignment.Right : HorizontalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore,
+            ClipText = true,
+        };
+        float sc = Floats(P("fontScale"), 1)[0];
+        lab.AddThemeFontSizeOverride("font_size", FontPx(P("font") ?? "interface_normal", sc > 0 ? sc : 1f));
+        float ls = Floats(P("lineSpace"), 1)[0];
+        if (ls > 0) lab.AddThemeConstantOverride("line_spacing", Math.Max(0, (int)ls - FontPx(P("font") ?? "interface_normal", sc > 0 ? sc : 1f) - 4));
+        lab.AddThemeColorOverride("font_color", Plain(P("Color"), Colors.White));
+        lab.AddThemeColorOverride("font_outline_color", Colors.Black);
+        lab.AddThemeConstantOverride("outline_size", 2);
+        return lab;
+    }
+
+    // ------------------------------------------------------------------ interface -> script
+    public void Click(string node)
+    {
+        GD.Print($"[xinterface] click {node}");
+        Run(node, "click", 0);
+    }
+
+    /// <summary>Executes command <paramref name="cmd"/> of <paramref name="node"/>: tells the script, runs the ini's event:/com:/select: entries.</summary>
+    void Run(string node, string cmd, int depth)
+    {
+        if (depth > 4) return;
+        it.FireEvent("ievnt_command", new List<V> { V.Str(cmd), V.Str(node) });
+        if (nodes.TryGetValue(node, out var sl4) && sl4 is SliderView slv)
+        {
+            if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) slv.Step(-0.02f);
+            else if (cmd.Equals("rightstep", StringComparison.OrdinalIgnoreCase)) slv.Step(0.02f);
+            else if (cmd.Equals("speedleft", StringComparison.OrdinalIgnoreCase)) slv.Step(-0.1f);
+            else if (cmd.Equals("speedright", StringComparison.OrdinalIgnoreCase)) slv.Step(0.1f);
+        }
+        if (nodes.TryGetValue(node, out var fn4) && fn4 is FourImagesView fv)
+        {
+            if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) fv.Move(-1, 0);
+            else if (cmd.Equals("rightstep", StringComparison.OrdinalIgnoreCase)) fv.Move(1, 0);
+            else if (cmd.Equals("upstep", StringComparison.OrdinalIgnoreCase)) fv.Move(0, -1);
+            else if (cmd.Equals("downstep", StringComparison.OrdinalIgnoreCase)) fv.Move(0, 1);
+        }
+        if (nodes.TryGetValue(node, out var n) && n is ScrollImageView sv)
+        {
+            if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) sv.Move(-1);
+            else if (cmd.Equals("rightstep", StringComparison.OrdinalIgnoreCase)) sv.Move(1);
+        }
+        if (!cmds.TryGetValue(node, out var list)) return;
+        foreach (var c in list.Where(c => c.Name.Equals(cmd, StringComparison.OrdinalIgnoreCase)).ToList())
+        {
+            if (c.Select != null && nodes.TryGetValue(c.Select, out var sel) && sel is Button sb && !sb.Disabled) sb.GrabFocus();
+            foreach (var (cc, cn) in c.Coms) Run(cn, cc, depth + 1);
+            foreach (var e in c.Events) it.FireEvent(e);
+        }
+    }
+
+    void Step(string command)
+    {
+        if (GetViewport()?.GuiGetFocusOwner() is Button fb) Run(fb.Name.ToString(), command, 0);
+        else foreach (var kv in nodes) if (kv.Value is ScrollImageView) { Run(kv.Key, command, 0); break; }
+    }
+
+    Control MakeScrollImage(string name, Func<string, string?> P, float[] pos)
+    {
+        var sz = Floats(P("imageSize"), 2);
+        return new ScrollImageView(Ent, name, pos[0], pos[1], pos[2], pos[3], sz[0] > 0 ? sz[0] : 128, sz[1] > 0 ? sz[1] : 128, (cmd, n) => Run(n, cmd, 0));
+    }
+
+    public override void _UnhandledKeyInput(InputEvent e)
+    {
+        if (e is not InputEventKey { Pressed: true } k) return;
+        if (k.Keycode == Key.Up) { Step("upstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Down) { Step("downstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Left) { Step("leftstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Right) { Step("rightstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Escape) { it.FireEvent("InterfaceBreak"); }
+    }
+
+    public override void _Process(double delta)
+    {
+        foreach (var (c, speed) in spinners) c.Rotation += speed * (float)delta;
+        // scripts change GameInterface.strings.<name> after the label was created (hero name, type, ...)
+        foreach (var (name, lab) in strings)
+        {
+            string text = Ent.Root.Find("strings." + name, false)?.Value ?? "";
+            if (lab.Text != text) lab.Text = text;
+        }
+    }
+}

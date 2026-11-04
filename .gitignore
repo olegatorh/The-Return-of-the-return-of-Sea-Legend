@@ -1,0 +1,13 @@
+out/
+__pycache__/
+*.pyc
+bin/
+obj/
+godot/
+.godot/
+*.import
+addon/
+tools/mt/venv/
+tools/mt/model/
+tools/mt/work/
+saves/

@@ -1,0 +1,140 @@
+== unresolved functions (engine API still to implement): 8
+  LanguageConvertString  111
+  LanguageCloseFile  36
+  LanguageOpenFile  34
+  XI_ControlMakeInvert  10
+  XI_SetColorCorrection  2
+  XI_SetMouseSensitivity  2
+  XI_ConvertString  1
+  LanguageGetLanguage  1
+== unresolved variables: 1
+  SCRIPT_ALIGN_Center  1
+== runtime errors: 0
+== engine messages received by stub entities (class | format | msg id): 57
+  <no entity> | sis | MoveChr  4264
+  <no entity> | lsl | 30373 LockFightMode  2374
+  <no entity> | ls | 30350   2374
+  <no entity> | lsl | 30373 SetFightWOWeapon  2372
+  locator | le | 1504   45
+  <no entity> | ls | 30373 FindDialogCharacter  10
+  <no entity> | ss | RegistryGroup  4
+  <no entity> | ssf | SetGroupLook  4
+  <no entity> | ssf | SetGroupHear  4
+  <no entity> | ssf | SetGroupSay  4
+  xinterface | lsa | 45053 options  3
+  Sound | l | 77013  3
+  ILogAndActions | ls | 45021 Nothing  3
+  ILogAndActions | lll | 45022  2
+  Sound | lll | 77004  2
+  <no entity> | l | 51025  2
+  <no entity> | l | 10006  2
+  Sound | lfff | 77021  2
+  xinterface | lsl | 45024 B_LOAD  2
+  xinterface | lsa | 45052 options  1
+  <no entity> | lll | 77004  1
+  CAviPlayer | ls | 49000 WaltDisneyLogo1.wmv  1
+  CAviPlayer | ls | 49000 BethesdaLogo1.wmv  1
+  CAviPlayer | ls | 49000 AkellaLogo1.wmv  1
+  xinterface | ls | 45010 RESOURCE\INI\INTERFACES\mainmenu.ini  1
+  xinterface | lsl | 45024 B_NEWGAME  1
+  xinterface | lsl | 45024 B_RESUMEGAME  1
+  xinterface | lsl | 45024 B_SAVE  1
+  xinterface | lsl | 45024 B_OPTIONS  1
+  xinterface | lsl | 45024 B_CONTROLS  1
+  xinterface | lsl | 45024 B_CREDITS  1
+  xinterface | lsl | 45024 B_QUIT  1
+  xinterface | lssllllf | 45012 Name  1
+  xinterface | llee | 45035  1
+  xinterface | ls | 45021 B_NEWGAME  1
+  Sound | lslllllll | 77003 music\_potc.ogg  1
+  Sound | llf | 77008  1
+  Sound | lll | 77012  1
+  xinterface | lssllllf | 45012 VerNum  1
+  xinterface | lssllllf | 45012 VerWWW  1
+== entities created: 18
+  locator  3
+  CAviPlayer  3
+  xinterface  2
+  obj_strservice  2
+  ILogAndActions  2
+  Sound  2
+  TMPTELEPORT  2
+  particles  2
+  InfoHandler  1
+  scrshoter  1
+  fader  1
+  Weather  1
+  rain  1
+  SunGlow  1
+  Sky  1
+  CharacterAnimationKipper  1
+  location  1
+  battle_land_interface  1
+== global object arrays: 17
+  Cannon  9/9 populated, 0 with id
+  Characters  1400/1400 populated, 1368 with id
+  EncountersTypes  11/11 populated, 0 with id
+  Goods  35/35 populated, 0 with id
+  Interfaces  56/61 populated, 0 with id
+  Islands  15/15 populated, 15 with id
+  Items  173/173 populated, 173 with id
+  LandEncounters  4/4 populated, 4 with id
+  LandEncTemplate  5/5 populated, 5 with id
+  Locations  619/619 populated, 619 with id
+  MapEncounters  16/16 populated, 0 with id
+  Nations  5/5 populated, 0 with id
+  objInfoList  2/10 populated, 0 with id
+  RandItems  48/48 populated, 48 with id
+  ShipsTypes  174/250 populated, 0 with id
+  stores  23/23 populated, 0 with id
+  Weathers  320/320 populated, 320 with id
+== events fired: 12
+  frame  300
+  evntTimeCalculate  20
+  evntBLI_Update  17
+  evntFindDialogChar  10
+  EndVideoPlay  4
+  evntPostVideo  3
+  ievntEndVideo  3
+  DoInfoShower  3
+  makescrshot  1
+  EventUnloadLocation  1
+  EventLoadLocation  1
+  LoadSceneSound  1
+
+== log
+SYNTAX characterUtilite.c(4999): expected ';' (found ':')
+SYNTAX GeneratorUtilite.c(659): expected declaration (found '{')
+SYNTAX dialog_func.c(1418): expected declaration (found '{')
+SYNTAX dialog_func.c(2083): expected attribute name after '.' (found 'Statue1')
+--- call Main()
+TRACE Init encounters complete.
+TRACE SHIP_TYPES_QUANTITY = 172
+TRACE ВСЕГО Островов = 15
+TRACE Init weathers complete. 320 weathers found.
+--- simulate 20s
+UNRESOLVED function LanguageCloseFile(1 args)
+TRACE ВСЕГО Островов = 15
+TRACE ВСЕГО ЛОКАЦИЙ В ИГРЕ: 619
+TRACE Заполнение трупов с предмета 99
+TRACE Загружено предметов = 173
+TRACE ВСЕГО НПС В ИГРЕ = 1253
+TRACE Version = ver. 1.06.0124
+UNRESOLVED function XI_SetColorCorrection(3 args)
+UNRESOLVED function XI_ControlMakeInvert(2 args)
+UNRESOLVED function XI_SetMouseSensitivity(2 args)
+UNRESOLVED function XI_ConvertString(1 args)
+UNRESOLVED variable SCRIPT_ALIGN_Center in InitInterface() [mainmenu.c:75]
+--- call InterfaceDoExit()
+--- simulate 10s
+UNRESOLVED function LanguageGetLanguage(0 args)
+TRACE ВСЕГО Островов = 15
+TRACE ВСЕГО ЛОКАЦИЙ В ИГРЕ: 619
+TRACE Заполнение трупов с предмета 99
+TRACE Загружено предметов = 173
+TRACE ВСЕГО НПС В ИГРЕ = 1253
+TRACE Version = ver. 1.06.0124
+UNRESOLVED function LanguageOpenFile(1 args)
+UNRESOLVED function LanguageConvertString(2 args)
+TRACE LocationLoader: not loaded model location.models.always.locators, id = Falaise_de_fleur_tavern
+TRACE Unload location.

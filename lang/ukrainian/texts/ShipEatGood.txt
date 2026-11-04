@@ -1,0 +1,37 @@
+Ship_got_good		{%1 ц %2 піднято на борт}
+Ship_cant_got_good	{Немає місця для %1}
+seg_Balls		{ядер}
+seg_Grapes		{картечі}
+seg_Knippels	{книпелів}
+seg_Bombs		{бомб}
+seg_Sailcloth	{парусини}
+seg_Planks		{дощок}
+seg_Slaves		{рабів}
+seg_Wheat		{пшениці}
+seg_Ebony		{чорного дерева}
+seg_Chocolate	{какао}
+seg_Sugar		{цукру}
+seg_Wine		{вина}
+seg_Linen		{полотна}
+seg_Rum		    {рому}
+seg_Tobacco	    {тютюну}
+seg_Coffee		{кави}
+seg_Mahogany	{червоного дерева}
+seg_Cinnamon	{кориці}
+seg_Copra		{копри}
+seg_Paprika		{паприки}
+seg_Fruits		{фруктів}
+seg_Ale			{елю}
+seg_Silk        {шовку}
+seg_Clothes		{одягу}
+seg_Cotton		{бавовни}
+seg_Sandal		{сандалу}
+seg_Leather		{шкіри}
+seg_Oil			{олії}
+seg_Food 	    {провіанту}
+seg_Weapon  	{зброї}
+seg_Gold		{золота}
+seg_Silver		{срібла}
+seg_Powder		{пороху}
+seg_Brick		{цегли}
+seg_Medicament	{ліків}

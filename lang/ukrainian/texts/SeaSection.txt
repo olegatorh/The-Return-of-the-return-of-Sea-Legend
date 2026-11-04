@@ -1,0 +1,43 @@
+Ship_critical		{Критичне влучання!}
+Ship_sunk		{%1 "%2" потоплено. +%3 досвіду.}
+Ship_sunk_other		{%1 "%2" потоплено.}
+Ship_got_good		{%1 ц %2 піднято на борт}
+Ship_cant_got_good	{Немає місця для %1}
+Fort_destroy		{Форт %1 зруйновано. +%2 досвіду.}
+Fort_cannon		{Гармату форту знищено! +%1 досвіду.}
+seg_Balls		{Ядер}
+seg_Grapes		{Картечі}
+seg_Knippels	{Книпелів}
+seg_Bombs		{Бомб}
+seg_Sailcloth	{Парусини}
+seg_Planks		{Дощок}
+seg_Slaves		{Рабів}
+seg_Wheat		{Пшениці}
+seg_Ebony		{Чорного дерева}
+seg_Chocolate	{Какао}
+seg_Sugar		{Цукру}
+seg_Wine		{Вина}
+seg_Linen		{Полотна}
+seg_Rum			{Рому}
+seg_Tobacco		{Тютюну}
+seg_Coffee		{Кави}
+seg_Mahogany	{Червоного дерева}
+seg_Cinnamon	{Кориці}
+seg_Copra		{Копри}
+seg_Paprika		{Перцю}
+seg_Fruits		{Фруктів}
+seg_Ale			{Елю}
+seg_Silk		{Шовку}
+seg_Clothes		{Одягу}
+seg_Cotton		{Бавовни}
+seg_Sandal		{Сандалу}
+seg_Leather		{Шкіри}
+seg_Oil			{Олії}
+seg_Food 	      {Провіанту}
+seg_Weapon  	{Зброї}
+seg_Gold		{Золота}
+seg_Silver		{Срібла}
+seg_Powder		{Пороху}
+seg_Brick		{Цегли}
+seg_Medicament	{Ліків}
+sea_exp_add		{+%1 досвіду}

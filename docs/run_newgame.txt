@@ -1,0 +1,142 @@
+== unresolved functions (engine API still to implement): 0
+== unresolved variables: 0
+== runtime errors: 0
+== engine messages received by stub entities (class | format | msg id): 60
+  <no entity> | sis | MoveChr  2176
+  <no entity> | lsl | 30373 LockFightMode  1302
+  <no entity> | ls | 30350   1302
+  <no entity> | lsl | 30373 SetFightWOWeapon  1302
+  locator | le | 1504   24
+  obj_strservice | llee | 45102  14
+  <no entity> | ls | 30373 FindDialogCharacter  10
+  <no entity> | ls | 30373 IsFightMode  7
+  <no entity> | ss | RegistryGroup  4
+  <no entity> | ssf | SetGroupLook  4
+  <no entity> | ssf | SetGroupHear  4
+  <no entity> | ssf | SetGroupSay  4
+  Sound | l | 77013  3
+  ILogAndActions | ls | 45021 Nothing  3
+  obj_strservice | ll | 45101  3
+  ILogAndActions | lll | 45022  2
+  Sound | lll | 77004  2
+  <no entity> | l | 51025  2
+  <no entity> | l | 10006  2
+  xinterface | lsa | 45053 options  2
+  Sound | lfff | 77021  2
+  xinterface | lsl | 45024 B_LOAD  2
+  <no entity> | lll | 77004  1
+  CAviPlayer | ls | 49000 WaltDisneyLogo.wmv  1
+  CAviPlayer | ls | 49000 BethesdaLogo.wmv  1
+  CAviPlayer | ls | 49000 AkellaLogo.wmv  1
+  xinterface | ls | 45010 RESOURCE\INI\INTERFACES\mainmenu.ini  1
+  xinterface | lsl | 45024 B_NEWGAME  1
+  xinterface | lsl | 45024 B_RESUMEGAME  1
+  xinterface | lsl | 45024 B_SAVE  1
+  xinterface | lsl | 45024 B_OPTIONS  1
+  xinterface | lsl | 45024 B_CONTROLS  1
+  xinterface | lsl | 45024 B_CREDITS  1
+  xinterface | lsl | 45024 B_QUIT  1
+  xinterface | lsls | 45045 BACKPICTURE  1
+  xinterface | lssllllf | 45012 Name  1
+  xinterface | llee | 45035  1
+  xinterface | ls | 45021 B_NEWGAME  1
+  Sound | lslllllll | 77003 music\Coridor.ogg  1
+  Sound | llf | 77008  1
+== entities created: 23
+  locator  3
+  CAviPlayer  3
+  xinterface  2
+  obj_strservice  2
+  ILogAndActions  2
+  Sound  2
+  TMPTELEPORT  2
+  particles  2
+  controls_container  2
+  InfoHandler  1
+  scrshoter  1
+  fader  1
+  CharacterAnimationKipper  1
+  sea  1
+  Weather  1
+  SunGlow  1
+  Sky  1
+  Sail  1
+  Rope  1
+  Flag  1
+  Vant  1
+  location  1
+  battle_land_interface  1
+== global object arrays: 19
+  Cannon  7/7 populated, 0 with id
+  Characters  1000/1000 populated, 968 with id
+  EncountersTypes  8/8 populated, 0 with id
+  FaceDescribeTable  32/32 populated, 0 with id
+  Goods  27/27 populated, 0 with id
+  Interfaces  35/35 populated, 0 with id
+  Islands  8/8 populated, 8 with id
+  Items  128/128 populated, 128 with id
+  LandEncounters  3/3 populated, 3 with id
+  LandEncTemplate  5/5 populated, 5 with id
+  Locations  400/400 populated, 288 with id
+  MapEncounters  16/16 populated, 0 with id
+  Nations  6/6 populated, 0 with id
+  objInfoList  2/10 populated, 0 with id
+  RandItems  52/52 populated, 52 with id
+  Rumour  7/7 populated, 0 with id
+  ShipsTypes  168/256 populated, 0 with id
+  stores  9/9 populated, 0 with id
+  Weathers  10/16 populated, 10 with id
+== events fired: 13
+  frame  300
+  evntTimeCalculate  20
+  evntBLI_Update  20
+  evntFindDialogChar  10
+  EndVideoPlay  4
+  evntPostVideo  3
+  ievntEndVideo  3
+  DoInfoShower  3
+  makescrshot  1
+  EventUnloadLocation  1
+  EventLoadLocation  1
+  LoadSceneSound  1
+  evnt_MsgIconTick  1
+
+== log
+SYNTAX quests_reaction.c(1894): expected ')' (found '.0')
+SYNTAX quests_reaction.c(5442): expected attribute name after '.' (found ')')
+SYNTAX quests_reaction.c(7328): expected ';' (found '.2003')
+SYNTAX quests_reaction.c(8295): expected ']' (found ';')
+SYNTAX quests_reaction.c(8297): expected ']' (found ';')
+SYNTAX quests_reaction.c(8299): expected ']' (found ';')
+SYNTAX quests_reaction.c(10962): expected ';' (found ',')
+--- call Main()
+TRACE Init encounters complete.
+TRACE Init weathers complete. 10 weathers found.
+TRACE Main_LogoVideo() 0
+--- simulate 20s
+TRACE PauseAllSounds
+TRACE ResetSoundScheme
+TRACE Main_LogoVideo() 1
+TRACE PauseAllSounds
+TRACE ResetSoundScheme
+TRACE Main_LogoVideo() 2
+TRACE PauseAllSounds
+TRACE ResetSoundScheme
+TRACE Main_LogoVideo() 3
+TRACE Can`t key named as: VK_B
+TRACE Number of locations: 288
+TRACE bool CreateParticleEntity()
+TRACE n is 2
+TRACE SETTING MUSIC: music\Coridor.ogg
+--- call InterfaceDoExit()
+--- simulate 10s
+TRACE Number of locations: 288
+TRACE bool CreateParticleEntity()
+TRACE n is 2
+TRACE !!! Reload to 216
+TRACE LoadLocation(ref loc) Tutorial_Deck
+TRACE LocationLoader: not loaded model location.models.always.locators, id = Tutorial_Deck
+TRACE Unload location.
+TRACE UnloadLocation(aref loc) Tutorial_Deck
+TRACE ItemLogic: On unload location
+TRACE ПРОВЕРЯЕТСЯ КВЕСТ Tut_start

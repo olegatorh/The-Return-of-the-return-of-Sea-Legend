@@ -1,0 +1,23 @@
+_info
+{
+Файл - опис початкових галок гри
+Створена: ALexusB 04.01.06
+}
+
+LevelComplexity {Складність}
+LevelComplexity_desc
+{
+Складаність гри від матроса до неможливого. Вплив на силу ворогів, доходи та багато іншого
+}
+
+CannonMode_1 {Режим пушек - Линейний}
+CannonMode_2 {Режим пушек - Нелінійний}
+NewTownSet {Додаткові ресурси}
+RechargePistolOnLine {Перезавантаження пістолетів}
+RunMode {Бег завжди}
+PayForSaveLoad {Платити за Save/Load}
+NewCodeOn {Опрощення абордажу}
+SwordHalfBlock {1/2 блок меча}
+ArcadeMode_1 {Режим плавання - Швидкий бой}
+ArcadeMode_2 {Режим плавання - Поволі бій}
+WorldAlivePause {Квести за нації}
