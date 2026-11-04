@@ -95,6 +95,8 @@ public partial class Main : Node
         }
         GameAssets.GameDir = game;
         outdoor = new OutdoorEnv { Name = "Outdoor" };
+        weatherFx = new WeatherFx();
+        AddChild(weatherFx);
         AddChild(outdoor);
         GD.Print("[main] game folder: " + game);
 
@@ -104,6 +106,7 @@ public partial class Main : Node
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
         host = new ScriptHost(program);
+        host.It.EntityHandlers["Lightning"] = (e, fmt, d) => weatherFx.OnLightning(d);
         // port settings (settings.ini next to the project): the hidden "beta/test" page of the options screen is enabled by the original #define MOD_BETTATESTMODE
         string settingsFile = Path.Combine(portDir, "settings.ini");
         if (!File.Exists(settingsFile))
@@ -407,6 +410,7 @@ public partial class Main : Node
 
     // ------------------------------------------------------------------ engine loop for characters and the camera
     OutdoorEnv outdoor = null!;
+    WeatherFx weatherFx = null!;
     SeaView sea = null!;
     WorldMapView worldMap = null!;
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
@@ -511,12 +515,14 @@ public partial class Main : Node
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1) sea.TestTurn = dir.X;
             sea.Tick(dt, dialogView == null && !UiOpen);
             outdoor.Sync(host.It, sea.Cam, delta);
+            weatherFx.Sync(host.It, sea.Cam, delta);
             return;
         }
 
         // follow camera
         var cam = CurrentLocation()?.Cam;
         outdoor.Sync(host.It, cam, delta);
+        weatherFx.Sync(host.It, cam, delta);
         if (cam == null) return;
         cam.Enabled = flyMode;
         if (camMode == 2 && !flyMode)

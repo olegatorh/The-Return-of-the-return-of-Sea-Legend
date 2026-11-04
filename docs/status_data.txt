@@ -17,7 +17,7 @@ Interface | Key bindings | APPROX | 70 | T | own table in settings.ini instead o
 Interface | Sea HUD (battle_interface) and command menu | APPROX | 60 | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested
 Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | 75 | V | flags, rigging ropes, sail animation missing
 Sea | Ship movement physics | APPROX | 50 | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling
-Sea | Wind, weather, sky, fog | PORT | 60 | V | script drives them, port renders; no storm, rain, lightning visuals
+Sea | Wind, weather, sky, fog | PORT | 60 | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound
 Sea | Island, collisions, mooring | APPROX | 60 | V | collision by raycast of visible geometry; grounding events approximate
 Sea | Ship AI | APPROX | 35 | E | move/attack/follow/runaway; no formations, boarding AI, fleeing logic
 Sea | Cannons, balls, damage, sinking | APPROX | 65 | V | real ballistics and script damage; sound and smoke exactness missing
@@ -53,8 +53,8 @@ Entity class | AISeaGoods | STUB | 0 | E |
 Entity class | CharactersGroups | APPROX | 70 | E |
 Entity class | SunGlow | STUB | 0 | E |
 Entity class | obj_strservice | PORT | 80 | E |
-Entity class | rain | STUB | 0 | E |
-Entity class | Lightning | STUB | 0 | E |
+Entity class | rain | PORT | 70 | E |
+Entity class | Lightning | APPROX | 50 | E |
 Entity class | Sky | PORT | 70 | E |
 Entity class | Tornado | MISSING | 0 | E |
 Entity class | Sail | PORT | 60 | E |

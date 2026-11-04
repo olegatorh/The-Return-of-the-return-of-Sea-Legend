@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 30 subsystems below): **64 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **10974** lines of C# (`StormScript/` library + `game/`)
+* Port code: **11134** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -52,7 +52,7 @@ Layers (where the behaviour comes from):
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██████░░░░ 60 % | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ███████░░░ 75 % | V | flags, rigging ropes, sail animation missing |
 | Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
-| Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; no storm, rain, lightning visuals |
+| Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound |
 | Sea | Island, collisions, mooring | APPROX | ██████░░░░ 60 % | V | collision by raycast of visible geometry; grounding events approximate |
 | Sea | Ship AI | APPROX | ███░░░░░░░ 35 % | E | move/attack/follow/runaway; no formations, boarding AI, fleeing logic |
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
@@ -72,12 +72,12 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 21 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 8 | `CharactersGroups` (70%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%) |
-| STUB | 28 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `rain`, `Lightning`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `PEOPLE_ON_SHIP`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| PORT | 22 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (60%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| APPROX | 9 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (55%), `BallSplash` (60%) |
+| STUB | 26 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `battle_land_interface`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `IBoardingStatus`, `touch`, `SINKEFFECT`, `PEOPLE_ON_SHIP`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **29 of 66** (44 %); stubs: 28, missing: 9.
+Classes with real behaviour: **31 of 66** (47 %); stubs: 26, missing: 9.
 
 ## How accuracy is checked (and what is still unchecked)
 
