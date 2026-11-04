@@ -95,7 +95,7 @@ public partial class FourImagesView : Control
                 string? img = pic.Find("img" + k, false)?.Value;
                 if (string.IsNullOrEmpty(img)) continue;
                 int tex = (int)Conv.ParseFloatPrefix(pic.Find("tex" + k, false)?.Value);
-                string? group = r.Find("ImagesGroup.t" + tex, false)?.Value;
+                string? group = r.Get("ImagesGroup")?.ChildAt(tex)?.Value;
                 if (string.IsNullOrEmpty(group)) continue;
                 var t = Atlas.Get(group, img);
                 if (t != null) cell.AddChild(new TextureRect { Texture = t, Size = slots[i].Size, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });

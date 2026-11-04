@@ -64,6 +64,11 @@ public partial class XView : Control
             case 45028:                                                    // GET_CURRENT_NODE (output string)
                 it.WriteRef(d[1], V.Str(CurrentNode()));
                 return V.Int(0);
+            case 45040:                                                    // GET_STRWIDTH: string, font, scale -> width in interface units
+            {
+                int fpx = FontPx(S(2), d.Length > 3 ? Conv.ToFloat(d[3]) : 1f);
+                return V.Int((int)Math.Ceiling(new Label().GetThemeDefaultFont().GetStringSize(S(1), HorizontalAlignment.Left, -1, fpx).X));
+            }
             case 45030:                                                    // GET_LANGUAGE_STRING: key -> text (no language files yet: echo)
                 it.WriteRef(d[2], V.Str(S(1)));
                 return V.Int(0);
@@ -548,14 +553,18 @@ public partial class XView : Control
     {
         var root = new Control { MouseFilter = MouseFilterEnum.Ignore };
         if (sec == null) return root;
-        foreach (var line in sec.All("string"))
+        var all = sec.All("string").ToList();
+        var places = all.Select(l => Braced(l, "pos", 2)).ToList();
+        foreach (var line in all)
         {
             string key = line.Split(',')[0].Trim();
             var pos = Braced(line, "pos", 2);
+            // a caption has the room up to the next caption of the same row (the top menu: an icon sits left of every caption)
+            float nextDx = places.Where(q => Math.Abs(q[1] - pos[1]) < 1f && q[0] > pos[0] + 1f).Select(q => q[0] - pos[0]).DefaultIfEmpty(float.MaxValue).Min();
             var fc = Braced(line, "fc", 4);
             float scale = float.TryParse(BracedText(line, "scale"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sc) ? sc : 1f;
             var lab = new Label { Text = Tr(key), Position = new Vector2(pos[0], pos[1] - 2), MouseFilter = MouseFilterEnum.Ignore, Name = "cs_" + key };
-            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(100, 628 - pos[0]));
+            int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), Math.Max(40, Math.Min(628 - pos[0], nextDx == float.MaxValue ? 628 - pos[0] : nextDx - (pos[1] < 0 ? 46f : 6f))));
             lab.AddThemeFontSizeOverride("font_size", px);
             lab.AddThemeColorOverride("font_color", new Color(fc[1] / 255f, fc[2] / 255f, fc[3] / 255f, fc[0] / 255f));
             lab.AddThemeColorOverride("font_outline_color", Colors.Black);

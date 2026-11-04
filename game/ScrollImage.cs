@@ -106,7 +106,7 @@ public partial class ScrollImageView : Control
         string? img = pic.Find("img" + k, false)?.Value;
         if (string.IsNullOrEmpty(img)) return;
         int tex = (int)Conv.ParseFloatPrefix(pic.Find("tex" + k, false)?.Value);
-        string? group = root.Find("ImagesGroup.t" + tex, false)?.Value;
+        string? group = root.Get("ImagesGroup")?.ChildAt(tex)?.Value;
         if (string.IsNullOrEmpty(group)) return;
         var t = Atlas.Get(group, img);
         if (t == null) return;
