@@ -465,6 +465,9 @@ public partial class SeaView : Node3D
                 if (Keys.Down("SeaLeft")) turnIn -= 1f;
                 if (Keys.Down("SeaRight")) turnIn += 1f;
                 if (TestTurn != 0f) turnIn = TestTurn;
+                // "sail to" from the command menu: the script gives the player's ship a move task; the helm is automatic until the player steers
+                if (turnIn != 0f && s.Task == 7) s.Task = -1;
+                else if (s.Task == 7) turnIn = Steer(s, sh, dt);
             }
             // the ship type's inertia (Ships_init.c: InertiaAccelerationZ/BrakingZ for the speed, ...Y for turning, ...X for sliding sideways) sets how lively it is
             float accZ = TypeF(sh, "InertiaAccelerationZ", 1f), brkZ = TypeF(sh, "InertiaBrakingZ", 1f), accY = TypeF(sh, "InertiaAccelerationY", 1f), brkX = TypeF(sh, "InertiaBrakingX", 1f);
@@ -626,8 +629,19 @@ public partial class SeaView : Node3D
     /// </summary>
     void ReportSeaState()
     {
+        var pl = ships.FirstOrDefault(x => x.IsPlayer);
         bool canMoor = it.Globals.TryGetValue("bCanEnterToLand", out var g) && Conv.ToInt(g.Val) != 0;
-        it.FireEvent("BI_SetSeaState", new List<V> { V.Int(0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(0), V.Int(0), V.Int(0), V.Int(-1) });
+        // what the command menu may offer: sail to a place of the island, attack an enemy / defend a friend that is near
+        bool sailTo = island != null, attack = false, defend = false;
+        if (pl != null)
+            foreach (var o in ships)
+            {
+                if (o.IsPlayer || o.Dying) continue;
+                int rel = Relation(pl.Index, o.Index);
+                if (rel == 2 && Dist(pl, o) < 2500f) attack = true;
+                if (rel == 0 && Dist(pl, o) < 2500f) defend = true;
+            }
+        it.FireEvent("BI_SetSeaState", new List<V> { V.Int(sailTo ? 1 : 0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(attack ? 1 : 0), V.Int(defend ? 1 : 0), V.Int(0), V.Int(-1) });
     }
 
     /// <summary>

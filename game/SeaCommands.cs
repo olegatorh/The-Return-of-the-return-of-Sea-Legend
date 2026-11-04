@@ -60,7 +60,7 @@ public partial class SeaView
     static readonly (string file, int xs, int ys)[] CmdTex =
     {
         ("cicons_charge.tga", 1, 4), ("cicons_command.tga", 4, 4), ("ships_16.tga", 4, 4), ("ships_1.tga", 1, 1), ("ships_2.tga", 1, 2), ("SailControls.tga", 4, 1),
-        ("sea_abilitys.tga", 4, 2), ("scull.tga", 1, 1), ("small_nations.tga", 8, 1), ("Artefact.tga", 1, 1), ("08shs_02.tga", 1, 1), ("LandCommands.tga", 2, 4), ("LandTarget4.tga", 8, 1),
+        ("sea_abilitys.tga", 4, 2), ("scull.tga", 1, 1), ("small_nations.tga", 8, 1), ("Artefact.tga", 1, 1), ("08shs_02.tga", 1, 1), ("LandCommands.tga", 2, 4), ("LandTarget4.tga", 8, 1), ("cicons_locators.tga", 4, 1),
     };
 
     /// <summary>Icon <paramref name="pic"/> (row by row) of command texture <paramref name="tex"/>; a file twice as wide as its cells holds the highlighted copy in its right half.</summary>
@@ -174,7 +174,8 @@ public partial class SeaView
             case MenuLevel.Ship: ShowCommands(item.Target); break;
             case MenuLevel.Command: ChooseCommand(item.Id, item.Label); break;
             case MenuLevel.Target:
-                if (menuCommand == "BI_CompanionCommand") ShowCommands(item.Target);       // an order to a companion: pick the companion, then its commands
+                if (item.Loc.Length > 0) Launch(menuCommand, -1, item.Loc);                // a place of the island
+                else if (menuCommand == "BI_CompanionCommand") ShowCommands(item.Target);   // an order to a companion: pick the companion, then its commands
                 else Launch(menuCommand, item.Target, "");
                 break;
             case MenuLevel.Charge: Launch(menuCommand, item.Target, ""); break;
@@ -241,10 +242,26 @@ public partial class SeaView
                 bool ok = (mine && (mode & ModeMyShip) != 0) || (!mine && ((rel == 2 && (mode & ModeEnemyShip) != 0) || (rel == 0 && (mode & ModeFriendShip) != 0) || (rel == 1 && (mode & ModeNeutralShip) != 0)));
                 if (ok) cand.Add(s);
             }
-        if (cand.Count == 0) { menuNote = "Немає підходящих цілей"; ShowCommands(menuChar); return; }
+        // places of the island (ports, bays: Islands[].reload.l<N>.{label, name, pic}) when the command accepts a locator, e.g. sail to the port
+        var places = new List<HudMenuItem>();
+        if ((mode & ModeAllLocator) != 0 && it.Globals.TryGetValue("AISea", out var ai) && ai.Val.Attr?.Get("Island")?.Value is { Length: > 0 } islId
+            && Conv.ToInt(it.CallTop("FindIsland", V.Str(islId))) is var ii && ii >= 0 && it.Globals.TryGetValue("Islands", out var isls) && isls.Arr != null && ii < isls.Arr.Length)
+        {
+            var rel = isls.Arr[ii].Val.Attr?.Get("reload");
+            for (int c = 0; rel != null && c < rel.Count; c++)
+            {
+                var l = rel.ChildAt(c)!;
+                string lab = l.Get("label")?.Value ?? "", nm = l.Get("name")?.Value ?? "";
+                if (lab.Length == 0 || nm.Length == 0 || l.Get("x") == null) continue;
+                int pic = (int)F(l, "pic", 0);
+                places.Add(new HudMenuItem { Icon = CmdIcon(13, pic, false), IconSelected = CmdIcon(13, pic, true), Label = lab, Id = "place", Loc = nm });
+            }
+        }
+        if (cand.Count == 0 && places.Count == 0) { menuNote = "Немає підходящих цілей"; ShowCommands(menuChar); return; }
         menuLevel = MenuLevel.Target; menuTitle = label; menuSel = 0;
         var pl = p!;
         ShowShips(cand.OrderBy(s => Dist(pl, s)), label);
+        menuItems.AddRange(places);
         menuLevel = MenuLevel.Target;
     }
 

@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 30 subsystems below): **64 %**
+* Overall (mean of the 30 subsystems below): **65 %**
 * Unit tests: **29** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **11199** lines of C# (`StormScript/` library + `game/`)
+* Port code: **11403** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 65 % |
 | NATIVE | 1 | 90 % |
 | PORT | 14 | 74 % |
-| APPROX | 13 | 52 % |
+| APPROX | 13 | 53 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -54,7 +54,7 @@ Layers (where the behaviour comes from):
 | Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
 | Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound |
 | Sea | Island, collisions, mooring | APPROX | ██████░░░░ 60 % | V | collision by raycast of visible geometry; grounding events approximate |
-| Sea | Ship AI | APPROX | ███░░░░░░░ 35 % | E | move/attack/follow/runaway; no formations, boarding AI, fleeing logic |
+| Sea | Ship AI | APPROX | █████░░░░░ 55 % | E | move/attack/follow (formation slots)/defend (engages near enemies)/flee/ram approach, steering around land; no real enemy boarding |
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███░░░░░░░ 30 % | E | script flow starts; deck fight uses the land combat engine; grapple scene missing |

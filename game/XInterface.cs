@@ -172,6 +172,7 @@ public partial class XView : Control
         }
         if (c is Label && code is 5 or 6 or 8 or 1) return;                         // formatted text: "recompute / scroll bar state" (the label wraps by itself)
         if (c is Label fl2 && code == 0 && d.Length <= 5) { fl2.Text = fl2.Text.Length == 0 ? param : fl2.Text + "\n" + param; return; }   // append a line
+        if (c is ScrollImageView sciv && code == 0) { sciv.Modulate = Conv.ToInt(d.Length > 3 ? d[3] : V.Int(1)) != 0 ? Colors.White : new Color(1, 1, 1, 0.6f); return; }     // this list is the active one (the chest screen has two)
         if (c is TextureRect tr4 && code == 4) { uint col = unchecked((uint)Conv.ToInt(d[3])); tr4.Modulate = new Color((col >> 16 & 255) / 128f, (col >> 8 & 255) / 128f, (col & 255) / 128f, (col >> 24) / 255f); return; }   // tint of a picture
         if (code == 0 && d.Length >= 10)   // a captioned string placed on a node: name, text, font, x, y, colour, ?, alignment, ?, scale, width
         {
