@@ -212,7 +212,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        dynImages.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); dynKeys.Clear(); nodes.Clear(); cmds.Clear(); strings.Clear(); spinners.Clear(); collectionStrings.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -863,5 +863,15 @@ public partial class XView : Control
             string text = Ent.Root.Find("strings." + name, false)?.Value ?? "";
             if (lab.Text != text) lab.Text = text;
         }
+        // the same for the script's own images: it changes pictures.<name>.tex/pic after placing them (faces of the save list ...)
+        foreach (var (name, img) in dynImages)
+        {
+            string tex = Ent.Root.Find("pictures." + name + ".tex", false)?.Value ?? "", pic = Ent.Root.Find("pictures." + name + ".pic", false)?.Value ?? "";
+            if (dynKeys.TryGetValue(name, out var k) && k == tex + "|" + pic) continue;
+            dynKeys[name] = tex + "|" + pic;
+            img.Texture = Atlas.Get(tex, pic);
+        }
     }
+
+    readonly Dictionary<string, string> dynKeys = new();
 }
