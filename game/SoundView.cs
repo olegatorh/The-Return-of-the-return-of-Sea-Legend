@@ -36,7 +36,7 @@ public partial class SoundView : Node
     readonly Dictionary<string, AudioStream?> cache = new(StringComparer.OrdinalIgnoreCase);
     Dictionary<string, string>? fileIndex;
     int nextId = 1;
-    float fxVolume = 1f, musicVolume = 1f;
+    float fxVolume = 1f, musicVolume = 1f, speechVolume = 1f;
     static readonly HashSet<string> warned = new();
     public bool Enabled = true;
     public Interp? it0;
@@ -260,9 +260,9 @@ public partial class SoundView : Node
                 return V.Int(0);
             case 77009: return V.Int(voices.TryGetValue(I(1), out var pv) && pv.Player?.Playing == true ? 1 : 0);
             case 77022:                                                       // GET_MASTER_VOLUME "eee": fx, music, speech
-                it0?.WriteRef(d[1], V.Float(fxVolume)); it0?.WriteRef(d[2], V.Float(musicVolume)); it0?.WriteRef(d[3], V.Float(1f));
+                it0?.WriteRef(d[1], V.Float(fxVolume)); it0?.WriteRef(d[2], V.Float(musicVolume)); it0?.WriteRef(d[3], V.Float(speechVolume));
                 return V.Int(0);
-            case 77021: fxVolume = F(1); musicVolume = F(2); foreach (var v in voices.Values) ApplyVolume(v); return V.Int(0);
+            case 77021: fxVolume = F(1); musicVolume = F(2); speechVolume = d.Length > 3 ? F(3) : speechVolume; foreach (var v in voices.Values) ApplyVolume(v); return V.Int(0);
             case 77013: ClearScheme(); return V.Int(0);                       // SCHEME_RESET
             case 77014: ClearScheme(); AddScheme(S(1)); return V.Int(0);      // SCHEME_SET
             case 77015: AddScheme(S(1)); return V.Int(0);                     // SCHEME_ADD

@@ -203,7 +203,7 @@ public static class Builtins
         // native string GetAssembledString(string format, aref data): "#sName#" -> data.Name as text, "#dName#" -> integer, "#f.2Name#" -> number with 2 decimals
         Add("getassembledstring", (it, a) => V.Str(AssembleString(S(a, 0), Arg(a, 1).Attr)));
         Add("xi_convertstring", (it, a) => V.Str(it.Language?.Global(S(a, 0)) ?? S(a, 0)));
-        Nop("xi_controlmakeinvert", "xi_setcolorcorrection", "xi_setmousesensitivity");
+        Nop("xi_controlmakeinvert", "xi_setmousesensitivity");
 
         // ---- engine natives used by the scripts: lookup by "id" attribute in an array of objects
         Add("nativefindcharacter", (it, a) => V.Int(FindById(a, "NativeFindCharacter")));

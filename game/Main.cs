@@ -100,6 +100,9 @@ public partial class Main : Node
         AddChild(sea);
         worldMap = new WorldMapView(host.It);
         AddChild(worldMap);
+        var colorCorrection = new ColorCorrection();
+        AddChild(colorCorrection);
+        host.It.HostFunctions["xi_setcolorcorrection"] = a => { if (a.Length >= 3) colorCorrection.Set(Conv.ToFloat(a[0]), Conv.ToFloat(a[1]), Conv.ToFloat(a[2])); return V.Void; };
         host.It.Language = new LanguageService(game, Path.Combine(portDir, "lang"), language);
         host.It.Log = s => GD.Print("[script] " + s);
         EngineStubs.Install(host.It);
