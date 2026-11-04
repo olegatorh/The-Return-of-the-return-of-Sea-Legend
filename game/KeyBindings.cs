@@ -33,7 +33,7 @@ public static class Keys
 
         new("QuickSave", "Загальні", "Швидке збереження", Key.F4), new("QuickLoad", "Загальні", "Швидке завантаження", Key.F6),
         new("Interface", "Загальні", "Екран персонажа / інтерфейс", Key.F2), new("MainMenu", "Загальні", "Головне меню", Key.F1),
-        new("NameTags", "Загальні", "Імена над персонажами", Key.F3), new("FlyCam", "Загальні", "Вільна камера (налагодження)", Key.F9),
+        new("NameTags", "Загальні", "Імена над персонажами", Key.F3), new("FlyCam", "Загальні", "Вільна камера (налагодження)", Key.F9), new("BugReport", "Загальні", "Звіт про помилку (знімок + лог + стан)", Key.F8),
     };
 
     static readonly Dictionary<string, Key> map = All.ToDictionary(a => a.Id, a => a.Default);

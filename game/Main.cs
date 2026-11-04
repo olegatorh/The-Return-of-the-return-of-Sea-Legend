@@ -105,6 +105,7 @@ public partial class Main : Node
 
         // scripts: the addon tree (base PROGRAM overlaid with the files unpacked from stormex2.dll) if it was built, else plain PROGRAM
         string portDir = Path.GetFullPath(Path.Combine(res, ".."));
+        portDirCached = portDir;
         string merged = Path.Combine(portDir, "addon", "merged", "PROGRAM");
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
@@ -399,6 +400,7 @@ public partial class Main : Node
         // F = draw/sheathe the sword (the original used E; E talks here)
         if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
+        if (e is InputEventKey { Pressed: true, Echo: false } f8 && Keys.Is(f8, "BugReport")) SaveBugReport();
         if (e is InputEventKey { Pressed: true } f9 && Keys.Is(f9, "FlyCam")) flyMode = !flyMode;          // free debug camera
         if (e is InputEventKey { Pressed: true } f3 && Keys.Is(f3, "NameTags"))                              // show/hide name tags
         {
@@ -424,8 +426,45 @@ public partial class Main : Node
     float camYaw, camPitch = 0.38f, camDist = 3.6f;
     bool camInit, flyMode, rmbDown;
     ulong lmbDownAt;
+    string portDirCached = "";
     readonly List<(int frame, string id)> brings = new();
     bool nameTags;
+
+    /// <summary>
+    /// F8: writes port/reports/&lt;time&gt;/ with a screenshot, the tail of the game log and a short state summary (where the player is, what is open, the last keys),
+    /// so a problem can be described with one line and this folder.
+    /// </summary>
+    void SaveBugReport()
+    {
+        try
+        {
+            string dir = Path.Combine(portDirCached, "reports", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
+            Directory.CreateDirectory(dir);
+            GetViewport().GetTexture().GetImage().SavePng(Path.Combine(dir, "screen.png"));
+            var sb = new System.Text.StringBuilder();
+            string G(string n) => host.It.Globals.TryGetValue(n, out var g) ? Conv.ToStr(g.Val) : "?";
+            var pc = characters.Values.FirstOrDefault(c => c.IsPlayer);
+            sb.AppendLine($"time: {DateTime.Now}, frames: {frames}, fps: {Engine.GetFramesPerSecond():0}");
+            sb.AppendLine($"mode: sea={sea.Active} map={worldMap.Active} locations={locations.Count} dialog={dialogView != null} interfaceOpen={UiOpen}");
+            sb.AppendLine($"player: location={pc?.Ent.Root.Get("location")?.Value} pos={pc?.PositionText()} fightMode={pc?.FightMode} hp={pc?.Ent.Root.Find("chr_ai.hp", false)?.Value}");
+            sb.AppendLine($"action hint: {G("g_ActiveActionName")}, InterfaceStates.Launched={host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr?.Get("Launched")?.Value}");
+            sb.AppendLine($"window: {GetWindow().Size}, version: {Engine.GetVersionInfo()["string"]}");
+            File.WriteAllText(Path.Combine(dir, "state.txt"), sb.ToString());
+            string log = ProjectSettings.GlobalizePath("user://logs/godot.log");
+            if (File.Exists(log))
+            {
+                using var fs = new System.IO.FileStream(log, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
+                using var sr = new StreamReader(fs);
+                var lines = new Queue<string>();
+                string? ln;
+                while ((ln = sr.ReadLine()) != null) { lines.Enqueue(ln); if (lines.Count > 600) lines.Dequeue(); }
+                File.WriteAllLines(Path.Combine(dir, "log_tail.txt"), lines);
+            }
+            GD.Print("[report] saved " + dir);
+            logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str("Звіт збережено: reports\\" + Path.GetFileName(dir)) });
+        }
+        catch (Exception e) { GD.PrintErr("[report] failed: " + e.Message); }
+    }
 
     /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
     CharacterView? NearestTalkable()

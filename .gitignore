@@ -20,3 +20,5 @@ game/*.png
 game/*.log
 game/*.err
 *.log
+
+reports/

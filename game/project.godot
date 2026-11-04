@@ -13,6 +13,10 @@ window/size/window_height_override=900
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[debug]
+file_logging/enable_file_logging=true
+file_logging/max_log_files=5
+
 [dotnet]
 project/assembly_name="SeaDogs"
 
