@@ -35,6 +35,8 @@ public partial class SeaView : Node3D
         public float TaskX, TaskZ;
         public float Length = 30f, Height = 12f;
         public List<Node3D> Sails = new();
+        public List<(string bort, Vector3 pos)> Cannons = new();
+        public readonly Dictionary<string, float> ReadyAt = new();
     }
 
     readonly Interp it;
@@ -140,7 +142,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -192,7 +194,7 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Sails = model.Sails;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Sails = model.Sails; rt.Cannons = model.Cannons;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
@@ -205,7 +207,7 @@ public partial class SeaView : Node3D
         GD.Print($"[sea] ship {chr.Get("id")?.Value} group='{group}' groups=[{string.Join(",", groupPos.Keys)}] type={name} at ({rt.X:0},{rt.Z:0}) ay={rt.Ay:0.00} sail={rt.Sail} length={rt.Length:0.0}");
     }
 
-    sealed class ShipModel { public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f; }
+    sealed class ShipModel { public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f; }
 
     /// <summary>Row-major D3D label matrix (vx, vy, vz, pos) -> Godot transform (z negated).</summary>
     static Transform3D LabelTransform(float[] m) =>
@@ -238,6 +240,8 @@ public partial class SeaView : Node3D
         sm.Root.AddChild(hullNode);
         var b = ModelFactory.Bounds(hullNode);
         sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y;
+        foreach (var l in hull.Labels.Where(l => l.Group.StartsWith("cannon", StringComparison.OrdinalIgnoreCase)))
+            sm.Cannons.Add((l.Group.ToLowerInvariant(), new Vector3(l.M[12], l.M[13], l.M[14])));
         var sailTex = GameAssets.Texture(SailTexture(nation));
         foreach (var ml in hull.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("mast", StringComparison.OrdinalIgnoreCase)))
         {
@@ -431,6 +435,7 @@ public partial class SeaView : Node3D
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
+        TickCombat(dt);
         UpdateCamera(dt, inputEnabled);
         UpdateHud();
     }
