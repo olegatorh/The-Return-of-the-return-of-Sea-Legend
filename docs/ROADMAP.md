@@ -7,10 +7,13 @@ Legend: effort S (hours) / M (a day) / L (days+). "Hint" says where to start.
    Hint: scripts `PROGRAM/SEA_AI`, `Ships/`, `BATTLE_INTERFACE`; entry `ReloadToSea` in `reload.c`; `sea` entity already renders a plane (`OutdoorEnv.cs`).
    The hero currently has no ship at the start; ships come from the shipyard (`LaunchShipyard`, needs gold) or quests.
 2. **World map (L)** — class `worldmap` (`PROGRAM/WorldMap`); `wdm*` script functions.
-3. **Combat (L)** — melee/pistols: `Location_CharacterAttack(attack, enemy, attackDmg, hitDmg)` etc. (`Loc_ai/LAi_events.c`), fight animations in `RESOURCE/Animation/man.ani`
-   (`attack_*`, `block`, `hit_*`, `fight stand_*`), death/ragdoll, weapons in hands, plus
-4. **CharactersGroups (M)** — message protocol in `Loc_ai/LAi_groups.c` (`RegistryGroup, SetRelation, SetAlarm*, MoveChr, GetTrg, VldTrg, IsEnemy, Attack, AddTarget`).
-   Currently every unhandled call returns 0 = "no enemies" (a peaceful world).
+3. **Combat (M, basic version DONE)** — melee works end to end: `CharactersGroups` (`game/Groups.cs`: relations, alarm, GetTrg/IsEnemy/Attack/AddTarget),
+   NPCs in task `Fight` path-find over the walk patch (`PtcFile.FindPath`), swing in reach, raise `Location_CharacterAttack(attack, enemy, 1, 1)`; the script computes
+   damage, death (`Dead` task) and game over (back to the main menu). Player: key **F** draws the sword, left mouse button attacks the nearest person in reach (2.2 m).
+   Still missing: blocks/parries (`Location_CharacterBlock`), attack variety and timing from `.ani` events, pistols (`Location_CharacterFire`), weapons in hands,
+   hit/death effects, ragdoll, fight camera, `LAi_*` fight-mode checks beyond IsFightMode. Test: `--call=LAi_group_MoveCharacter(#Id,foes)@N`,
+   `--call=LAi_group_FightGroups(foes,player,false)@N`, `--call=LAi_group_SetLookRadius(foes,100)@N`, dump `Characters[0].chr_ai.hp`.
+4. **CharactersGroups (DONE, simplified)** — alarm decay constants and look/hear radii semantics are guesses; LOS is ignored.
 
 ## B. Gameplay screens
 5. **Trade/store flow (M)** — needs a ship hold; interfaces `store.ini`, `itemstrade.ini`, `shiphold.ini`, `passengers.ini`; missing node types SCROLLER/SCROLLBAR.

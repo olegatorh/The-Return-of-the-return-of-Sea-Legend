@@ -71,5 +71,6 @@ Intro reference run (from the main menu to the first location, ~9000 frames):
 ## Status (see README.md for details)
 Works: boot, menu, hero selection, real intro, locations (3D, lighting, sky/sea/fog), characters + AI tasks + sitting poses, dialogs, locator detection and
 reloads, game clock, sound, save/load (`OnSave/OnLoad`), interfaces: character, items, quest book, options (sound), shipyard (empty), Ukrainian layer.
-Missing (largest first): **sea/ships/world map** (Ship, Island, Sail, sea AI, battle interface), **combat + CharactersGroups** (relations/targets), trade/store flow,
+Basic melee combat works (groups, NPC attacks, death/game over; player: F draws the sword, LMB attacks).
+Missing (largest first): **sea/ships/world map** (Ship, Island, Sail, sea AI, battle interface), blocks/pistols/weapon models, trade/store flow,
 items/chests on the ground (code exists, untested), key-binding screen, save thumbnails, mouse look, polishing of the machine translation.

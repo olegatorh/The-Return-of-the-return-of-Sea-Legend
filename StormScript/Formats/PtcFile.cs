@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Collections.Generic;
 
 namespace StormScript.Formats;
 
@@ -89,6 +90,70 @@ public sealed class PtcFile
             }
         }
         return found;
+    }
+
+    int TriAt(float x, float z, float refY)
+    {
+        int best = -1; float bd = float.MaxValue;
+        for (int i = 0; i < Tris.Length; i++)
+        {
+            var t = Tris[i];
+            float ax = Vx[t.A], az = Vz[t.A], bx = Vx[t.B], bz = Vz[t.B], cx = Vx[t.C], cz = Vz[t.C];
+            float den = (bz - cz) * (ax - cx) + (cx - bx) * (az - cz);
+            if (MathF.Abs(den) > 1e-9f)
+            {
+                float u = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / den, v = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / den, w = 1 - u - v;
+                if (u >= -1e-4f && v >= -1e-4f && w >= -1e-4f)
+                {
+                    float dy = MathF.Abs(u * Vy[t.A] + v * Vy[t.B] + w * Vy[t.C] - refY);
+                    if (dy < bd) { bd = dy; best = i; }
+                    continue;
+                }
+            }
+        }
+        if (best >= 0) return best;
+        for (int i = 0; i < Tris.Length; i++)                    // outside: the nearest triangle centre
+        {
+            var t = Tris[i];
+            float mx = (Vx[t.A] + Vx[t.B] + Vx[t.C]) / 3f, mz = (Vz[t.A] + Vz[t.B] + Vz[t.C]) / 3f;
+            float d = (mx - x) * (mx - x) + (mz - z) * (mz - z);
+            if (d < bd) { bd = d; best = i; }
+        }
+        return best;
+    }
+
+    /// <summary>A walking route over the patch (A* over the triangle neighbour links): waypoints in plan, ending at the target. Null if unreachable.</summary>
+    public List<(float x, float z)>? FindPath(float sx, float sz, float sy, float tx, float tz, float ty)
+    {
+        if (Tris.Length == 0) return null;
+        int s0 = TriAt(sx, sz, sy), t0 = TriAt(tx, tz, ty);
+        if (s0 < 0 || t0 < 0) return null;
+        float Cx(int i) => (Vx[Tris[i].A] + Vx[Tris[i].B] + Vx[Tris[i].C]) / 3f;
+        float Cz(int i) => (Vz[Tris[i].A] + Vz[Tris[i].B] + Vz[Tris[i].C]) / 3f;
+        float H(int i) => MathF.Sqrt((Cx(i) - tx) * (Cx(i) - tx) + (Cz(i) - tz) * (Cz(i) - tz));
+        var g = new Dictionary<int, float> { [s0] = 0 };
+        var from = new Dictionary<int, int>();
+        var open = new PriorityQueue<int, float>();
+        open.Enqueue(s0, H(s0));
+        var done = new HashSet<int>();
+        while (open.Count > 0)
+        {
+            int c = open.Dequeue();
+            if (!done.Add(c)) continue;
+            if (c == t0) break;
+            foreach (int n in new[] { (int)Tris[c].N0, Tris[c].N1, Tris[c].N2 })
+            {
+                if (n < 0 || n >= Tris.Length || done.Contains(n)) continue;
+                float ng = g[c] + MathF.Sqrt((Cx(c) - Cx(n)) * (Cx(c) - Cx(n)) + (Cz(c) - Cz(n)) * (Cz(c) - Cz(n)));
+                if (!g.TryGetValue(n, out var old) || ng < old) { g[n] = ng; from[n] = c; open.Enqueue(n, ng + H(n)); }
+            }
+        }
+        if (!done.Contains(t0)) return null;
+        var path = new List<(float, float)>();
+        for (int c = t0; c != s0; c = from[c]) path.Add((Cx(c), Cz(c)));
+        path.Reverse();
+        path.Add((tx, tz));
+        return path;
     }
 
     /// <summary>

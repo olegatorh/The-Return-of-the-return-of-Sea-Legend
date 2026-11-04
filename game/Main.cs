@@ -184,6 +184,7 @@ public partial class Main : Node
         };
         host.It.EntityHandlers["MODELR"] = modelHandler;
         host.It.EntityHandlers["MODEL"] = modelHandler;
+        host.It.EntityHandlers["CharactersGroups"] = (e, fmt, d) => GroupsState.OnMessage(host.It, d);
         // "Sound": sounds by alias/file, music, ambient schemes
         host.It.EntityHandlers["Sound"] = (e, fmt, d) =>
         {
@@ -299,6 +300,9 @@ public partial class Main : Node
             };
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
         }
+        // F = draw/sheathe the sword (the original used E; E talks here)
+        if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F } && dialogView == null && view == null)
+            if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf) { pf.FightMode = !pf.FightMode; logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
         if (e is InputEventKey { Pressed: true, Keycode: Key.F9 }) flyMode = !flyMode;          // free debug camera
         if (e is InputEventKey { Pressed: true, Keycode: Key.F3 })                              // show/hide name tags
         {
@@ -352,6 +356,7 @@ public partial class Main : Node
             player.CameraYaw = camYaw;
         }
 
+        if (dt > 0f) GroupsState.Tick(dt);
         foreach (var c in list) { c.SetTimeScale(scale); c.ShowNameTag(nameTags); c.Tick(dt); }
 
         // the game clock (the engine's weather module kept Environment.time running): one game minute per 2.5 s of running game time, only while a
@@ -410,6 +415,12 @@ public partial class Main : Node
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && dialogView == null && view == null)
+        {
+            // attack with the sword when it is drawn
+            var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
+            if (pl != null && pl.FightMode && pl.Placed) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en); }
+        }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) camDist = Math.Max(1.5f, camDist - 0.3f);
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true }) camDist = Math.Min(9f, camDist + 0.3f);

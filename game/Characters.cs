@@ -39,7 +39,16 @@ public partial class CharacterView : Node3D
     readonly HashSet<string> detectGroups = new(StringComparer.OrdinalIgnoreCase);
     readonly Dictionary<(string, string), float> insideLocators = new();
     public Func<Attr?>? LocationRoot;
-    int followState;                // 0 = not reported yet, 1 = walking after the target, 2 = arrived (events FollowGo / FollowStay)
+    int followState;
+    List<(float x, float z)>? path;
+    float pathTimer, pathX, pathZ;
+    // melee: a swing takes ~0.35 s to reach the hit frame, then the script is told with Location_CharacterAttack
+    bool fightMode;
+    float atkCooldown, atkHitIn = -1f;
+    CharacterView? atkTarget;
+    public bool FightMode { get => fightMode; set => fightMode = value; }
+    public Vector3 ScriptPos => new(x, y, z);
+    public bool IsAlive => task != Task.Dead && Ent.Root.Find("chr_ai.hp", false) is { } hp && Conv.ParseFloatPrefix(hp.Value) >= 1f;                // 0 = not reported yet, 1 = walking after the target, 2 = arrived (events FollowGo / FollowStay)
     string scriptAction = "";
     string playing = "";
     bool inDialog;
@@ -135,6 +144,7 @@ public partial class CharacterView : Node3D
     void PlayIdle()
     {
         if (rig == null) return;
+        if (playing.StartsWith("attack") && !rig.Finished) return;        // let a swing finish
         if (scriptAction.Length == 0)
         {
             var list = IdleList();
@@ -239,6 +249,7 @@ public partial class CharacterView : Node3D
     {
         if (!Placed || rig == null) return;
         Detect(dt);
+        if (dt > 0f) TickSwing(dt);
         if (inDialog || dt <= 0f) { PlayIdle(); return; }
 
         float walk = rig.ActionSpeed("walk", 1.6f), run = rig.ActionSpeed("run", 3.3f), turn = rig.ActionTurnSpeed("walk", 5.5f);
@@ -293,6 +304,7 @@ public partial class CharacterView : Node3D
                 bool flee = task == Task.Escape;
                 float stop = task == Task.Follow ? 1.8f : 1.2f;
                 bool move = flee ? dist < 8f : dist > stop + (task == Task.Follow ? 0.7f : 0f);
+                if (task == Task.Fight && dist <= 1.9f && target.IsAlive) { Swing(target, dt); break; }
                 if (!move)
                 {
                     ay = TurnToward(ay, Angle(dx, dz), turn * 2f * dt); PlayIdle();
@@ -301,7 +313,20 @@ public partial class CharacterView : Node3D
                 }
                 if (task == Task.Follow && followState != 1) { followState = 1; it.FireEvent("Location_CharacterFollowGo", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
                 float speed = flee || task == Task.Fight || dist > 6f ? run : walk;
-                float want = flee ? Angle(-dx, -dz) : Angle(dx, dz);
+                float ax = dx, az = dz;
+                if (!flee && getPatch() is { } patch)
+                {
+                    // walk around obstacles: route over the walk patch, re-planned when the target moves
+                    pathTimer -= dt;
+                    if (path == null || pathTimer <= 0f || (target.x - pathX) * (target.x - pathX) + (target.z - pathZ) * (target.z - pathZ) > 1f)
+                    {
+                        path = patch.FindPath(x, z, y, target.x, target.z, target.y);
+                        pathTimer = 0.8f; pathX = target.x; pathZ = target.z;
+                    }
+                    while (path != null && path.Count > 1 && (path[0].x - x) * (path[0].x - x) + (path[0].z - z) * (path[0].z - z) < 0.5f * 0.5f) path.RemoveAt(0);
+                    if (path != null && path.Count > 0) { ax = path[0].x - x; az = path[0].z - z; }
+                }
+                float want = flee ? Angle(-dx, -dz) : Angle(ax, az);
                 ay = TurnToward(ay, want, turn * 2f * dt);
                 Step(MathF.Sin(ay) * speed * dt, MathF.Cos(ay) * speed * dt, true);
                 PlayMove(speed == run ? "run" : "walk");
@@ -314,6 +339,53 @@ public partial class CharacterView : Node3D
                 break;
         }
         Apply();
+    }
+
+    /// <summary>Counts the swing down and raises the hit event at the hit frame.</summary>
+    void TickSwing(float dt)
+    {
+        atkCooldown -= dt;
+        if (atkHitIn < 0f) return;
+        atkHitIn -= dt;
+        if (atkHitIn >= 0f) return;
+        if (atkTarget != null)
+        {
+            float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
+            if (atkTarget.IsAlive && IsAlive && d2 < 2.3f * 2.3f)
+                it.FireEvent("Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(1f), V.Float(1f) });
+        }
+        atkTarget = null;
+    }
+
+    /// <summary>Begins a sword swing at a target in reach (no-op while the previous swing is still running).</summary>
+    public bool StartSwing(CharacterView enemy)
+    {
+        if (atkCooldown > 0f || atkHitIn >= 0f || !IsAlive) return false;
+        ay = Angle(enemy.x - x, enemy.z - z);
+        atkCooldown = 1.5f; atkHitIn = 0.35f; atkTarget = enemy;
+        string a = "attack_" + (idleRng.Next(4) + 1);
+        if (rig != null && rig.Play(a, false, true)) playing = a;
+        return true;
+    }
+
+    void Swing(CharacterView enemy, float dt)
+    {
+        ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
+        if (!StartSwing(enemy) && atkHitIn < 0f && rig != null && rig.Finished) PlayIdle();
+    }
+
+    /// <summary>The nearest living person in front of this character within reach (for the player's own attacks).</summary>
+    public CharacterView? NearestInFront(float reach)
+    {
+        CharacterView? best = null;
+        float bd = reach * reach;
+        foreach (var c in All.Values)
+        {
+            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive) continue;
+            float dx = c.x - x, dz = c.z - z, d2 = dx * dx + dz * dz;
+            if (d2 < bd) { bd = d2; best = c; }
+        }
+        return best;
     }
 
     /// <summary>Position and heading in script space (Direct3D, y up) - for the save/load of character positions.</summary>
@@ -405,8 +477,11 @@ public partial class CharacterView : Node3D
                 switch (S(1))
                 {
                     case "InDialog": inDialog = Conv.ToInt(d[2]) != 0; return V.Int(1);
-                    case "SetSex": case "SetFightWOWeapon": case "LockFightMode": case "ChangeFightMode": return V.Int(1);
-                    default: return V.Int(0);                                              // IsFightMode, IsActive, FindDialogCharacter, ...
+                    case "ChangeFightMode": fightMode = d.Length > 2 && Conv.ToInt(d[2]) != 0; return V.Int(1);
+                    case "SetSex": case "SetFightWOWeapon": case "LockFightMode": return V.Int(1);
+                    case "IsFightMode": return V.Int(fightMode ? 1 : 0);
+                    case "IsDead": return V.Int(task == Task.Dead ? 1 : 0);
+                    default: return V.Int(0);                                              // IsActive, FindDialogCharacter, ...
                 }
             case 30370: return V.Int(0);                                                   // FINDNEAR
         }
