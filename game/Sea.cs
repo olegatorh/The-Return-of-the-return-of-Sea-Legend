@@ -29,7 +29,7 @@ public partial class SeaView : Node3D
         public float Speed, TurnRate;      // current forward speed and yaw rate
         public float X, Z, Ay;
         public float ParamTimer;
-        public bool IsPlayer;
+        public bool IsPlayer, Aground;
         public float Length = 30f, Height = 12f;
         public List<Node3D> Sails = new();
     }
@@ -48,10 +48,13 @@ public partial class SeaView : Node3D
     public bool Active => ships.Count > 0 || island != null || it.Entities.Any(e => !e.Deleted && e.Class.Equals("sea_ai", StringComparison.OrdinalIgnoreCase));
     public Vector3 PlayerPosition => ships.FirstOrDefault(s => s.IsPlayer) is { } p ? new Vector3(p.X, 0, -p.Z) : Vector3.Zero;
 
+    readonly SeaHud hud = new() { Name = "SeaHud" };
+
     public SeaView(Interp interp)
     {
         it = interp;
         Name = "SeaView";
+        AddChild(hud);
         AddChild(Cam);
         Cam.Current = false;
     }
@@ -124,6 +127,7 @@ public partial class SeaView : Node3D
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
+        hud.Set(false, "", 0, 0, 0, "");
     }
 
     // ------------------------------------------------------------------ entity: sea_ai
@@ -294,12 +298,62 @@ public partial class SeaView : Node3D
             island?.QueueFree();
             island = ModelFactory.Build(g, model, path, cols);
             AddChild(island);
+            BuildIslandCollision(island);
             foreach (var c in island.GetChildren().OfType<MeshInstance3D>()) GD.Print($"[sea]   object {c.Name} visible={c.Visible} aabb={c.Mesh.GetAabb()} mat={(c.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D)?.AlbedoTexture?.GetSize()}");
             var bb = ModelFactory.Bounds(island);
             GD.Print($"[sea] island {model}: {g.Objects.Count} objects, {g.TotalVertices} vertices, light={(cols != null ? light : "none")}, bounds {bb.Position} .. {bb.End}");
             return V.Int(1);
         }
         catch (Exception ex) { GD.PrintErr("[sea] island " + file + ": " + ex.Message); return V.Int(0); }
+    }
+
+    // ------------------------------------------------------------------ island collision
+    StaticBody3D? islandBody;
+
+    /// <summary>
+    /// A static trimesh of the island (without piers and palms) so that ships can ask "is there land under this point". The engine used a dedicated
+    /// collision model; the visible geometry is close enough, apart from objects that stand in the water on purpose.
+    /// </summary>
+    void BuildIslandCollision(Node3D isl)
+    {
+        islandBody?.QueueFree();
+        islandBody = new StaticBody3D { Name = "IslandCollision", CollisionLayer = 1 << 4, CollisionMask = 0 };
+        var faces = new List<Vector3>();
+        foreach (var mi in isl.GetChildren().OfType<MeshInstance3D>())
+        {
+            string n = mi.Name.ToString();
+            if (n.StartsWith("Palm", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Prichal", StringComparison.OrdinalIgnoreCase) || n.StartsWith("Pier", StringComparison.OrdinalIgnoreCase)) continue;
+            faces.AddRange(mi.Mesh.GetFaces());
+        }
+        var shape = new ConcavePolygonShape3D { Data = faces.ToArray(), BackfaceCollision = true };
+        islandBody.AddChild(new CollisionShape3D { Shape = shape });
+        AddChild(islandBody);
+    }
+
+    /// <summary>Height of the island surface under the engine point (x, z), or -1000 when there is none.</summary>
+    float LandHeight(float x, float z)
+    {
+        if (islandBody == null || !islandBody.IsInsideTree()) return -1000f;
+        var space = GetWorld3D()?.DirectSpaceState;
+        if (space == null) return -1000f;
+        var q = PhysicsRayQueryParameters3D.Create(new Vector3(x, 600f, -z), new Vector3(x, -60f, -z), 1u << 4);
+        q.HitBackFaces = true;
+        var hit = space.IntersectRay(q);
+        return hit.Count > 0 ? ((Vector3)hit["position"]).Y : -1000f;
+    }
+
+    /// <summary>True if any of the ship's four corner points (bow, stern, sides) is over land shallower than the draught.</summary>
+    bool AgroundAt(ShipRt s, float x, float z, float ay)
+    {
+        float sn = MathF.Sin(ay), cs = MathF.Cos(ay);
+        float hl = s.Length * 0.38f, hb = s.Length * 0.08f;
+        foreach (var (lx, lz) in new[] { (0f, hl), (0f, -hl), (hb, 0f), (-hb, 0f) })
+        {
+            // local (lx right, lz forward) -> world engine: forward = (sin, cos), right = (cos, -sin)
+            float wx = x + lx * cs + lz * sn, wz = z - lx * sn + lz * cs;
+            if (LandHeight(wx, wz) > -3.0f) return true;
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ per frame
@@ -335,8 +389,13 @@ public partial class SeaView : Node3D
             float wantTurn = turnIn * maxY;
             s.TurnRate += (wantTurn - s.TurnRate) * Math.Min(1f, 2.5f * dt);
             s.Ay += s.TurnRate * dt * (0.35f + 0.65f * Math.Clamp(s.Speed / Math.Max(1f, maxZ), 0f, 1f));
-            s.X += MathF.Sin(s.Ay) * s.Speed * dt;
-            s.Z += MathF.Cos(s.Ay) * s.Speed * dt;
+            float nx = s.X + MathF.Sin(s.Ay) * s.Speed * dt, nz = s.Z + MathF.Cos(s.Ay) * s.Speed * dt;
+            if (island != null && s.Speed > 0.01f && AgroundAt(s, nx, nz, s.Ay) && !AgroundAt(s, s.X, s.Z, s.Ay))
+            {
+                if (!s.Aground) { s.Aground = true; GD.Print($"[sea] {s.Chr.Get("id")?.Value} touches the shore at ({nx:0},{nz:0})"); }
+                s.Speed = 0f;                                              // stopped by the shore: only turning gets it free again
+            }
+            else { if (s.Aground && s.Speed > 0.5f) s.Aground = false; s.X = nx; s.Z = nz; }
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
             if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
@@ -345,6 +404,31 @@ public partial class SeaView : Node3D
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
         UpdateCamera(dt, inputEnabled);
+        UpdateHud();
+    }
+
+    void UpdateHud()
+    {
+        var p = ships.FirstOrDefault(s => s.IsPlayer);
+        if (p == null) { hud.Set(false, "", 0, 0, 0, ""); return; }
+        var sh = p.Chr.Find("Ship", false);
+        float baseHp = 1f;
+        if (sh != null && it.Globals.TryGetValue("ShipsTypes", out var st) && st.Arr != null)
+        {
+            int ti = (int)F(sh, "Type", -1);
+            if (ti >= 0 && ti < st.Arr.Length) baseHp = Math.Max(1f, F(st.Arr[ti].Val.Attr, "HP", 1f));
+        }
+        float windAng = 0f, windSpd = 0f;
+        if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) { windAng = F(wa, "Wind.Angle"); windSpd = F(wa, "Wind.Speed"); }
+        string sails = p.Sail >= 0.99f ? "повні" : p.Sail >= 0.4f ? "половина" : "згорнуті";
+        int deg = ((int)Math.Round(p.Ay * 180f / MathF.PI) % 360 + 360) % 360;
+        string info = string.Join("\n", $"{sh?.Get("Name")?.Value ?? "?"}",
+                      $"Корпус {F(sh, "HP"):0}/{baseHp:0}   Вітрила {F(sh, "SP"):0}%   Екіпаж {F(sh, "Crew.Quantity"):0}",
+                      $"Швидкість {p.Speed:0.0} (макс. {F(sh, "MaxSpeedZ"):0.0})   Вітрила: {sails}",
+                      $"Курс {deg}°   Вітер {windSpd:0.0}");
+        string act = it.Globals.TryGetValue("g_ActiveActionName", out var ga) ? Conv.ToStr(ga.Val) : "";
+        string actText = act switch { "Moor" => "Enter — зайти в порт", "Board" => "Enter — абордаж", "LandTroops" => "Enter — десант", "Map" => "Enter / M — карта світу", _ => "" };
+        hud.Set(true, info, p.Ay, windAng, windSpd, actText);
     }
 
     /// <summary>
@@ -368,6 +452,12 @@ public partial class SeaView : Node3D
             SetF(n, "d_ay", MathF.Cos(o.Ay - p.Ay));
             SetF(n, "RelativeSpeed", MathF.Abs(o.Speed - p.Speed));
         }
+    }
+
+    /// <summary>Test hook: put the player's ship somewhere.</summary>
+    public void Teleport(float x, float z, float ay)
+    {
+        if (ships.FirstOrDefault(s => s.IsPlayer) is { } p) { p.X = x; p.Z = z; p.Ay = ay; p.Speed = 0f; Publish(p); }
     }
 
     public void SailKey(int dir)

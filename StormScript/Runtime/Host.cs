@@ -71,6 +71,19 @@ public sealed partial class Interp
     /// <summary>Host-side helper: assign a global variable from text (converted to the variable's type).</summary>
     public void SetGlobal(string name, string value)
     {
+        int dot = name.IndexOf('.');
+        if (dot > 0)                                       // "Weather.Wind.Speed" / "Characters[0].Ship.Speed.z": set an attribute of an object
+        {
+            string g = name.Substring(0, dot);
+            int idx = -1, br = g.IndexOf('[');
+            if (br >= 0) { idx = Conv.ParseIntPrefix(g.Substring(br + 1)); g = g.Substring(0, br); }
+            if (Globals.TryGetValue(g, out var gs))
+            {
+                if (idx >= 0 && gs.Arr != null && idx < gs.Arr.Length) gs = gs.Arr[idx];
+                if (gs.Val.Attr is { } root) { root.Find(name.Substring(dot + 1), true)!.Value = value; return; }
+            }
+            Error($"set: cannot set attribute {name}"); return;
+        }
         if (!Globals.TryGetValue(name, out var s)) { Error($"set: unknown global {name}"); return; }
         SetSlot(s, V.Str(value), null);
     }

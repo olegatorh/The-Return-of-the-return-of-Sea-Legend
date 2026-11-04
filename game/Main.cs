@@ -40,6 +40,7 @@ public partial class Main : Node
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
     Queue<string>? fuzzQueue;
     readonly List<(int frame, string loc)> gotos = new();
+    readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     int controlAt = -1;
@@ -63,6 +64,7 @@ public partial class Main : Node
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--act@")) seaActions.Add(int.Parse(a.Substring(6)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
@@ -520,6 +522,7 @@ public partial class Main : Node
         foreach (var (f, n) in ctls) if (f == frames) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) });
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var f in seaActions) if (f == frames) SeaAction();
+        foreach (var (f, x, z, ay) in seaTeleports) if (f == frames) sea.Teleport(x, z, ay);
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);
