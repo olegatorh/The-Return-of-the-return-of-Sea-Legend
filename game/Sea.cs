@@ -277,6 +277,7 @@ public partial class SeaView : Node3D
         if (hull == null) return sm;
         var hullNode = ModelFactory.Build(hull, typeName, "ships", null);
         sm.Root.AddChild(hullNode);
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump(typeName, hullNode);
         var b = ModelFactory.Bounds(hullNode);
         sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y; sm.Width = Math.Min(b.Size.Z, b.Size.X);
         foreach (var l in hull.Labels.Where(l => l.Group.StartsWith("cannon", StringComparison.OrdinalIgnoreCase)))
@@ -287,8 +288,11 @@ public partial class SeaView : Node3D
             var mast = Load("_" + ml.Name);
             if (mast == null) continue;
             var mastNode = ModelFactory.Build(mast, ml.Name, "ships", null);
+            ShipDebug.CullLoose(mastNode, 4.0f, 60);
             mastNode.Transform = LabelTransform(ml.M);
-            sm.Root.AddChild(mastNode);
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("MAST " + ml.Name, mastNode);
+            if (false) foreach (var n in mastNode.FindChildren("*", "MeshInstance3D", true, false)) { var mi = (MeshInstance3D)n; var bb = mi.Mesh.GetAabb(); GD.Print(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[mastobj] {0} {1}: center ({2:0.0};{3:0.0};{4:0.0}) size ({5:0.0};{6:0.0};{7:0.0}) surfaces {8}", ml.Name, mi.Name, bb.GetCenter().X, bb.GetCenter().Y, bb.GetCenter().Z, bb.Size.X, bb.Size.Y, bb.Size.Z, mi.Mesh.GetSurfaceCount())); }
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_NOMAST") is not { } nm || !nm.Split(',').Contains(ml.Name)) sm.Root.AddChild(mastNode);
             var mastSails = new List<Node3D>();
             sm.Masts.Add((mastNode, mastSails));
             foreach (var rl in mast.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
@@ -296,7 +300,9 @@ public partial class SeaView : Node3D
                 var rey = Load("_" + rl.Name);
                 if (rey == null) continue;
                 var reyNode = ModelFactory.Build(rey, rl.Name, "ships", null);
+                ShipDebug.CullLoose(reyNode, 0.3f, 40, true);
                 reyNode.Transform = LabelTransform(rl.M);
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("REY " + rl.Name, reyNode);
                 mastNode.AddChild(reyNode);
                 foreach (var grp in rey.Labels.Where(l => l.Group.StartsWith("sail", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("sail", StringComparison.OrdinalIgnoreCase)).GroupBy(l => l.Group))
                 {
