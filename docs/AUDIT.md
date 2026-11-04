@@ -1,0 +1,149 @@
+# Аудит: що є в оригінальній грі і що реалізовано в порті
+
+_Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час аудиту код не змінювався. Джерела: `addon/merged/PROGRAM` (усі `CreateEntity`, `#define` повідомлень,
+`SetEventHandler`), `RESOURCE/INI`, DLL у `MODULES/`, код `game/*.cs`, логи `game/smoke_*.log`, `reports/*/log_tail.txt`, скріншоти `game/review/*.png`._
+
+Позначки: ✅ реалізовано · 🟡 частково (що бракує вказано) · ❌ відсутнє · ⚪ не потрібно (налагодження, Xbox, внутрішнє для DX8) · ❓ код є, перевірки в логах немає.
+
+Як рахувалося: номери повідомлень із `messages.h`, `sail_msg.h`, `SEA_AI/Script_Defines.h`, `SEA_AI/seaPeople.h`, `BATTLE_INTERFACE/*.h`, `INTERFACE/messages.h`
+зіставлені з кодом порту (пошук номера/імені в `game/*.cs`, далі ручна перевірка `switch`). Події: імена з `SetEventHandler`/`#event_handler`, які скрипти
+самі не викликають через `Event/PostEvent`, тобто їх має підіймати рушій. `[nohandler]` у логах = повідомлення класу без `EntityHandlers[...]`.
+
+## 0. Розбіжності в документації (виправити разом із наступним оновленням статусу)
+| Документ | Що застаріло |
+|---|---|
+| `CLAUDE.md` → Status | "Missing: world map, other ships + sea AI, cannons, sea HUD..." — усе це вже є (частково). |
+| `docs/ARCHITECTURE.md` §3 | `CharactersGroups`, `particles`, `Ship`, `Island`, `Sail`, `worldmap` позначені "not implemented" — вони реалізовані. |
+| `docs/STATUS.md` | `Tornado` = MISSING, але є `WeatherFx.cs` (смерч + `TornadoDamage`); `Rope/Flag/Vant` = MISSING, але є `RiggingFx.cs`; `TELESCOPE` = MISSING, але є вигляд у підзорну трубу (`Sea.cs`); класи `SEA_OPERATOR` і `lighter` не враховані (скрипти створюють 67 класів + 3 класи персонажів, а не 66). |
+| `game/Location.cs:77` | коментар `EX_MSG ("AddFlys", "AddEagle", ...)` — повертає 0, нічого не робить. |
+
+## 1. Класи рушія (CreateEntity у скриптах) і DLL
+
+### 1.1 Ядро, локації, персонажі
+| Клас (DLL) | Оригінал | Порт | Докази | Що зробити |
+|---|---|---|---|---|
+| `xinterface` (XINTERFACE) | усі екрани з `INI/INTERFACES` | 🟡 більшість повідомлень 450xx; `LOCK_NODE` 45046, `SET_BLIND` 45039, `SETHELPSTRING` 45022 — заглушки; немає `DEL_SCROLLIMAGE` 45025, `REFRESH_SCROLL` 45029, `DELETE_PICTURE/STRING` 45049/45050, `CHECK_AGAIN` 45057, `LAUNCH_DASHBOARD` 45054 (⚪) | `XInterface.cs:64-158` | реалізувати 45025/45029 (пасажири, списки), 45049/45050 (екран довідки), 45046 (блокування вузлів) |
+| `fader` | затемнення, картинки завантаження | 🟡 немає `FADER_STARTFRAME` 33002 (12 викликів: знімок кадру під фейдер) | `Main.cs:190` | дрібниця |
+| `location` (Location) | моделі, патчі, локатори, світло, анімовані пропси | 🟡 моделі/патчі/локатори ✅; `MODEL_SET_ROT/UVS/LAMPS/REFLECTION` 30111-30114 і `ADD_LIGHT` 30128 — заглушки (млини, водоспади, ліхтарі, нічне світло); `GET_MODEL` 30101 → 0; `EX_MSG` 30155 (`AddEagle/AddFlys/AddRats/AddLizards/GetPatchMiddlePos`) → 0; `VIEW/HIDELGROUP` 30180/30181 ❌ (налагодження) | `Location.cs:40-77` | анімовані моделі (rot/uv), точкові світла `ADD_LIGHT` + лампи вночі |
+| `NPCharacter/Player/Character` (Location, Animation, blade) | моделі, задачі, бій, зброя | 🟡 задачі, повороти, детектори ✅; `SETBLADE/SETGUN/SETFTGLEVEL/VISIBLE/VIEWDAMAGE` 30360-30372 — заглушки; `FINDNEAR` 30370 → 0; `GETTASK` 30403 ❌; `PUSH/POPTASK` — заглушки; `EX_MSG`: `FindDialogCharacter`, `IsActive`, `IsSetBalde`, `FindForvardLocator`, `DistToLocator`, `ChrBlock`, `SetFightMode` → 0 | `Characters.cs:570-640` | `FindDialogCharacter` (бойовий/земний HUD), `FINDNEAR` (ШІ натовпу), `VISIBLE`, `GETTASK` |
+| `locationcamera` | follow / topos / free / рух | 🟡 немає `MSG_CAMERA_MOVE` 30513 і `SLEEP` 30520 (кат-сцени) | `Main.cs:217-225` | для квестових сцен |
+| `MODEL`, `MODELR` (MODEL) | предмети, скрині, моделі абордажу | 🟡 немає `MODEL_RESTORE` 20505, `SET_LIGHT_PATH` 20503, `SET_TECHNIQUE` 20510 (світіння випадкових предметів) | `Main.cs:238-266` | ❓ мало перевірено |
+| `dialog` (DIALOG, CameraDialog) | вікно діалогу, камера, голова, голос | 🟡 текст/відповіді ✅; немає «говорячої голови», камери діалогу | `Dialog.cs` | портрет `Heads/h_*.gm` |
+| `CharactersGroups` | групи, тривога, цілі | ✅ усі 21 команда скриптів | `Groups.cs` | — |
+| `CharacterAnimationKipper` | тримає анімації в пам'яті | ⚪ | — | — |
+| `obj_strservice`, `FINDFILESINTODIRECTORY`, `FINDDIALOGNODES` | тексти, пошук файлів | ✅ | `Builtins`/`Language.cs` | — |
+| `ILogAndActions` | журнал і підказка дії | ✅ (`LOG_LAUNCH_ACTIONS` 45023, `LI_OTHER_MSG` 45029 не використовуються) | `LogHud.cs` | — |
+| `battle_land_interface` | земний HUD: портрети героя й офіцерів зі смугами HP, іконки команд | ❌ (`[nohandler] 46013, 46100-46102`) | усі `smoke_*.log` | **реалізувати** (видно в кожній локації оригіналу) |
+| `Animals` (animals) | чайки, риби, метелики, акули | ❌ (`[nohandler] 77100-77109`) | `smoke_sea.log`, `smoke_fight.log` | чайки/метелики — дешева атмосфера |
+| `blots` (Blot) | сліди від ударів на корпусі/фортах | ❌ (`[nohandler] 30600`) | `smoke_*` | низький пріоритет |
+| `Sound` (SOUND, SoundService) | аліаси, схеми, 3D | 🟡 немає `SET_3D_PARAM`, `DUPLICATE`, `GET_POSITION`, позиції камери 77001/77002; **`Greetings_alias.ini` не завантажується** (680 привітань NPC) | `SoundView.cs:44-49, 244-269` | завантажити Greetings_alias.ini |
+| `particles` (PARTICLES) | системи з `INI/PARTICLES/*.ini` | 🟡 лише `PS_CREATE` 10000 → загальні CPU-частинки; немає `PS_CREATEX` 10002 (з часом життя), `PS_DELETE` 10007, `PS_CLEARALL` 10006 (`[nohandler]` у логах), `PS_PAUSEALL`; `particles.ini`, `fort.ini`, `ship_fire.ini`, `alcove.ini`, `artifact.ini` не читаються | `Sea.cs:90`, `ParticleFx.cs` | читати оригінальні ini (емітери, текстури) |
+| `blast` | вибухи (LM_SETPOINT) | ❌ (сам клас); вибухи імітуються `ParticleFx` | `particles.c:70-81` | разом із частинками |
+| `env`, `controls_container`, `scriptscreen`, `TMPTELEPORT`, `SeaLocatorShow`, `lighter` (Lighter), `FREE_CAMERA`, `touch` | налагодження / інструменти | ⚪ | — | — |
+| `scrshoter` | мініатюри збережень | ✅ власним способом (`SaveFiles.WriteThumbnail`), повідомлення 45042-45044 → -1 | `SaveFiles.cs`, `XInterface.cs:151` | — |
+| `CAviPlayer`, `WMVideoPlay` | ролики `RESOURCE/VIDEOS/*.wmv` (9 шт.) | ❌ показується підпис «Ви загинули» замість ролика | `Main.cs:144` | конвертувати wmv→ogv (потрібен дозвіл на інструмент) |
+| `WideScreen` | чорні смуги в кат-сценах | ❌ | `QUESTS/quests_movie.c` | дрібниця |
+| `InfoHandler` | інфо-екран (картинка/текст) поверх гри | ❌ | `INTERFACE/interface.c:1575` | ❓ |
+| `HELPCHOOSER` | вибір розділу довідки за картинкою | ❌ | `interface.c:1229`, `helpchooser.ini` | разом з екраном довідки |
+| `ActivePerkShower` | іконки активних навичок на HUD | ❌ (47000) | `ActivePerksShow.c` | середній |
+| `artifact` | ефект артефакту (квест) | ❌ | `MODELS/...`, `PARTICLES/artifact.ini` | квестовий |
+| `shadow.dll`, `WaterRings.dll`, `blade.dll` (створює рушій) | тіні персонажів, кола у воді, сліди клинка/кров | ❌ (`MSG_BLADE_*` у скриптах не вживаються) | — | тіні — помітно |
+
+### 1.2 Море
+| Клас (DLL) | Оригінал | Порт | Докази | Що зробити |
+|---|---|---|---|---|
+| `sea_ai` (sea_ai) | кораблі, групи, задачі, гармати | 🟡 обробляє 51001, 51010, 51011, 51017, 51018, 51021-51025, 51027; **немає** `SWAP_SHIPS` 51014 (захоплення корабля після абордажу), `SET_OFFICER_2_SHIP` 51013, `SHIP_CHANGE_GROUP` 51012, `CHARACTER_DEAD` 51026, `UPDATE_RELATIONS` 51016, `SET_COMPANION_ENEMY` 51028, `GROUP_SET_TYPE` 51020, `GROUP_SET_LOCATION_OTHER_GROUP` 51019 (переслідування), `CANNON_FIRE/RELOAD` 51002/51003, `SET_CAMERAS_ATTRIBUTE` 51004 | `Sea.cs:180-226` | **51014/51013/51026/51016** — без них захоплення кораблів і зміна відносин не відображаються |
+| `Ship` (ship) | модель, фізика, пожежі, імпульси | 🟡 модель/рух/хвилі/крен ✅ (через sea_ai); `MSG_SHIP_CREATE` 50300 у `[nohandler]`; немає `ACTIVATE_FIRE_PLACE` 50304 і `GET_NUM_FIRE_PLACES` 50306 (**вогонь на палубі не видно**), `ADD_MOVE_IMPULSE` 50308, `GET_CHARACTER_INDEX` 50307 | `smoke_sea.log`, `AIShip.c:816-858` | пожежі на кораблях |
+| `Sail` (rigging) | вітрила: роздування, згортання, дірки | 🟡 вітрила лише видимі/невидимі (`Sea.cs:452`), без анімації згортання, без дірок (`MSG_SAIL_SCRIPT_PROCESSING` 40099 "RandomSailsDmg" ❌), без вигину від вітру | `Sea.cs:452` | анімація вітрил + дірки |
+| `Rope`, `Vant`, `Flag` (rigging) | канати, ванти, прапори | 🟡 будуються з міток моделі (`RiggingFx.cs`), прапор нації ✅; `MSG_FLAG_INIT` 40200 для **прапорів міст/фортів** ❌ (`[nohandler] Flag 40200`) | `RiggingFx.cs`, `smoke_*` | прапори в локаціях і на фортах |
+| `MAST` (MAST.dll) | падіння щогли | 🟡 подія `ShpMastDamage` + лог "mast falls", візуального падіння і `MASTFALL` 77500 для матросів немає | `SeaCombat.cs:205-226`, `SeaSailors.cs:73` | анімація падіння |
+| `Island` (ISLAND) | острів, відображення | ✅ 50100; `ISLAND_START` 50102 у `[nohandler]` | `Sea.cs:101` | — |
+| `locator` | локатори островів | ✅ 1504 | `Sea.cs:104` | — |
+| `sea` (sea) | вода, хвилі, відображення, піна | 🟡 шейдер хвиль, френель, відблиск ✅; немає прозорості з дном (`_sb`), відображень, піни біля берега (`RESOURCE/foam`) | `OutdoorEnv.cs`, `SeaWaves.cs`, `Location.cs:105` | піна берега, прозорість |
+| `Seafoam` (seafoam) | піна від корпусу | 🟡 власний «кільватер» (`SeaPhysics.cs`), класу немає | — | — |
+| `AIBalls`, `BallSplash` | ядра, бризки | ✅/🟡 балістика і події ✅, бризки — загальні частинки | `SeaCombat.cs`, `Sea.cs:95` | — |
+| `AIFort` | форти | 🟡 51005/51008, стрільба ✅; прапор форту ❌, `blots` ❌ | `SeaForts.cs` | — |
+| `SEA_CAMERAS`, `SHIP_CAMERA`, `DECK_CAMERA`, `FREE_CAMERA` | камери моря | 🟡 корабельна камера ✅; **камери з палуби немає** (`DECK_CAMERA_SET_VIEWPOINT` 41800, `SeaCameras_Switch` не підіймається) | `Sea.cs:102` | камера з палуби |
+| `TELESCOPE` (telescope), `ispyglass` | підзорна труба + панель інфо про корабель | 🟡 вигляд з окуляром ✅ (`telescope.ini`); `77300/77302` у `[nohandler]`, **панелі з назвою/типом/корпусом/командою цілі немає** (`MSG_ISG_UPDATE` 46202) | `Sea.cs:771-820`, `smoke_sea.log` | панель ispyglass |
+| `battle_interface` (battle_interface) | HUD моря | 🟡 власний макет з оригінальних текстур (`SeaHud.cs`, `SeaCommands.cs`); `BI_IN_SET_COMMAND_MODE` 46013, `BI_MSG_REFRESH` 46005, `BI_MSG_SET_ISLAND` 46003 у `[nohandler]`; не підіймаються `evntBISelectShip`, `GetRiggingData`, `GetSailTextureData`, `BI_GetData`, `evntSetUsingAbility` | `smoke_map.log`, `smoke_fight.log` | довести до оригінального контракту |
+| `shippointer` | стрілка над вибраним кораблем | ❌ (46301) | `BattleInterface.c:1854` | дрібниця |
+| `IBoardingStatus` | смуги HP під час абордажу | ❌ (`LOG_INIT_CHARCTER_HP` 45025) | `LogInterface.c:162` | разом з абордажем |
+| `PEOPLE_ON_SHIP` | матроси на палубі | 🟡 ходять графами, біжать до гармат; немає реакції на падіння щогли, лазіння | `SeaSailors.cs` | — |
+| `SEA_OPERATOR` | кінокамера пострілів/влучань | ❌ (`[nohandler] 77400`) | `smoke_*`, `shipBortFire.c:45` | низький |
+| `AISeaGoods` | плаваючі бочки з вантажем | ❌ (`ShpEatSwimGood` не підіймається) | `AISeaGoods.c`, `MODELS/SwimGoods` | середній (лут після бою) |
+| `SINKEFFECT` | вир/бульбашки при потопленні | ❌ | — | низький |
+| `Sharks` (SeaCreatures) | акули | ❌ | — | низький |
+| `Weather`, `Sky`, `rain`, `Lightning`, `SunGlow`, `Tornado` (WEATHER, Tornado) | погода | 🟡 небо, туман, дощ, блискавка, смерч ✅; `SunGlow` (сонце/відблиски) ❌; грому немає; не підіймаються `EWhr_GetWindAngle/Speed/FogDensity`, `WhrCalcFogColor` | `OutdoorEnv.cs`, `WeatherFx.cs` | SunGlow, звук грому |
+
+### 1.3 Карта світу
+| Клас | Оригінал | Порт | Докази | Що зробити |
+|---|---|---|---|---|
+| `worldmap` (WorldMap) | сцена, кораблі, зустрічі, шторми, меню | 🟡 сцена, зони островів, дата, зустрічі 31100-31200 ✅; **шторми `MSG_WORLDMAP_CREATESTORM` 31000/31001 ❌**, подія `WorldMap_PlayerInStorm` ❌; меню очікування (`WorldMap_WaitMenuSelect/ChangeSelectoin`) і вікно подій (`WorldMap_EventWindow*`) ❌; `WorldMap_IsSkipEnable` ❌ | `WorldMap.cs`, `WorldEncounters.cs:44-47` | шторми на карті + меню пропуску часу |
+
+## 2. Події, які має підіймати рушій (231 ім'я, 44 підіймаються)
+Події інтерфейсів (`BuyPress`, `SavePress`, `ConfirmYes` ...) підіймаються **загально** через `command = ...,event:Name` в ini (`XView.Run`), тому тут не рахуються.
+| Група | Підіймаються | Не підіймаються (важливі) |
+|---|---|---|
+| Земля, персонажі | `CharacterUpdate`, `CharactersStateUpdate`, `Location_CharacterEndTask/EntryToLocator/ExitFromLocator/FollowGo/FollowStay/Attack/Block/Fire` | `Event_ChrSnd_Attack/Hit/Dead/Body` (**звуки ударів і смерті**), `Location_CharacterFightGo/FightStay/IsFight/IsFire/SGFire/EscapeSlide/TaskFailure/BusyPos/ColThreshold/InLocator`, `Location_Character_EndAction`, `NPC_Event_GetAttackActive/GetDefenceActive/GetFireActive/GetAggresive/EnableFire` (бій NPC іде за власними правилами порту, а не за параметрами скрипта), `CharacterGroup_UpdateAlarm`, `LocationTimeUpdate`, `EventCharacterDead` |
+| Море | `ShpCreate/ShpDelete/Shp_UpdParams/Shp_HullHit/Shp_Ship2ShipColl/Shp_ShipIslColl/ShpMastDamage/ShpSailDamage/Shp_NotEnoughBalls`, `Ball_*Hit`, `CannLoad/CannGRTime`, `FortCreate/FortCDamage`, `TornadoDamage`, `Ship_Bort_Fire`, `BI_*` (4) | `CannFire/CannUnload/CannGFTime/CannGFHeight/CannReCaclParam`, `ShpChCharge`, `ShpFireAction`, `Shp_ChkSituation`, `Shp2Strand`, `ShpEatSwimGood`, `Ball_FlyUpdate`, `SeaGetLayers`, `GrpChkTsk`, `AbordageCanBe`, `EventMastFall`, `DoSailHole`, `evntRandomSailDmg`, `TelescopeActive`, `SetTelescopeInfo/ReleaseTelescopeInfo`, `SeaCameras_Switch` |
+| Карта | `WorldMap_UpdateDate/EncounterCreate/ShipEncounter/DeleteShipEncounter/inside_/outside_islandzone`, `ExitFromWorldMap` | `WorldMap_PlayerInStorm`, `WorldMap_WaitMenu*`, `WorldMap_EventWindow*`, `WorldMap_IsSkipEnable` |
+| Інтерфейс/керування | `ievnt_command`, `FormatedTextActivate`, `SetScrollerPos`, `QuestActivate`, `DialogEvent`, `Control Activation` | `evntKeyChoose` (вибір клавіш — замінено власним екраном), `InterfaceKey/MainMenuKey`, `DialogCancel`, `EmergencyDialogExit`, `FaderEvent_StartFadeIn/EndFadeIn`, `ScrollPosChange/ScrollTopChange` (частково через вузли) |
+
+## 3. Інтерфейси (`RESOURCE/INI/INTERFACES`, 66 ini)
+| Екран (ini) | Порт | Доказ |
+|---|---|---|
+| mainmenu, boal_newchar (створення героя), character, save_load, ship, shiphold, shipyard, store | ✅ відкривається, сценарії | `[xinterface] loading` у `game/smoke_*.log`, `reports/*` |
+| items, perks, salary, TradeBook, NationRelation, helpscreen, option_screen, controls (власний екран клавіш), cannons, Transfer_crew, itemsbox (скриня), boal_questbook/QuestBook, passengers, hirecrew, itemstrade, transfer_goods | 🟡 відкриваються і рендеряться (скріни `game/review/*.png`, STATUS); логів сценаріїв немає | `review/items.png`, `perks*.png`, `salary.png`, `tradebook.png`, `nations.png`, `help.png`, `options.png`, `controls.png`, `cannons.png`, `tcrew.png`, `chest.png` |
+| ransack_main/crew/captain/join (після абордажу), Transfer_main, transfer_characters, fortcapture, citycapture, colony_Capture/Munity/Siege, Forts_Escadr/Siege, Munitycapture, Repayment_colony, materials | ❓ жодного відкриття в логах — **це екрани абордажу та захоплення колоній** | — |
+| boal_cards, boal_dice (азартні ігри), boal_map, map_cabin, map_show, map_read (карти), boal_statistic, boal_price (прайс), boal_hero (вільний герой), NationLegend, addon_team, boal_frame | ❓ не перевірялися | — |
+| boal_setup, boal_beta, boal_debug | 🟡 сторінка бета доступна через `settings.ini` | `Main.cs:120` |
+| LanguageSelect, select_menu, playgame, endgame, selectCharacter, defaultnode | ⚪/❓ (вибір мови замінено портом; endgame — фінал гри не перевірено) | — |
+| Типи вузлів | ✅ PICTURE, BUTTON, TEXTBUTTON, SCROLLIMAGE, FOURIMAGES, SLIDER, SCROLLER, SCROLLBAR, LRCHANGER, CHANGER, FORMATEDTEXT, STATUSLINE, QUEST*; ❌ VIDEO (фон не грає), KEYCHOOSER, EDITBOX (**назва корабля/імені не вводиться**: `ShipNameChange`), GLOWS/GLOWCURSOR, CONTEXTHELP, XBOX (⚪) | `XInterface.cs:364-390` |
+| Шрифти | ❌ шрифти оригіналу (`fonts.ini`, растрові) не використовуються — системний шрифт Godot | `fonts*.ini` ніде не читаються |
+
+## 4. Ігрові області
+| Область | Оригінальна функція | Порт | Доказ | Що зробити |
+|---|---|---|---|---|
+| Земля | локації, освітлення, патчі, перезавантаження | ✅ | `smoke_door.log`, STATUS 85 % | — |
+| Земля | анімовані пропси, ліхтарі, нічне світло, тіні | ❌ | `Location.cs:50,58` | див. 1.1 |
+| Земля | тварини, птахи, щури, ящірки, метелики | ❌ | `[nohandler] Animals`, `EX_MSG`→0 | — |
+| Земля | рукопашний бій | 🟡 удари/блок/парирування/постріл власні, параметри NPC-подій скрипта ігноруються, звуків ударів немає | `Characters.cs`, `smoke_fight.log` | `Event_ChrSnd_*`, `NPC_Event_*` |
+| Земля | діалоги | ✅ текст; ❌ голова, голосові привітання | `Dialog.cs` | Greetings |
+| Земля | предмети на землі, скрині | 🟡 скриня відкривається (`review/chest.png`, `bx*.png`), підбір ❓ | `Main.cs:238` | сценарій тесту |
+| Земля | квести, кат-сцени | 🟡 логіка скриптова ✅; рух камери `MSG_CAMERA_MOVE`, `WideScreen`, відео ❌ | `quests_movie.c` | — |
+| Земля | земний HUD (`battle_land_interface`) | ❌ | `[nohandler] 461xx` | **пріоритет** |
+| Море | кораблі, рух, хвилі, зіткнення | ✅/🟡 | `smoke_sea.log`, STATUS 50-75 % | — |
+| Море | ШІ кораблів | 🟡 задачі move/attack/follow/defend/flee; немає переслідування групи, зміни груп/відносин | `Sea.cs:180` | 51012/51016/51019/51020 |
+| Море | гармати, ядра, пошкодження, потоплення | 🟡 без вогню на палубі, без дірок у вітрилах, без падіння щогли, без SINKEFFECT | `SeaCombat.cs` | — |
+| Море | абордаж | 🟡 скриптовий потік стартує, палуба = земний бій; ❌ `IBoardingStatus`, екрани `ransack_*` не перевірені, `SWAP_SHIPS` ❌ | `AISea.c:124` | **пройти абордаж від і до** |
+| Море | форти | 🟡 стріляють, отримують шкоду; захоплення фортів/колоній (екрани `fortcapture`, `colony_*`) ❓ | `SeaForts.cs` | сценарій |
+| Море | камери палуби/каюти, підзорна труба | 🟡 труба ✅ без панелі; каюта/палуба як локації ✅; камера з палуби ❌ | — | — |
+| Море | погода, шторм, смерч | 🟡 дощ/блискавка/смерч ✅, грім ❌, SunGlow ❌ | `WeatherFx.cs` | — |
+| Море | частинки (дим, вогонь, бризки) | 🟡 загальні частинки замість `INI/PARTICLES` | `ParticleFx.cs` | — |
+| Море | плаваючий вантаж, акули, чайки | ❌ | — | — |
+| Карта світу | сцена, кораблі, зустрічі, дата | ✅/🟡 | `smoke_map.log` | — |
+| Карта світу | шторми, меню очікування, вікно подій | ❌ | `worldmap_globals.c:27` | **шторми** |
+| HUD моря | навігатор, ескадра, ціль, команди | 🟡 власний макет; немає панелі труби, стрілки корабля, активних навичок | `SeaHud.cs` | — |
+| Збереження | `OnSave/OnLoad`, мініатюри | ✅ | unit-тест, `reports/*` | — |
+| Налаштування | `SAVEOPTIONS/LOADOPTIONS` 45052/45053 | 🟡 повертають 0; порт зберігає свої в `settings.ini` | `XInterface.cs:152` | — |
+| Керування | `CONTROLS/*.c` + PC_CONTROLS.dll | 🟡 власна таблиця клавіш, KEYCHOOSER замінено | `KeyBindings.cs` | — |
+| Звук | аліаси, схеми, музика | 🟡 без привітань NPC, без 3D-параметрів, без звуків персонажів у бою, грому | `SoundView.cs` | Greetings + ChrSnd |
+| Відео | 9 роликів `.wmv` | ❌ | `Main.cs:144` | конвертація (з дозволу) |
+| Переклад | UI ~100 %, діалоги ~79 % машинний | 🟡 | `docs/STATUS.md` | редагування перших годин |
+
+## 5. Наступні кроки (за помітністю для гравця)
+1. **Земний HUD `battle_land_interface`** (46013, 46100-46104): портрети героя/офіцерів зі смугами HP та іконки дій — видно в кожній локації оригіналу.
+2. **Повний цикл абордажу і захоплення**: `AI_MESSAGE_SWAP_SHIPS` 51014, `SET_OFFICER_2_SHIP` 51013, `CHARACTER_DEAD` 51026, `IBoardingStatus`, екрани `ransack_*`; сценарій тесту від зіткнення до призового корабля.
+3. **Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.
+4. **Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).
+5. **Пожежі на кораблях** (`MSG_SHIP_ACTIVATE_FIRE_PLACE`/`GET_NUM_FIRE_PLACES`) і частинки з оригінальних `INI/PARTICLES/*.ini` (`PS_CREATEX`, `PS_DELETE`, `PS_CLEARALL`).
+6. **Звуки персонажів** (`Event_ChrSnd_Attack/Hit/Dead/Body`) і **голосові привітання NPC** (`Greetings_alias.ini`).
+7. **Параметри бою NPC зі скрипта** (`NPC_Event_GetAttackActive/GetDefenceActive/GetFireActive/GetAggresive`, `Location_CharacterIsFight/FightGo/FightStay`) замість власних правил.
+8. **Освітлення локацій**: `MSG_LOCATION_ADD_LIGHT`, лампи вночі (`MODEL_LAMPS`), анімовані моделі (`SET_ROT/SET_UVS`: млини, вода), тіні персонажів.
+9. **Відносини і групи на морі**: `UPDATE_RELATIONS`, `SHIP_CHANGE_GROUP`, `SET_COMPANION_ENEMY`, `GROUP_SET_TYPE`, `GROUP_SET_LOCATION_OTHER_GROUP` (переслідування).
+10. **Перевірити непротестовані екрани**: захоплення фортів/колоній (`fortcapture`, `colony_*`, `Forts_*`), `Transfer_main`, `transfer_characters`, `materials`, карти (`map_*`, `boal_map`), азартні ігри (`boal_cards`, `boal_dice`), `endgame`.
+11. **EDITBOX** (перейменування корабля, введення назв збережень) і `MSG_INTERFACE_DEL_SCROLLIMAGE/REFRESH_SCROLL/DELETE_PICTURE/DELETE_STRING`, `LOCK_NODE`.
+12. **Панель підзорної труби** (`ispyglass`, `MSG_ISG_UPDATE`) і **камера з палуби** (`DECK_CAMERA`).
+13. **Атмосфера**: чайки/метелики/риби (`Animals`), `SunGlow`, грім, піна біля берега, прозора вода з дном, `AISeaGoods` (плаваючий вантаж), акули, `SINKEFFECT`.
+14. **Відео** (9 `.wmv`) — потрібна конвертація в `.ogv` (інструмент лише з дозволу власника); кат-сцени: `MSG_CAMERA_MOVE`, `WideScreen`.
+15. **Шрифти оригіналу** (`fonts.ini`), прапори міст і фортів (`MSG_FLAG_INIT` для локацій), `blots`, `shippointer`, `ActivePerkShower`; оновити `CLAUDE.md`/`ARCHITECTURE.md`/`status_data.txt` згідно з розділом 0.
