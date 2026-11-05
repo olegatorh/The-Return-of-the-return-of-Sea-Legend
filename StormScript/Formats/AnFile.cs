@@ -55,6 +55,9 @@ public sealed class AniActions
         public float Speed = 1f;
         public bool Reverse;
         public Dictionary<string, string> Data = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>event = "LStep", 6, normal: the engine reacts when playback passes the frame (steps, sword sounds, the body falling).
+        /// Reverse = the event belongs to reverse playback (back walk).</summary>
+        public List<(string Name, int Frame, bool Reverse)> Events = new();
     }
 
     public string AnimationFile = "";
@@ -91,6 +94,13 @@ public sealed class AniActions
                 case "end_time": cur.End = (int)float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "speed": cur.Speed = float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "type": cur.Reverse = v.Equals("reverse", StringComparison.OrdinalIgnoreCase); break;
+                case "event":
+                {
+                    var parts = v.Split(',');
+                    if (parts.Length >= 2 && int.TryParse(parts[1].Trim(), out var fr))
+                        cur.Events.Add((parts[0].Trim().Trim('"'), fr, parts.Length > 2 && parts[2].Trim().Equals("reverse", StringComparison.OrdinalIgnoreCase)));
+                    break;
+                }
                 case "data":
                 {
                     var parts = v.Split(',');

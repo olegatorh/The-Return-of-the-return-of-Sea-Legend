@@ -46,7 +46,34 @@ public sealed class PtcFile
         }
         p.Vx = new float[nVert]; p.Vy = new float[nVert]; p.Vz = new float[nVert];
         for (int i = 0; i < nVert; i++, o += 12) { p.Vx[i] = F(o); p.Vy[i] = F(o + 4); p.Vz[i] = F(o + 8); }
+        // the file ends with the material table: int count + 16 names of 16 chars ("snd_grass", "add_snd_stone", "lambert4SG"...);
+        // Tri.Material indexes it. The engine picks the step sound by it. Two broken files (fort2/fort3) have garbage there.
+        if (d.Length >= o + 260)
+        {
+            int cnt = I(d.Length - 260);
+            if (cnt > 0 && cnt <= 16)
+            {
+                p.Materials = new string[cnt];
+                for (int i = 0; i < cnt; i++)
+                {
+                    int s = d.Length - 256 + 16 * i, e = s;
+                    while (e < s + 16 && d[e] != 0) e++;
+                    p.Materials[i] = System.Text.Encoding.Latin1.GetString(d, s, e - s);
+                }
+            }
+        }
         return p;
+    }
+
+    public string[] Materials = [];
+
+    /// <summary>Material name of the patch triangle under (x, z) nearest to height y ("" if unknown).</summary>
+    public string MaterialAt(float x, float z, float y)
+    {
+        int t = TriAt(x, z, y);
+        if (t < 0) return "";
+        int m = Tris[t].Material;
+        return m >= 0 && m < Materials.Length ? Materials[m] : "";
     }
 
     /// <summary>

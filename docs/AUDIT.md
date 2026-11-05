@@ -36,7 +36,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `battle_land_interface` | земний HUD: портрети героя й офіцерів зі смугами HP, іконки команд | ✅ 46013/46100-46104: портрети (HP, перезарядка, заряди пістоля, іконки повідомлень, блимання тривоги/отрути), меню команд по Enter (`BI_SetPossibleCommands` / `BI_CommandEndChecking` / `BI_LaunchCommand`, `UserIcons`, `ComState`); точне змішування/порядок малювання C++ невідомі | `LandHud.cs`, тест `landhud`, `review/land*.png` | — |
 | `Animals` (animals) | чайки, риби, метелики, акули | ❌ (`[nohandler] 77100-77109`) | `smoke_sea.log`, `smoke_fight.log` | чайки/метелики — дешева атмосфера |
 | `blots` (Blot) | сліди від ударів на корпусі/фортах | ❌ (`[nohandler] 30600`) | `smoke_*` | низький пріоритет |
-| `Sound` (SOUND, SoundService) | аліаси, схеми, 3D | 🟡 немає `SET_3D_PARAM`, `DUPLICATE`, `GET_POSITION`, позиції камери 77001/77002; **`Greetings_alias.ini` не завантажується** (680 привітань NPC) | `SoundView.cs:44-49, 244-269` | завантажити Greetings_alias.ini |
+| `Sound` (SOUND, SoundService) | аліаси, схеми, 3D | 🟡 усі ini з `INI/ALIASES` (з `Greetings_alias.ini`: 224 привітання, 78 з 87 імен у скриптах є в ini — решти нема й в оригіналі); 3D-звук у точці (`SOUND_WAV_3D` + x,y,z) з `minDistance/maxDistance` аліаса; немає `SET_3D_PARAM`, `DUPLICATE`, `GET_POSITION`, позиції камери 77001/77002 (слухач = камера Godot) | `SoundView.cs`, `SEADOGS_SOUNDLOG=1` | `SET_3D_PARAM` |
 | `particles` (PARTICLES) | системи з `INI/PARTICLES/*.ini` | ✅ усі 36 систем з 5 ini (ключі, які читає PARTICLES.dll: емісія, час життя, криві розміру/альфи/швидкості/обертання/вітру, вага, техніки Particles / Particles_Inv / ParticlesFire); `PS_CREATE/CREATEX/_RIC/CREATEXX` 10000-10009, `PS_DELETE` 10007, `PS_CLEARALL` 10006, `PS_PAUSEALL` 10010, `PS_SETVECTORS` 10001; вітер з атрибутів `windpower/winddirection`. Одиниці виведені з даних (вихідного C++ немає); текстура вогню малюється адитивно (інакше тьмяна); `[geo]`-частинки лише через `blast` | `Particles.cs`, скріни `review/pfx*.png` | — |
 | `blast` | вибухи (LM_SETPOINT) | 🟡 1600/1601: 6-11 уламків `MODELS/particles/palka01..05` розлітаються балістично (точна поведінка оригіналу невідома); дим/спалах — системи `blast`/`blast_inv` скрипту | `Particles.cs`, `--shipboom@N` | — |
 | `env`, `controls_container`, `scriptscreen`, `TMPTELEPORT`, `SeaLocatorShow`, `lighter` (Lighter), `FREE_CAMERA`, `touch` | налагодження / інструменти | ⚪ | — | — |
@@ -128,7 +128,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Збереження | `OnSave/OnLoad`, мініатюри | ✅ | unit-тест, `reports/*` | — |
 | Налаштування | `SAVEOPTIONS/LOADOPTIONS` 45052/45053 | 🟡 повертають 0; порт зберігає свої в `settings.ini` | `XInterface.cs:152` | — |
 | Керування | `CONTROLS/*.c` + PC_CONTROLS.dll | 🟡 власна таблиця клавіш, KEYCHOOSER замінено | `KeyBindings.cs` | — |
-| Звук | аліаси, схеми, музика | 🟡 без привітань NPC, без 3D-параметрів, без звуків персонажів у бою, грому | `SoundView.cs` | Greetings + ChrSnd |
+| Звук | аліаси, схеми, музика, привітання, звуки персонажів | 🟡 привітання NPC на початку діалогу (`Dialog.greeting`, гучність мови); кроки за матеріалом патча `.ptc` (`snd_grass` → `step_grass`), свист/вихоплення/ховання шаблі і пістоль з подій `.ani`, удар у тіло / дзвін клинків, постріл, `Event_ChrSnd_Attack/Hit/Dead/Body`; 3D за відстанями аліасів; немає грому, `SET_3D_PARAM`; моменти бойових звуків — мої таймери, не C++ | `SoundView.cs`, `Characters.cs`, `Dialog.cs` | — |
 | Відео | 9 роликів `.wmv` | ❌ | `Main.cs:144` | конвертація (з дозволу) |
 | Переклад | UI ~100 %, діалоги ~79 % машинний | 🟡 | `docs/STATUS.md` | редагування перших годин |
 
@@ -138,7 +138,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 3. ~~**Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.~~ — зроблено (`WorldStorms.cs`, `WorldMapUi.cs`, тест `storm`).
 4. ~~**Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).~~ — зроблено (`SeaSails.cs`).
 5. ~~Пожежі на кораблях і частинки з оригінальних `INI/PARTICLES/*.ini`~~ — зроблено (`Particles.cs`, `SeaFires.cs`).
-6. **Звуки персонажів** (`Event_ChrSnd_Attack/Hit/Dead/Body`) і **голосові привітання NPC** (`Greetings_alias.ini`).
+6. ~~**Звуки персонажів** (`Event_ChrSnd_Attack/Hit/Dead/Body`) і **голосові привітання NPC** (`Greetings_alias.ini`).~~ — зроблено (`SoundView.cs` 3D, `Characters.cs` події `.ani`, `Dialog.cs`).
 7. **Параметри бою NPC зі скрипта** (`NPC_Event_GetAttackActive/GetDefenceActive/GetFireActive/GetAggresive`, `Location_CharacterIsFight/FightGo/FightStay`) замість власних правил.
 8. **Освітлення локацій**: `MSG_LOCATION_ADD_LIGHT`, лампи вночі (`MODEL_LAMPS`), анімовані моделі (`SET_ROT/SET_UVS`: млини, вода), тіні персонажів.
 9. **Відносини і групи на морі**: `UPDATE_RELATIONS`, `SHIP_CHANGE_GROUP`, `SET_COMPANION_ENEMY`, `GROUP_SET_TYPE`, `GROUP_SET_LOCATION_OTHER_GROUP` (переслідування).

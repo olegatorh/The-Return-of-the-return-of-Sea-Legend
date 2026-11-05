@@ -55,6 +55,24 @@ public partial class DialogView : Control
         links.Size = new Vector2(572, 86);
         links.AddThemeConstantOverride("separation", 0);
         AddChild(links);
+
+        // NPC greeting: dialog.c (DialogPlayGreeting) writes Dialog.greeting = CharacterRef.greeting 10 frames after the start; the original
+        // DIALOG class plays that alias (INI/ALIASES/Greetings_alias.ini) as speech when the attribute is written. The Dialog object is
+        // global, so a value left from the previous dialog must not play: only writes made while this dialog lives count.
+        ent.Root.GetOrCreate("greeting").OnWrite = a =>
+        {
+            if (!IsInstanceValid(this) || string.IsNullOrEmpty(a.Value)) return;
+            if (greetingVoice > 0) SoundView.Instance?.StopVoice(greetingVoice);
+            greetingVoice = SoundView.Instance?.PlaySpeech(a.Value!) ?? 0;
+            GD.Print($"[dialog] greeting '{a.Value}'");
+        };
+    }
+
+    int greetingVoice;
+
+    public override void _ExitTree()
+    {
+        if (Ent.Root.Get("greeting") is { } g) g.OnWrite = null;
     }
 
     static string Display(string s) => s.Replace("\\n", "\n");

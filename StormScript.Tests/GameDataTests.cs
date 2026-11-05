@@ -114,6 +114,21 @@ public sealed class FormatTests
         Assert.True(tested > 0);
     }
 
+    [Fact]
+    public void PatchMaterialsNameStepSounds()
+    {
+        if (!Paths.HasGame) return;
+        int withSnd = 0, files = 0;
+        foreach (var f in Files("*.ptc"))
+        {
+            var p = PtcFile.Parse(File.ReadAllBytes(f));
+            files++;
+            foreach (var t in p.Tris) if (p.Materials.Length > 0) Assert.True(t.Material < p.Materials.Length, f);
+            if (p.Materials.Any(m => m.Contains("snd_", StringComparison.OrdinalIgnoreCase))) withSnd++;
+        }
+        Assert.True(withSnd > files / 2, $"{withSnd}/{files} patches name snd_ materials");
+    }
+
     static (float, float, float) Centre(PtcFile p, PtcFile.Tri t) =>
         ((p.Vx[t.A] + p.Vx[t.B] + p.Vx[t.C]) / 3, (p.Vy[t.A] + p.Vy[t.B] + p.Vy[t.C]) / 3, (p.Vz[t.A] + p.Vz[t.B] + p.Vz[t.C]) / 3);
 

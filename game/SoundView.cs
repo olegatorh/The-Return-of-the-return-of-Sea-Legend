@@ -14,17 +14,27 @@ namespace SeaDogs;
 /// </summary>
 public partial class SoundView : Node
 {
-    sealed class Alias { public List<(string file, float vol)> Files = new(); public float Volume = 1f; }
+    /// <summary>One [section] of an INI/ALIASES file. minDistance/maxDistance are the DirectSound 3D distances: full volume up to min, 1/d fall-off, silent past max.</summary>
+    sealed class Alias { public List<(string file, float vol)> Files = new(); public float Volume = 1f; public float MinDist = -1f, MaxDist = -1f; }
 
     sealed class Voice
     {
         public int Id;
         public AudioStreamPlayer? Player;
+        public AudioStreamPlayer3D? Player3D;      // a 3D sound at a world position (SOUND_WAV_3D with an alias that has distances)
         public string Name = "";
-        public bool Looped, Music, Started;
+        public bool Looped, Music, Speech, Started;
         public float Volume = 1f;
         public AudioStream? Stream;
+        public Node? Node => (Node?)Player ?? Player3D;
+        public bool Playing => Player?.Playing == true || Player3D?.Playing == true;
+        public void Play() { Player?.Play(); Player3D?.Play(); }
+        public void Halt() { Player?.Stop(); Player3D?.Stop(); }
+        public float Db { set { if (Player != null) Player.VolumeDb = value; if (Player3D != null) Player3D.VolumeDb = value; } }
     }
+
+    /// <summary>The sound service (created by the first script message to "Sound"): engine classes play their own sounds through it.</summary>
+    public static SoundView? Instance;
 
     sealed class Channel { public string Sound = ""; public float Min, Max, Volume; public bool Loop; public double Timer; public int LoopVoice; }
 
@@ -44,12 +54,24 @@ public partial class SoundView : Node
     public SoundView()
     {
         Name = "Sound";
-        LoadAliases("sound_alias.ini");
-        LoadAliases("music_alias.ini");
+        Instance = this;
+        // the original SoundService reads every ini of INI/ALIASES (sound_alias, music_alias, Greetings_alias = NPC voices, max)
+        string dir = GameAssets.Resource("INI\\ALIASES");
+        var files = Directory.Exists(dir) ? Directory.GetFiles(dir, "*.ini").Select(Path.GetFileName).OrderBy(f => f, StringComparer.OrdinalIgnoreCase).ToList() : new List<string?>();
+        foreach (var f in files) LoadAliases(f!);
         LoadSchemes();
     }
 
+    public override void _ExitTree() { if (Instance == this) Instance = null; }
+
     string SoundsDir => GameAssets.Resource("Sounds");
+
+    static float ParseF(string? s, float def)
+    {
+        if (s == null) return def;
+        int sc = s.IndexOf(';'); if (sc >= 0) s = s.Substring(0, sc);
+        return float.TryParse(s.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : def;
+    }
 
     void LoadAliases(string file)
     {
@@ -59,16 +81,22 @@ public partial class SoundView : Node
         foreach (var (name, sec) in ini.Sections)
         {
             var a = new Alias();
-            foreach (var line in sec.All("name"))
+            foreach (var raw in sec.All("name"))
             {
+                string line = raw; int sc = line.IndexOf(';'); if (sc >= 0) line = line.Substring(0, sc);
                 var p = line.Split(',');
-                float v = p.Length > 1 && float.TryParse(p[1].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var vv) ? vv : 1f;
-                a.Files.Add((p[0].Trim(), v));
+                if (p[0].Trim().Length == 0) continue;
+                a.Files.Add((p[0].Trim(), p.Length > 1 ? ParseF(p[1], 1f) : 1f));
             }
-            if (float.TryParse(sec.Get("volume"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var vol)) a.Volume = vol;
-            if (a.Files.Count > 0) aliases[name] = a;
+            a.Volume = ParseF(sec.Get("volume"), 1f);
+            a.MinDist = ParseF(sec.Get("minDistance"), -1f);
+            a.MaxDist = ParseF(sec.Get("maxDistance"), -1f);
+            if (a.Files.Count > 0) aliases[name.Trim()] = a;
         }
     }
+
+    public bool HasAlias(string name) => aliases.ContainsKey(name);
+    public int AliasCount => aliases.Count;
 
     void LoadSchemes()
     {
@@ -174,7 +202,9 @@ public partial class SoundView : Node
     }
 
     // ------------------------------------------------------------------ voices
-    int Create(string name, bool music, bool looped, float vol, bool startNow)
+    /// <summary>Creates a voice. <paramref name="pos"/> = a world position in script (Direct3D) space for a 3D sound: it is attenuated by the alias
+    /// minDistance/maxDistance like the original DirectSound 3D buffers (aliases without distances stay plain stereo, as before).</summary>
+    int Create(string name, bool music, bool looped, float vol, bool startNow, Vector3? pos = null, bool speech = false)
     {
         var (file, avol) = Resolve(name);
         if (file == null)
@@ -182,52 +212,80 @@ public partial class SoundView : Node
             if (warned.Add(name)) GD.Print("[sound] not found: " + name);
             return nextId++;      // a valid id, silent
         }
-        if (System.Environment.GetEnvironmentVariable("SEADOGS_SOUNDLOG") != null) GD.Print($"[sound] play '{name}' -> {Path.GetFileName(file)} music={music} loop={looped} now={startNow}");
-        var v = new Voice { Id = nextId++, Name = name, Looped = looped, Music = music, Volume = vol * avol, Stream = Load(file, looped) };
+        aliases.TryGetValue(name, out var al);
+        Vector3? gpos = pos is { } p && al != null && al.MaxDist > 0f ? new Vector3(p.X, p.Y, -p.Z) : null;
+        // a one-shot 3D sound out of hearing range is not started at all (many walking people would otherwise create voices every step)
+        if (gpos is { } g0 && !looped && GetViewport()?.GetCamera3D() is { } cam && cam.GlobalPosition.DistanceTo(g0) > al!.MaxDist) return nextId++;
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_SOUNDLOG") != null)
+            GD.Print($"[sound] play '{name}' -> {Path.GetFileName(file)} music={music} loop={looped} now={startNow}" + (speech ? " speech" : "") + (gpos is { } gp ? FormattableString.Invariant($" 3d=({pos!.Value.X:0.0} {pos.Value.Y:0.0} {pos.Value.Z:0.0}) min={al!.MinDist} max={al.MaxDist}") : ""));
+        var v = new Voice { Id = nextId++, Name = name, Looped = looped, Music = music, Speech = speech, Volume = vol * avol, Stream = Load(file, looped) };
         voices[v.Id] = v;
         if (v.Stream != null)
         {
-            v.Player = new AudioStreamPlayer { Stream = v.Stream };
-            AddChild(v.Player);
+            if (gpos is { } g)
+            {
+                v.Player3D = new AudioStreamPlayer3D
+                {
+                    Stream = v.Stream, Position = g, DopplerTracking = AudioStreamPlayer3D.DopplerTrackingEnum.Disabled,
+                    AttenuationModel = AudioStreamPlayer3D.AttenuationModelEnum.InverseDistance,
+                    UnitSize = Math.Max(al!.MinDist, 0.3f), MaxDistance = al.MaxDist, MaxDb = 0f,
+                };
+                AddChild(v.Player3D);
+                v.Player3D.Finished += () => { if (!v.Looped) Release(v.Id); };
+            }
+            else
+            {
+                v.Player = new AudioStreamPlayer { Stream = v.Stream };
+                AddChild(v.Player);
+                v.Player.Finished += () => { if (!v.Looped) Release(v.Id); };
+            }
             ApplyVolume(v);
-            v.Player.Finished += () => { if (!v.Looped) Release(v.Id); };
         }
         if (startNow) Start(v);
         return v.Id;
     }
 
+    // ------------------------------------------------------------------ engine-side API (characters, dialog)
+    /// <summary>A 3D effect at a script-space position (VOLUME_FX), e.g. a character's step or sword.</summary>
+    public int Play3D(string name, float x, float y, float z) => Create(name, false, false, 1f, true, new Vector3(x, y, z));
+
+    /// <summary>A stereo voice line at the speech volume (the dialog's NPC greeting).</summary>
+    public int PlaySpeech(string name) => Create(name, false, false, 1f, true, null, true);
+
+    public void StopVoice(int id) { if (id > 0) Stop(id, 0); }
+
     void Start(Voice v)
     {
-        if (!Enabled || v.Player == null) return;
+        if (!Enabled || v.Node == null) return;
         v.Started = true;
-        if (!v.Player.Playing) v.Player.Play();
+        if (!v.Playing) v.Play();
     }
 
     void ApplyVolume(Voice v)
     {
-        if (v.Player == null) return;
-        float vol = v.Volume * (v.Music ? musicVolume : fxVolume);
-        v.Player.VolumeDb = vol <= 0.001f ? -80f : Mathf.LinearToDb(Math.Min(vol, 1.5f));
+        if (v.Node == null) return;
+        float vol = v.Volume * (v.Music ? musicVolume : v.Speech ? speechVolume : fxVolume);
+        v.Db = vol <= 0.001f ? -80f : Mathf.LinearToDb(Math.Min(vol, 1.5f));
     }
 
     void Release(int id)
     {
         if (id == 0) { foreach (var v in voices.Values.ToList()) Release(v.Id); return; }
-        if (voices.Remove(id, out var vo)) vo.Player?.QueueFree();
+        if (voices.Remove(id, out var vo)) vo.Node?.QueueFree();
     }
 
     void Stop(int id, float fadeMs)
     {
         foreach (var v in (id == 0 ? voices.Values.ToList() : voices.Values.Where(x => x.Id == id).ToList()))
         {
-            if (v.Player == null) continue;
+            if (v.Node is not { } node) continue;
             if (fadeMs > 50)
             {
                 var tw = CreateTween();
-                tw.TweenProperty(v.Player, "volume_db", -80f, fadeMs / 1000f);
-                tw.TweenCallback(Callable.From(() => { if (v.Player != null && IsInstanceValid(v.Player)) v.Player.Stop(); }));
+                tw.TweenProperty(node, "volume_db", -80f, fadeMs / 1000f);
+                tw.TweenCallback(Callable.From(() => { if (IsInstanceValid(node)) v.Halt(); }));
             }
-            else v.Player.Stop();
+            else v.Halt();
             v.Started = false;
         }
     }
@@ -245,20 +303,22 @@ public partial class SoundView : Node
             {
                 bool music = I(3) == 2 || I(2) == 2;
                 bool justCache = I(4) != 0;
-                int id = Create(S(1), music, I(5) != 0, 1f, !justCache);
+                // SOUND_WAV_3D (1) / SOUND_MP3_3D (3) with "fff" x, y, z after the fade time: a positioned sound
+                Vector3? pos = (I(2) == 1 || I(2) == 3) && d.Length >= 11 ? new Vector3(F(8), F(9), F(10)) : null;
+                int id = Create(S(1), music, I(5) != 0, 1f, !justCache, pos, I(3) == 3);
                 return V.Int(id);
             }
             case 77004: Stop(I(1), F(2)); return V.Int(0);                    // STOP id, fade
             case 77005: Release(I(1)); return V.Int(0);                       // RELEASE
             case 77012:                                                       // RESUME id, fade
-                if (voices.TryGetValue(I(1), out var rv)) { Start(rv); if (rv.Player != null && F(2) > 50) { rv.Player.VolumeDb = -60f; ApplyVolume(rv); } }
+                if (voices.TryGetValue(I(1), out var rv)) { Start(rv); if (rv.Node != null && F(2) > 50) { rv.Db = -60f; ApplyVolume(rv); } }
                 else if (I(1) == 0) foreach (var v in voices.Values) if (v.Looped) Start(v);
                 return V.Int(0);
-            case 77011: if (voices.TryGetValue(I(1), out var rs) && rs.Player != null) rs.Player.Play(); return V.Int(0);
+            case 77011: if (voices.TryGetValue(I(1), out var rs)) rs.Play(); return V.Int(0);
             case 77008:                                                       // SET_VOLUME id, volume
                 if (voices.TryGetValue(I(1), out var sv)) { sv.Volume = F(2); ApplyVolume(sv); }
                 return V.Int(0);
-            case 77009: return V.Int(voices.TryGetValue(I(1), out var pv) && pv.Player?.Playing == true ? 1 : 0);
+            case 77009: return V.Int(voices.TryGetValue(I(1), out var pv) && pv.Playing ? 1 : 0);
             case 77022:                                                       // GET_MASTER_VOLUME "eee": fx, music, speech
                 it0?.WriteRef(d[1], V.Float(fxVolume)); it0?.WriteRef(d[2], V.Float(musicVolume)); it0?.WriteRef(d[3], V.Float(speechVolume));
                 return V.Int(0);

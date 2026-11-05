@@ -88,6 +88,7 @@ public partial class CharacterView : Node3D
     void PlayReaction(bool blocked)
     {
         if (rig == null || !IsAlive) return;
+        if (!blocked) ChrSnd("Event_ChrSnd_Hit");                         // the script picks man_hit / woman_hit / skeleton_hit ... by sex
         string a = blocked ? "block_hit" : "hit_" + (idleRng.Next(3) + 1);
         if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = 0.35f; }
     }
@@ -130,6 +131,8 @@ public partial class CharacterView : Node3D
         if (shotIn >= 0f) return;
         var t = shotTarget; shotTarget = null;
         float d = t == null ? 0f : MathF.Sqrt((t.x - x) * (t.x - x) + (t.z - z) * (t.z - z));
+        Snd("pistol_shot");
+        if (t == null) Snd("bullet_miss");
         it.FireEvent("Location_CharacterFire", new List<V> { V.A(Ent.Root), V.A(t?.Ent.Root), V.Float(Math.Clamp(1f - d / 24f, 0f, 1f)), V.Int(t != null ? 1 : 0) });
         t?.PlayReaction(false);
     }
@@ -206,7 +209,7 @@ public partial class CharacterView : Node3D
 
     static float Angle(float dx, float dz) => MathF.Atan2(dx, dz);
 
-    public string DebugState() => $"{Ent.Root.Get("id")?.Value} idx={Ent.Root.Get("index")?.Value} class={Ent.Class} placed={Placed} inDialog={inDialog} task={task} pos=({x:0.0},{y:0.0},{z:0.0}) target={target?.Ent.Root.Get("id")?.Value}";
+    public string DebugState() => $"{Ent.Root.Get("id")?.Value} idx={Ent.Root.Get("index")?.Value} class={Ent.Class} placed={Placed} inDialog={inDialog} task={task} pos=({x:0.0},{y:0.0},{z:0.0}) target={target?.Ent.Root.Get("id")?.Value} anim={rig?.ActionName}";
 
     static float TurnToward(float cur, float want, float maxStep)
     {
@@ -373,6 +376,7 @@ public partial class CharacterView : Node3D
     public void Tick(float dt)
     {
         if (!Placed || rig == null) return;
+        if (rig.Events.Count > 0) { var evs = rig.Events.ToArray(); rig.Events.Clear(); foreach (var e in evs) OnAnimEvent(e); }
         Detect(dt);
         UpdateEquipment();
         if (dt > 0f) { TickSwing(dt); TickGun(dt); }
@@ -481,6 +485,7 @@ public partial class CharacterView : Node3D
             {
                 bool blocked = atkTarget.Defends(this);
                 bool parried = blocked && atkTarget.blockAge < 0.3f;                 // a block raised just in time throws the attacker off balance
+                atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
                 atkTarget.PlayReaction(blocked);
                 if (parried) Stagger();
@@ -503,6 +508,7 @@ public partial class CharacterView : Node3D
             default: atkCooldown = 1.5f; atkHitIn = 0.35f; atkDamage = 1f; a = "attack_" + (idleRng.Next(4) + 1); break;
         }
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
+        if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
         return true;
     }
 
@@ -564,7 +570,7 @@ public partial class CharacterView : Node3D
     // ------------------------------------------------------------------ messages from the script
     public V OnMessage(string fmt, V[] d)
     {
-        if (fmt == "s") return V.Int(0);                                                   // play a sound by name (no sound yet)
+        if (fmt == "s") { if (d.Length > 0) Snd(Conv.ToStr(d[0])); return V.Int(1); }   // LAi_CharacterPlaySound: an alias at the character
         int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
         string S(int i) => i < d.Length ? Conv.ToStr(d[i]) : "";
         float Fl(int i) => i < d.Length ? Conv.ToFloat(d[i]) : 0f;
@@ -647,6 +653,9 @@ public partial class CharacterView : Node3D
     void SetTask(string name, V[] d, Func<int, CharacterView?> chr)
     {
         float Fl(int i) => i < d.Length ? Conv.ToFloat(d[i]) : 0f;
+        // a dead body stays dead: the AI type's death handler (LAi_CheckKillCharacter -> chr_ai.type ...) sets "Stay" right after "Dead",
+        // which used to stand the corpse up before its death animation (and the body-fall sound) finished
+        if (task == Task.Dead && name != "Dead" && Ent.Root.Find("chr_ai.hp", false) is { } hp0 && Conv.ParseFloatPrefix(hp0.Value) < 1f) return;
         switch (name)
         {
             case "None": task = Task.None; break;
@@ -657,12 +666,61 @@ public partial class CharacterView : Node3D
             case "Fight": task = Task.Fight; target = chr(2); break;
             case "Escape": task = Task.Escape; target = chr(2); break;
             case "Dead":
+                if (task != Task.Dead && Placed && Visible) ChrSnd("Event_ChrSnd_Dead");
                 task = Task.Dead;
                 if (rig != null && (rig.Play("death_0", false) || rig.Play("death_1", false))) playing = "dead";
                 break;
             default:
                 if (warned.Add("task " + name)) GD.Print("[character] unknown task: " + name);
                 break;
+        }
+    }
+
+    // ------------------------------------------------------------------ sounds
+    /// <summary>A sound alias at the character's chest (3D, attenuated by the alias distances).</summary>
+    void Snd(string alias, float height = 1.2f)
+    {
+        if (!Placed || !Visible || alias.Length == 0) return;
+        SoundView.Instance?.Play3D(alias, x, y + height, z);
+    }
+
+    /// <summary>The character sound events of the original engine (handled in Loc_ai/LAi_sounds.c): Event_ChrSnd_Attack/Hit/Dead/Body, data = the character.</summary>
+    void ChrSnd(string ev)
+    {
+        if (!Placed || !Visible) return;
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_SOUNDLOG") != null) GD.Print($"[sound] {ev} {Id}");
+        it.FireEvent(ev, new List<V> { V.A(Ent.Root) });
+    }
+
+    static readonly string[] StepKinds = { "grass", "ground", "stone", "sand", "wood", "echo", "carpet", "stairway", "iron", "church", "water" };
+
+    /// <summary>Step sound alias for a patch material: "snd_grass" / "add_snd_stone" / truncated "GrexitT_snd_gras" -> step_grass; others -> step_ground.</summary>
+    public static string StepAlias(string material)
+    {
+        string m = material.ToLowerInvariant();
+        int i = m.IndexOf("snd_");
+        string k = i >= 0 ? m.Substring(i + 4) : m;
+        if (k.StartsWith("srairway")) k = "stairway";                 // a typo in some patches
+        if (k.Length >= 2)
+            foreach (var s in StepKinds)
+                if (s.StartsWith(k) || k.StartsWith(s)) return "step_" + s;
+        return "step_ground";
+    }
+
+    /// <summary>Events of the .ani tracks: steps, sword swish, drawing/sheathing the blade, the pistol, the body hitting the ground.</summary>
+    void OnAnimEvent(string ev)
+    {
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_ANIEVLOG") != null) GD.Print($"[anim] {Id}: event '{ev}' in {rig?.ActionName}");
+        switch (ev.ToLowerInvariant())
+        {
+            case "lstep": case "rstep":
+                Snd(StepAlias(getPatch()?.MaterialAt(x, z, y) ?? ""), 0.1f);
+                break;
+            case "sound_slash": case "sound_stub": Snd("sword_wind"); break;
+            case "blade to hand": Snd("sword_out"); break;
+            case "blade to belt": Snd("sword_sh"); break;
+            case "sound_pistol": Snd("pistol_out"); break;
+            case "death sound": ChrSnd("Event_ChrSnd_Body"); break;
         }
     }
 

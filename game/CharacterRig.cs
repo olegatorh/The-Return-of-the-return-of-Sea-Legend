@@ -208,13 +208,25 @@ public partial class CharacterRig : Node3D
     {
         if (cur == null) return;
         float len = Math.Max(cur.End - cur.Start, 1);
+        float prev = time;
         time += (float)delta * TimeScale * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
+        bool wrapped = false;
         if (time >= len)
         {
-            if (loop) time %= len; else time = len;
+            if (loop) { time %= len; wrapped = true; } else time = len;
         }
+        if (cur.Events.Count > 0 && time != prev)
+            foreach (var (name, frame, rev) in cur.Events)
+            {
+                if (rev != cur.Reverse) continue;
+                float at = cur.Reverse ? cur.End - frame : frame - cur.Start;      // the event's place on the playback time line
+                if ((wrapped ? at > prev || at <= time : at > prev && at <= time) && Events.Count < 16) Events.Add(name);
+            }
         Pose(cur.Reverse ? cur.End - time : cur.Start + time);
     }
+
+    /// <summary>Animation events (.ani "event = ...") passed since the owner last drained the list.</summary>
+    public readonly List<string> Events = new();
 
     void Pose(float frame)
     {

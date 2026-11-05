@@ -18,15 +18,15 @@ Layers (where the behaviour comes from):
 ## Summary
 
 * Overall (mean of the 31 subsystems below): **70 %**
-* Unit tests: **31** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **14907** lines of C# (`StormScript/` library + `game/`)
+* Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
+* Port code: **15092** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
-| PORT | 16 | 77 % |
+| PORT | 16 | 78 % |
 | APPROX | 12 | 57 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
@@ -63,7 +63,7 @@ Layers (where the behaviour comes from):
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
-| Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ███████░░░ 70 % | E | 3D positioning approximate; speech volume unused |
+| Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ████████░░ 80 % | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder |
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
 
