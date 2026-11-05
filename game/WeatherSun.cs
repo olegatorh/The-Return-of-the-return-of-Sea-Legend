@@ -16,6 +16,7 @@ public partial class WeatherFx
 {
     sealed class FlareRt { public float Dist, Size, Alpha; public int Sub; public Color Col; public MeshInstance3D Node = null!; public ShaderMaterial Mat = null!; }
 
+    public static Vector3 LastSunDir;      // the last sun direction (test hook SEADOGS_LOOKSUN)
     MeshInstance3D? sunGlowNode;
     ShaderMaterial? sunGlowMat;
     readonly List<FlareRt> flares = new();
@@ -26,7 +27,8 @@ public partial class WeatherFx
     static Shader? sunShader;
     const string SunShaderCode = @"
 shader_type spatial;
-render_mode unshaded, blend_add, depth_test_disabled, cull_disabled, depth_draw_never;
+// fog_disabled: the quads sit 3500 m away, behind the fog end, and would be painted in the fog colour (the old 'white squares')
+render_mode unshaded, blend_add, fog_disabled, depth_test_disabled, cull_disabled, depth_draw_never;
 uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_disable;
 uniform vec4 color : source_color = vec4(1.0);
 uniform vec2 uv_scale = vec2(1.0);
@@ -81,6 +83,7 @@ void fragment() {
         string key = (r.Find("Glow.Texture", false)?.Value ?? "") + "|" + (r.Find("Flare.Texture", false)?.Value ?? "") + "|" + (r.Get("Flares")?.Count ?? 0);
         if (!sunBuilt || key != sunKey) BuildSun(r, key);
         var sunDir = SunDirection(wr);
+        LastSunDir = sunDir;
         var cp = cam.GlobalPosition;
         float glowDist = F(r, "Glow.Dist", 3500f), glowSize = F(r, "Glow.Size", 1250f);
         float far = Math.Max(500f, cam.Far * 0.85f), d = Math.Min(glowDist, far), k = d / glowDist;      // the same angles at a distance the far plane lets through

@@ -938,6 +938,12 @@ public partial class SeaView : Node3D
             if (want.Y < minY) want.Y = minY;
             Cam.GlobalPosition = want;
             Cam.LookAt(target);
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_LOOKSUN") is { } ls && WeatherFx.LastSunDir.LengthSquared() > 0.1f)       // debug: aim the camera at the sun (+ pitch offset in degrees)
+            {
+                float off = float.TryParse(ls, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var o) ? o : 0f;
+                var sd = WeatherFx.LastSunDir;
+                Cam.LookAt(want + sd * 100f + Vector3.Up * (100f * MathF.Tan(off * MathF.PI / 180f)));
+            }
             Cam.Fov = 62f;
         }
         Cam.Current = true;
