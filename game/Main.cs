@@ -383,6 +383,7 @@ public partial class Main : Node
         {
             if (!characters.TryGetValue(e, out var cv))
             {
+                CharShadow.ReceiversOf ??= () => CurrentLocation()?.Receivers();
                 CharacterView.JumpPatchOf ??= () => CurrentLocation()?.JumpPatch;
                 CharacterView.Obstacle ??= (a, b) => CurrentLocation()?.Cam?.GetWorld3D()?.DirectSpaceState is { } sp && sp.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(a.X, a.Y, -a.Z), new Vector3(b.X, b.Y, -b.Z))).Count > 0;
                 CharacterView.SeaLevelOf ??= (px, pz) => outdoor.HasSea && CurrentLocation() is { } lv && lv.Ent.Root.Get("swimming")?.Value != "0" ? SeaWaves.Height(px, -pz) : null;

@@ -33,6 +33,7 @@ public partial class CharacterView : Node3D
     public bool Placed;
     CharacterRig? rig;
     MeshInstance3D? placeholder;
+    CharShadow? shadow;
     static readonly HashSet<string> warned = new();
 
     // task state
@@ -1099,6 +1100,9 @@ void fragment() {
                 rig?.QueueFree();
                 rig = newRig;
                 AddChild(newRig);
+                shadow?.QueueFree();
+                shadow = CharShadow.Create(this, newRig);
+                if (shadow != null) { AddChild(shadow); GetNodeOrNull("Shadow")?.QueueFree(); }       // the silhouette shadow replaces the blob
                 playing = "";
                 if (placeholder != null) { placeholder.QueueFree(); placeholder = null; }
                 return V.Int(1);

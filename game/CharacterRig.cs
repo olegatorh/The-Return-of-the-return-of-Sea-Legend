@@ -222,6 +222,26 @@ public partial class CharacterRig : Node3D
         }
     }
 
+    /// <summary>
+    /// The silhouette of the model for the character's shadow: every mesh gets a twin on the same skeleton that only the shadow camera sees (flat black),
+    /// the real meshes move to <paramref name="bodyLayer"/>. Returns the number of twins.
+    /// </summary>
+    public int MakeShadowCasters(uint casterLayer, uint bodyLayer)
+    {
+        var black = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = Colors.Black, CullMode = BaseMaterial3D.CullModeEnum.Disabled };
+        int n = 0;
+        foreach (var c in skel.GetChildren())
+        {
+            if (c is not MeshInstance3D { Mesh: { } mesh } mi || mi.Layers == casterLayer) continue;
+            mi.Layers = bodyLayer;
+            var twin = new MeshInstance3D { Mesh = mesh, Skin = skin, Layers = casterLayer, MaterialOverride = black, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, Name = mi.Name + "_sil" };
+            skel.AddChild(twin);
+            twin.Skeleton = new NodePath("..");
+            n++;
+        }
+        return n;
+    }
+
     /// <summary>True when a non-looping action has played to its end.</summary>
     public bool Finished => cur != null && !loop && time >= Math.Max(cur.End - cur.Start, 1);
 

@@ -206,8 +206,11 @@ public partial class LocationView : Node3D
         AddChild(node);
         // collision for the follow camera (it must not look through walls): triangle meshes of the visible parts, no characters
         if (node.Visible && !name.EndsWith("_l", StringComparison.OrdinalIgnoreCase))
+        {
             foreach (var c in node.GetChildren())
                 if (c is MeshInstance3D { Visible: true } mi && mi.Mesh != null && mi.Mesh.GetSurfaceCount() > 0) mi.CreateTrimeshCollision();
+            shadowModels.Add(node); receivers = null;
+        }
         lastModel = g;
         lastNode = node;
 
@@ -246,6 +249,22 @@ public partial class LocationView : Node3D
     {
         if (lastNode == null || !locators.TryGetValue(group, out var grp) || !grp.TryGetValue(name, out var l)) return;
         lastNode.Position = new Vector3(l.X, l.Y, -l.Z);
+        receivers = null;
+    }
+
+    readonly List<Node3D> shadowModels = new();
+    ReceiverGrid? receivers;
+
+    /// <summary>The static models as a triangle grid: where the characters' shadows may fall (built on first use, again after a model was added or moved).</summary>
+    public ReceiverGrid Receivers()
+    {
+        if (receivers != null) return receivers;
+        receivers = new ReceiverGrid();
+        foreach (var n in shadowModels)
+            foreach (var c in n.GetChildren())
+                if (c is MeshInstance3D { Visible: true } mi && mi.IsInsideTree()) receivers.Add(mi);
+        GD.Print($"[shadow] receiver grid: {receivers.Count} triangles of {shadowModels.Count} models");
+        return receivers;
     }
 
     /// <summary>Copies all locators into the location's attributes: locators.group.name.{radius,x,y,z,vx,vy,vz}.</summary>
@@ -283,7 +302,7 @@ public partial class LocationView : Node3D
     void FitCamera()
     {
         if (!hasBounds || Cam != null) return;
-        Cam = new FlyCam { Name = "FlyCam", Far = 5000, Near = 0.05f };
+        Cam = new FlyCam { Name = "FlyCam", Far = 5000, Near = 0.05f, CullMask = 0xFFFFFu & ~CharShadow.CasterLayer };      // the silhouette twins of the characters belong to the shadow cameras
         AddChild(Cam);
         var c = bounds.GetCenter();
         float dist = Math.Max(bounds.Size.Length() * 0.45f, 3f);
