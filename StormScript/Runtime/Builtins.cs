@@ -168,8 +168,27 @@ public static class Builtins
 
         // ---- segments / program
         Add("randphrasesimple", (it, a) => V.Str(S(a, new Random().Next(2))));        // one of two phrases at random
-        Zero("getentity", "getentitynext");          // entity enumeration of a layer: nothing to find (used to look for the screenshot object)
-        Add("getentityname", (_, _) => V.Str(""));
+        // entity enumeration of a layer (INTERFACE/save_load.c FindScrshotClass): GetEntity(layer, &ref) binds ref to the first live entity added to the layer
+        // with LayerAddObject, GetEntityNext(&ref) to the next one of the same layer, GetEntityName(&ref) returns its class
+        Add("getentity", (it, a) =>
+        {
+            string layer = S(a, 0);
+            var e = it.Entities.FirstOrDefault(x => !x.Deleted && x.Layers.Contains(layer.ToLowerInvariant()));
+            if (e == null || Arg(a, 1).Attr is not { } obj) return V.Int(0);
+            obj.Entity = e;
+            return V.Int(1);
+        });
+        Add("getentitynext", (it, a) =>
+        {
+            if (Arg(a, 0).Attr is not { Entity: { } cur } obj) return V.Int(0);
+            int at = it.Entities.IndexOf(cur);
+            var e = at < 0 ? null : it.Entities.Skip(at + 1).FirstOrDefault(x => !x.Deleted && x.Layers.Overlaps(cur.Layers));
+            if (e == null) return V.Int(0);
+            obj.Entity = e;
+            return V.Int(1);
+        });
+        Add("getentityname", (_, a) => V.Str(Arg(a, 0).Attr?.Entity?.Class ?? ""));
+        Add("layeraddobject", (_, a) => { if (Arg(a, 1).Attr?.Entity is { } le) le.Layers.Add(S(a, 0).ToLowerInvariant()); return V.Void; });
         Add("saveenginestate", (it, a) => V.Int(it.SaveHook?.Invoke(S(a, 0)) == true ? 1 : 0));
         Add("loadenginestate", (it, a) => V.Int(it.LoadHook?.Invoke(S(a, 0)) == true ? 1 : 0));
         Add("loadsegment", (it, a) => V.Int(it.SegmentLoader?.Invoke(S(a, 0)) == true ? 1 : 0));
@@ -205,7 +224,7 @@ public static class Builtins
         Add("sendmessage", (it, a) => it.SendMessage(Arg(a, 0).Attr, S(a, 1), a.Skip(2).ToArray()));
         Add("deleteentities", (it, _) => { it.DeleteAllEntities(null); return V.Void; });
         Add("deleteentitiesbytype", (it, a) => { it.DeleteAllEntities(S(a, 0)); return V.Void; });
-        Nop("entityupdate", "layercreate", "layeraddobject", "layerdelobject", "layerfreeze", "layersetrealize", "layersetexecute",
+        Nop("entityupdate", "layercreate", "layerdelobject", "layerfreeze", "layersetrealize", "layersetexecute",
             "layerdeletecontent", "layersetmessages", "settimescale", "reloadprogressstart", "reloadprogressupdate",
             "reloadprogressend", "setreloadnexttipsimage", "setreloadprogressbackimage", "executetechnique",
             "lockcontrol", "mapcontrol", "setcontrolflags", "setcontroltreshold", "deletecontrol");

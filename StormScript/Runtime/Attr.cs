@@ -122,4 +122,6 @@ public sealed class Entity
     public Attr Root = null!;
     public bool Deleted;
     public int Layer;
+    /// <summary>Layers this object was added to with LayerAddObject (lower case), for GetEntity enumeration.</summary>
+    public readonly HashSet<string> Layers = new();
 }

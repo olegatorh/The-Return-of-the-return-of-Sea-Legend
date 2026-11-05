@@ -245,6 +245,22 @@ public partial class Main : Node
             else if (msg == 33000 || msg == 33001) fader.Start(msg == 33001, Conv.ToFloat(d[1]), d.Length > 2 && Conv.ToInt(d[2]) != 0);
             return V.Int(0);
         };
+        // "scrshoter" (xinterface/scr_shoter): MSG_SCRSHOT_MAKE 45042 = texture of the screenshot taken for the new save; MSG_SCRSHOT_READ 45043 "lsse" (dir, file, &data)
+        // = texture of a stored save picture (-1: none) + the save's description string; MSG_SCRSHOT_RELEASE 45044. The pictures are PNGs next to the saves
+        // (SaveFiles.WriteThumbnail) and the list control loads them itself, so the texture ids are just 1 / -1.
+        host.It.EntityHandlers["scrshoter"] = (e, fmt, d) =>
+        {
+            int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
+            string file = d.Length > 2 ? Conv.ToStr(d[2]) : "";
+            switch (msg)
+            {
+                case 45042: return V.Int(1);
+                case 45043:
+                    if (d.Length > 3) host.It.WriteRef(d[3], V.Str(file.Equals("newsave", StringComparison.OrdinalIgnoreCase) ? "" : SaveFiles.ReadDescription(file)));
+                    return V.Int(file.Equals("newsave", StringComparison.OrdinalIgnoreCase) || SaveFiles.ReadThumbnail(file) != null ? 1 : -1);
+                default: return V.Int(0);
+            }
+        };
         // "location": static models + locators of the current location
         host.It.EntityHandlers["location"] = (e, fmt, d) =>
         {
