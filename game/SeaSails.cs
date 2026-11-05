@@ -30,9 +30,12 @@ public partial class SeaView
     // ------------------------------------------------------------------ rigging.ini [SAILS]
     sealed class SailIni
     {
+        public float TurnStep = 0.002f;
         public float SDepend = 0.3f, TDepend = 0.1f, MaxTurn = 0.6f, RollSpeed = 0.3f, HoleDepend = 1f, RollZ = 0.05f, RollY = 0.06f, TurnMul = 1.5f;
         public float[] SForm = { 0.2f, 0.8f, 1.0f, 0.8f, 0.4f, 1.0f, 1.3f, 1.0f, 0.4f, 0.8f, 1.0f, 0.8f, 0.2f };
         public float[] TForm = { 0.15f, 0.5f, 0.25f, 0.8f, 0.15f };
+        // speed of one sail by the wind in its own frame (min, x dependence, z dependence): TreangleWindSpeed / TrapecidalWindSpeed / SquareWindSpeed
+        public float[] TSpeed = { 0.2f, 0.6f, 0.8f }, FSpeed = { 0.4f, 0.5f, 0.6f }, SSpeed = { 0.4f, 0.1f, 0.6f };
     }
     static SailIni? sailIni;
 
@@ -57,10 +60,12 @@ public partial class SeaView
                         return r.Count == d.Length ? r.ToArray() : d;
                     }
                     sailIni.SDepend = Fv("fSsailWindDepend", 0.3f); sailIni.TDepend = Fv("fTsailWindDepend", 0.1f);
+                    sailIni.TurnStep = Fv("TURNSTEPANGL", 0.002f);
                     sailIni.MaxTurn = Fv("MAXTURNANGL", 0.6f); sailIni.RollSpeed = Fv("ROLLINGSPEED", 0.0003f) * 1000f;       // per millisecond in the ini
                     sailIni.HoleDepend = Fv("fHoleDepend", 1f); sailIni.RollZ = Fv("ROLL_Z_VAL", 0.05f); sailIni.RollY = Fv("ROLL_Y_VAL", 0.06f);
                     sailIni.TurnMul = Fv("tr_form_mul", 1.5f);
                     sailIni.SForm = Arr("rollSSailForm", sailIni.SForm); sailIni.TForm = Arr("rollTSailForm", sailIni.TForm);
+                    sailIni.TSpeed = Arr("TreangleWindSpeed", sailIni.TSpeed); sailIni.FSpeed = Arr("TrapecidalWindSpeed", sailIni.FSpeed); sailIni.SSpeed = Arr("SquareWindSpeed", sailIni.SSpeed);
                 }
             }
             catch (Exception ex) { GD.PrintErr("[sail] rigging.ini: " + ex.Message); }
@@ -86,6 +91,8 @@ public partial class SeaView
         public float Roll, Bulge, Flap, Phase;
         public float SetRoll = -1f, SetBulge = -99f, SetFlap = -1f;
         public bool Gone;
+        public bool RollFast;                       // ROLLTYPE_FAST: furled at half sail too
+        public char Kind = 's';                     // label group letter: t triangle, f trapezoid, s/g/d/x square
     }
 
     sealed class YardRt { public Node3D Node = null!; public Transform3D Rest; public Vector3 Axis; }
@@ -245,7 +252,11 @@ void fragment() {
             {
                 Host = host, Mast = mast, Node = host.Name.ToString().ToLowerInvariant(), Group = TrailingNumber(grp.Key), Tri = tri, C = c, N = n, Area = area,
                 ForeAft = tri || MathF.Abs(rn.Z) < 0.5f, Fwd = rn.Z <= 0f ? 1f : -1f, MaxHoles = tri ? 10 : 12, Phase = (float)Random.Shared.NextDouble() * 6.28f,
+                Kind = grp.Key.Length > 4 ? grp.Key[4] : 's',
             };
+            // sail.cpp SAIL::AddSail: a sail on a yard "rey_a*" or on any yard of mast1 is furled already at half sail (ROLLTYPE_FAST), the others only at 0
+            string hn = host.Name.ToString();
+            sl.RollFast = hn.StartsWith("rey", StringComparison.OrdinalIgnoreCase) && ((hn.Length > 4 && char.ToLowerInvariant(hn[4]) == 'a') || mast.Num == 1);
             float width = (c[1] - c[0]).Length(), height = tri ? (c[2] - c[0]).Length() : (c[3] - c[0]).Length();
             sl.Depth = sl.ForeAft ? Ini.TDepend * 1.2f * Math.Max(width, height) : Ini.SDepend * 0.4f * width;
             holeTex ??= GameAssets.Texture("ships\\parus_hole.tga");
@@ -460,11 +471,13 @@ void fragment() {
         foreach (var s in ships)
         {
             bool near = s.Node.IsInsideTree() && cam.DistanceSquaredTo(s.Node.GlobalPosition) < 900f * 900f;
-            // yards: braced round to the wind (relative wind angle, at most MAXTURNANGL)
+            // yards: SAILONE::TurnSail turns a yard to MAXTURNANGL x (the side component of the wind in the yard's own, already turned frame), at most
+            // TURNSTEPANGL per millisecond, and only when the difference is over WINDANGLDISCRETE (0.01)
             float rel = windAng - s.Ay;
             while (rel > MathF.PI) rel -= MathF.Tau;
             while (rel < -MathF.PI) rel += MathF.Tau;
-            s.YardYaw = MoveTo(s.YardYaw, Math.Clamp(rel, -ini.MaxTurn, ini.MaxTurn), 0.3f * dt);
+            float yardTarget = ini.MaxTurn * MathF.Sin(rel - s.YardYaw);
+            if (MathF.Abs(yardTarget - s.YardYaw) > 0.01f) s.YardYaw = MoveTo(s.YardYaw, yardTarget, ini.TurnStep * 1000f * dt);
             if (near && MathF.Abs(s.YardYaw - s.YardSet) > 0.003f)
             {
                 s.YardSet = s.YardYaw;
@@ -474,11 +487,29 @@ void fragment() {
             s.RopeTimer += dt;
             if (near && s.RopeTimer > 0.25f && MathF.Abs(s.YardSet - s.RopeYaw) > 0.01f) { s.RopeTimer = 0f; s.RopeYaw = s.YardSet; RebuildRopes(s, false); }
             float turnMul = 1f + (ini.TurnMul - 1f) * MathF.Abs(s.YardSet) / Math.Max(0.01f, ini.MaxTurn);
+            // the rolling speed of the crew: evntGetSRollSpeed (BattleInterface.c GetRSRollSpeed: sailing skill, crew) x ROLLINGSPEED, asked once a second
+            s.RollKT -= dt;
+            if (s.RollKT <= 0f) { s.RollKT = 1f; s.RollK = Math.Max(0.01f, Conv.ToFloat(it.FireEvent("evntGetSRollSpeed", new List<V> { V.Int(s.Index) }))); }
+            float speedCur = 0f, speedMax = 0f;
             foreach (var sl in s.Sails)
             {
                 if (sl.Gone) continue;
-                float target = s.Sail >= 0.99f ? 0f : s.Sail >= 0.49f ? (sl.ForeAft ? 0f : 0.5f) : 1f;
-                sl.Roll = MoveTo(sl.Roll, target, ini.RollSpeed * dt);
+                // MSG_SAIL_GET_SPEED: sail state < 0.3 furls everything, > 0.7 sets everything, otherwise the ROLLTYPE_FAST sails are furled
+                bool furl = s.Sail < 0.3f || (s.Sail <= 0.7f && sl.RollFast);
+                sl.Roll = MoveTo(sl.Roll, furl ? 1f : 0f, ini.RollSpeed * s.RollK * dt);
+                // SAILONE::CalculateSailWind: the sail's share of the ship speed (area, holes, wind in the yard's frame by the sail type, rolled part)
+                float ms = sl.Area, cur = ms * Math.Max(0f, 1f - (float)sl.HoleCount / Math.Max(1, sl.MaxHoles) * ini.HoleDepend);
+                speedMax += ms;
+                if (sl.Roll >= 0.999f) cur = 0f;
+                else
+                {
+                    float yw = rel - (sl.Host != sl.Mast.Node ? s.YardYaw : 0f);              // the wind (blowing to) in the frame of the yard
+                    float wx = MathF.Sin(yw), wz = MathF.Cos(yw);
+                    float zt = Math.Min(1f, wz * 0.5f + 0.5f), xt = (1f - zt) * MathF.Abs(wx);
+                    var p = sl.Kind == 't' ? ini.TSpeed : sl.Kind == 'f' ? ini.FSpeed : ini.SSpeed;
+                    cur *= (p[0] + xt * p[1] + zt * p[2]) * (1f - sl.Roll);
+                }
+                speedCur += cur;
                 if (near)
                 {
                     float dd = (sl.Host.GlobalBasis * sl.N).Normalized().Dot(windW);
@@ -502,6 +533,16 @@ void fragment() {
                 if (MathF.Abs(sl.Roll - sl.SetRoll) > 0.002f) { sl.SetRoll = sl.Roll; sl.Mat.SetShaderParameter("roll", sl.Roll); }
                 if (MathF.Abs(sl.Bulge - sl.SetBulge) > 0.01f) { sl.SetBulge = sl.Bulge; sl.Mat.SetShaderParameter("bulge", sl.Bulge); }
                 if (MathF.Abs(sl.Flap - sl.SetFlap) > 0.01f) { sl.SetFlap = sl.Flap; sl.Mat.SetShaderParameter("flap", sl.Flap); }
+            }
+            // shipSpeed = sum of the sails' speeds / sum of their areas; with sails set at least Sail.MinSpeed (AIShip.c: 0.05). Ships without sails (a model
+            // without sail labels) keep the old rule: the sail state itself
+            float minSpeed = it.Globals.TryGetValue("Sail", out var sg) && sg.Val.Attr is { } sa ? F(sa, "MinSpeed", 0f) : 0f;
+            if (s.Sails.Count == 0) s.SailSpeed = s.Sail;
+            else if (speedMax < 0.001f) s.SailSpeed = s.Sail > 0.3f ? minSpeed : 0f;            // every sail lost: "no ship in the sail groups"
+            else
+            {
+                s.SailSpeed = speedCur / speedMax;
+                if (s.Sail >= 0.3f && s.SailSpeed < minSpeed) s.SailSpeed = minSpeed;
             }
         }
         TickFallingMasts(dt);
