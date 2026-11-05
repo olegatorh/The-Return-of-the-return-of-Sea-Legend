@@ -69,7 +69,7 @@ are only covered by the smoke runs.
 | `--fuzz@N` | talk to everyone in the location, click the first answer; prints missing engine functions |
 | `--shot=path.png --shot-frame=N` | save a screenshot (path **without spaces**) and print diagnostics, then quit |
 | `--camdist=N`, `--move=X,Y@A-B`, `--control@N` | camera distance, hold a move direction (at sea: X = steering), give control to the player |
-| `--sail=+1@N`, `--act@N` | sea: sail state up/down; execute the offered sea action (Moor...). Env `SEADOGS_SEACAM=dist,pitch,yawOffset` fixes the sea camera |
+| `--sail=+1@N`, `--act@N` | sea: sail state up/down; execute the offered sea action (Moor...). Env `SEADOGS_SEACAM=dist,pitch,yawOffset` fixes the sea camera; `SEADOGS_SCOPE=1` (or `=N`: from frame N) holds the telescope up; `--ctl=Sea_CameraSwitch@N` = deck camera (Tab), `SEADOGS_DECKCAM=yaw,pitch` its view |
 | `--duel@N` (env `SEADOGS_DUELDIST`, default 80 m), `--killgroup=brdenemy@N` | sea: park the first enemy ship abeam (25 m = close enough for boarding); land: kill every living member of a script group (boarding decks, test `board`) |
 | `--mappos=x,z,ay@N`, `--mapstorm=dx,dz@N`, `--mapmeet@N` | world map: place the ship; a storm at ship + (dx, dz) (`0,0` = sail into it); put the ship next to the first encounter ship |
 | `--mastfall@N`, `--sailholes@N` (`=me@N`: own ship) | sea: break the main mast / put balls through 8 sails of the nearest other ship through the script events (game/SeaSails.cs) |
@@ -85,6 +85,12 @@ At screenshot time the log lists: `[errors]` (runtime errors), `[unresolved]` (e
 **Fast loop**: play to a point once, save with `--ctl=Quick_Save@N`, then start tests with `--ctl=Quick_Load@200` (seconds instead of a minute).
 Intro reference run (from the main menu to the first location, ~9000 frames):
 `--click=B_NEWGAME@200 --click=RUNGAME@400 --answer=1@2700 --answer=1@2800 ... (13 answers, every 100 frames)`.
+
+## Original engine source (reference)
+`reference/storm-engine` (git-ignored, approved shallow clone of https://github.com/storm-devs/storm-engine) is the open-sourced Storm Engine (a later
+version of the same engine). **Before guessing any engine behaviour, look it up there**: `src/libs/<class>` (ship, sea_ai, sail/rigging, particles,
+battle_interface, worldmap, location, xinterface, sound_service, tornado, sea_foam, sink_effect, ...). Differences to PotC are possible: the scripts of
+this game remain the specification; use the C++ for formulas, constants, timings, message formats and event argument orders.
 
 ## Working method that paid off
 * Scripts are the specification. To implement an engine class, grep the scripts for `SendMessage(&Obj, "fmt", MSG_...)`, the `#define`d message numbers
