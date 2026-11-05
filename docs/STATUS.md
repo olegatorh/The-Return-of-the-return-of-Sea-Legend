@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 31 subsystems below): **71 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **15616** lines of C# (`StormScript/` library + `game/`)
+* Port code: **15801** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -55,7 +55,7 @@ Layers (where the behaviour comes from):
 | Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
 | Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound |
 | Sea | Island, collisions, mooring | APPROX | ██████░░░░ 60 % | V | collision by raycast of visible geometry; grounding events approximate |
-| Sea | Ship AI | APPROX | █████░░░░░ 55 % | E | move/attack/follow (formation slots)/defend (engages near enemies)/flee/ram approach, steering around land; enemy boarding is the script's (Ship_CheckMainCharacter from SeaAI.Update), works (test board) |
+| Sea | Ship AI | APPROX | ██████░░░░ 65 % | T | decisions are the script's: the engine raises Shp_ChkSituation (MinEnemyDistance) per AI ship every second, GrpChkTsk per group every 3 s and ShpFireAction for ships in the player's broadside sector; relation table refreshed by UpdateRelations (test neutral: a neutral ship fired at turns hostile, its marker red, it attacks); move/attack (chase)/follow (formation slots)/defend/defend group/flee/ram approach, steering around land; pursuit groups placed near the chased group; enemy boarding is the script's (test board) |
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███████░░░ 70 % | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
@@ -74,7 +74,7 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 | Layer | Count | Classes |
 |---|---|---|
 | PORT | 27 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 11 | `shadow` (60%), `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (60%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
+| APPROX | 11 | `shadow` (60%), `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
 | STUB | 22 | `ActivePerkShower`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 

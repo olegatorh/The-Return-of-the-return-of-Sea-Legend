@@ -105,6 +105,7 @@ public partial class SeaView
         GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {aimDist:0} m, elevation {elev:0.00}, recharge {recharge:0.0} s");
         var bp = BallStart(s, cannons[0].pos);
         it.FireEvent("Ship_Bort_Fire", new List<V> { V.Int(s.Index), V.A(s.Chr), V.Str(bort), V.Float(bp.X), V.Float(bp.Y), V.Float(bp.Z), V.Float(0), V.Float(0), V.Float(0) });
+        if (s.IsPlayer) FireAction(s, dir, v0 * v0 / G);                                 // ships in the sector learn that they were fired at (SeaAI.cs)
     }
 
     Vector3 BallStart(ShipRt s, Vector3 local)

@@ -18,6 +18,8 @@ public partial class SeaView : Node3D
 {
     // ---- message ids (SEA_AI/Script_Defines.h, messages.h)
     const int AI_SHIP_SET_TASK = 51011, AI_ADD_SHIP = 51001, AI_GROUP_XYZ_AY = 51010, AI_GROUP_COMMANDER = 51022, AI_UNLOAD = 51025, AI_SHIP_SAIL_STATE = 51021;
+    const int AI_CANNON_FIRE = 51002, AI_CANNON_RELOAD = 51003, AI_SHIP_CHANGE_GROUP = 51012, AI_UPDATE_RELATIONS = 51016, AI_GROUP_NEAR_GROUP = 51019, AI_GROUP_SET_TYPE = 51020,
+              AI_SET_COMPANION_ENEMY = 51028;
     const int ISLAND_LOAD_GEO = 50100, ISLAND_SET_GEO = 50101;
 
     sealed class ShipRt
@@ -33,7 +35,10 @@ public partial class SeaView : Node3D
         public float SinkT;
         public int Task = -1;                 // AITASK_*: 0 drift, 1 attack, 2 follow, 3 defend, 6 runaway, 7 move
         public Attr? TaskTarget;
+        public string? TaskGroup;              // AITASK_DEFEND_GROUP: the group to protect
         public float TaskX, TaskZ;
+        public string Group = "";             // the sea AI group of the ship (SeaAI.Group.Name at login, AI_MESSAGE_SHIP_CHANGE_GROUP / SET_COMPANION_ENEMY later)
+        public float CheckT;                  // countdown to the next SHIP_CHECK_SITUATION event (SeaAI.cs)
         public float Length = 30f, Height = 12f, Width = 8f;
         public List<SailRt> Sails = new();             // SeaSails.cs
         public List<MastRt> Masts = new();
@@ -180,7 +185,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -196,7 +201,31 @@ public partial class SeaView : Node3D
         switch (msg)
         {
             case AI_GROUP_XYZ_AY: groupPos[S(1)] = (Fl(2), Fl(4), Fl(5)); return V.Int(1);
-            case AI_GROUP_COMMANDER: if (d.Length > 2 && d[2].Attr is { } cmd) { groupCommander[S(1)] = cmd; cmd.Find("SeaAI.Group.Name", true)!.Value = S(1); } return V.Int(1);
+            case AI_GROUP_COMMANDER:
+                if (d.Length > 2 && d[2].Attr is { } cmd) { groupCommander[S(1)] = cmd; cmd.Find("SeaAI.Group.Name", true)!.Value = S(1); if (ShipOf(cmd) is { } cs) cs.Group = S(1); }
+                return V.Int(1);
+            case AI_SHIP_CHANGE_GROUP:                                                    // "las": character, new group (ChangeCharacterShipGroup)
+                if (d.Length > 2 && d[1].Attr is { } gc && ShipOf(gc) is { } gs0) { GD.Print($"[sea] {gc.Get("id")?.Value} changes group '{gs0.Group}' -> '{S(2)}'"); gs0.Group = S(2); relCache.Clear(); }
+                return V.Int(1);
+            case AI_UPDATE_RELATIONS: UpdateRelations(); return V.Int(1);                // "l": the script changed relations: re-read them (HUD colours, AI targets)
+            case AI_GROUP_SET_TYPE: groupType[S(1)] = S(2); return V.Int(1);              // "lss": war | trade | pirate (the script's AIAttack_SelectTask uses it; kept for the log)
+            case AI_GROUP_NEAR_GROUP:                                                     // "lss": the group appears near another one (pursuit: coast guards, quest hunters)
+                pursuit[S(1)] = S(2); PlaceNearGroup(S(1));
+                return V.Int(1);
+            case AI_SET_COMPANION_ENEMY:                                                  // "la": a companion left the squadron (SeaAI_SetCompanionEnemy already moved it to "cmpenemy_N")
+                if (d.Length > 1 && d[1].Attr is { } ce && ShipOf(ce) is { } ces)
+                {
+                    ces.Group = ce.Find("SeaAI.Group.Name", false)?.Value ?? ces.Group; ces.Task = -1; ces.TaskTarget = null; ces.TaskGroup = null; relCache.Clear();
+                    GD.Print($"[sea] companion {ce.Get("id")?.Value} turns enemy, group '{ces.Group}'");
+                }
+                return V.Int(1);
+            case AI_CANNON_FIRE:                                                          // "lal": main character, camera outside: Ship_DoFire (the fire control of the script)
+                if (d.Length > 1 && d[1].Attr is { } fc && ShipOf(fc) is { IsPlayer: true }) FirePlayer();
+                return V.Int(1);
+            case AI_CANNON_RELOAD:                                                        // "la": the charge changes: the loaded balls are dropped, every bort reloads
+                if (d.Length > 1 && d[1].Attr is { } rc && ShipOf(rc) is { } rs) ReloadAll(rs);
+                return V.Int(1);
+            case 51004: case 51009: return V.Int(1);                                      // SET_CAMERAS_ATTRIBUTE (cameras are ours), GROUP_SET_TASK (not sent by the scripts)
             case AI_ADD_SHIP: if (d.Length > 3 && d[2].Attr is { } chr && d[3].Attr is { } type) AddShip((int)F(chr, "index"), chr, type); return V.Int(1);
             case 51018: SailToPoint(Fl(1), Fl(3), null, 0f, 0f); return V.Int(1);                          // AI_MESSAGE_SAIL_2_LOCATOR "lfff": the port's reload locator (x, y, z)
             case 51017:                                                                                     // AI_MESSAGE_SAIL_2_CHARACTER "laff": character, distance, angle
@@ -212,9 +241,13 @@ public partial class SeaView : Node3D
             {
                 if (d.Length > 3 && d[3].Attr is { } who && ships.FirstOrDefault(s => ReferenceEquals(s.Chr, who)) is { } sh)
                 {
-                    sh.Task = Conv.ToInt(d[1]); sh.TaskTarget = null;
+                    var (oldTask, oldTarget, oldGroup) = (sh.Task, sh.TaskTarget, sh.TaskGroup);
+                    sh.Task = Conv.ToInt(d[1]); sh.TaskTarget = null; sh.TaskGroup = null;
                     if (d.Length > 5 && d[4].T != VT.Attr) { sh.TaskX = Fl(4); sh.TaskZ = Fl(5); }
-                    else if (d.Length > 4) sh.TaskTarget = d[4].Attr;
+                    else if (d.Length > 4 && d[4].T == VT.Attr) sh.TaskTarget = d[4].Attr;
+                    else if (d.Length > 4) sh.TaskGroup = S(4);                           // "lllas": AITASK_DEFEND_GROUP, group name
+                    if (!sh.IsPlayer && (oldTask != sh.Task || !ReferenceEquals(oldTarget, sh.TaskTarget) || oldGroup != sh.TaskGroup))
+                        GD.Print($"[sea] {who.Get("id")?.Value} task: {TaskName(sh.Task)} {sh.TaskTarget?.Get("id")?.Value ?? sh.TaskGroup ?? (sh.Task == 7 ? $"({sh.TaskX:0},{sh.TaskZ:0})" : "")}");
                 }
                 return V.Int(1);
             }
@@ -227,7 +260,7 @@ public partial class SeaView : Node3D
             case 51024:                                                                   // AI_MESSAGE_GROUP_GET_ATTACK_HP "lsfe"
             {
                 float tot = 0f;
-                foreach (var gs in ships.Where(x => (x.Chr.Find("SeaAI.Group.Name", false)?.Value ?? "") == S(1))) tot += AttackHp(gs.Chr, Fl(2));
+                foreach (var gs in ships.Where(x => !x.Dying && x.Group.Equals(S(1), StringComparison.OrdinalIgnoreCase))) tot += AttackHp(gs.Chr, Fl(2));
                 if (d.Length > 3) it.WriteRef(d[3], V.Float(tot));
                 return V.Int(1);
             }
@@ -239,6 +272,8 @@ public partial class SeaView : Node3D
                 if (d.Length > 2 && d[1].Attr is { } off && d[2].Attr is { } cap && ShipOf(cap) is { } taken)
                 {
                     taken.Chr = off; taken.Index = (int)F(off, "index"); taken.IsPlayer = taken.Index == 0; taken.Task = -1; taken.TaskTarget = null; taken.Dying = false;
+                    taken.Group = off.Find("SeaAI.Group.Name", false)?.Value is { Length: > 0 } og ? og : ships.FirstOrDefault(x => x.IsPlayer)?.Group ?? taken.Group;
+                    relCache.Clear();
                     Publish(taken);
                     it.FireEvent("Shp_UpdParams", new List<V> { V.Int(taken.Index), V.Float(taken.Sail) });
                     GD.Print($"[sea] officer {off.Get("id")?.Value} takes the ship of {cap.Get("id")?.Value}");
@@ -265,6 +300,8 @@ public partial class SeaView : Node3D
         (a.Index, b.Index) = (b.Index, a.Index);
         a.IsPlayer = a.Index == 0; b.IsPlayer = b.Index == 0;
         a.Task = b.Task = -1; a.TaskTarget = b.TaskTarget = null;
+        (a.Group, b.Group) = (b.Group, a.Group);                                        // the group belongs to the captain
+        relCache.Clear();
         Publish(a); Publish(b);
         camInit = false;
         it.FireEvent("Shp_UpdParams", new List<V> { V.Int(a.Index), V.Float(a.Sail) });
@@ -275,11 +312,13 @@ public partial class SeaView : Node3D
     void AddShip(int index, Attr chr, Attr type)
     {
         string group = chr.Find("SeaAI.Group.Name", false)?.Value ?? "";
-        var rt = new ShipRt { Chr = chr, Index = index, IsPlayer = index == 0 };
+        var rt = new ShipRt { Chr = chr, Index = index, IsPlayer = index == 0, Group = group, CheckT = 1f + 0.25f * (index % 5) };
+        relCache.Clear();
+        PlaceNearGroup(group);                                                            // a pursuing group: next to the group it chases (once)
         // placement: the group leader stands at the group position, the others behind it
         if (groupPos.TryGetValue(group, out var gp))
         {
-            int n = ships.Count(s => (s.Chr.Find("SeaAI.Group.Name", false)?.Value ?? "") == group);
+            int n = ships.Count(s => s.Group == group);
             rt.X = gp.x - MathF.Sin(gp.ay) * 90f * n; rt.Z = gp.z - MathF.Cos(gp.ay) * 90f * n; rt.Ay = gp.ay;
         }
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
@@ -534,6 +573,7 @@ public partial class SeaView : Node3D
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
         ResolveShipCollisions();
+        TickSeaAI(dt);
         TickCombat(dt);
         TickFires();
         TickForts(dt);
@@ -614,7 +654,7 @@ public partial class SeaView : Node3D
             var pos = new Vector3(o.X, 22f, -o.Z);
             if (cam.IsPositionBehind(pos)) continue;
             var scr = cam.UnprojectPosition(pos);
-            int rel = Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(o.Index)));
+            int rel = Relation(p.Index, o.Index);
             var vp = cam.GetViewport().GetVisibleRect().Size;
             if (scr.X < 0 || scr.Y < 0 || scr.X > vp.X || scr.Y > vp.Y || dist > 3000f) continue;
             float off = (scr - vp / 2).Length();
@@ -647,7 +687,7 @@ public partial class SeaView : Node3D
             var n = list.GetOrCreate("s" + k++);
             n.GetOrCreate("idx").Value = o.Index.ToString();
             SetF(n, "Distance", MathF.Sqrt((o.X - p.X) * (o.X - p.X) + (o.Z - p.Z) * (o.Z - p.Z)));
-            n.GetOrCreate("relation").Value = Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(o.Index))).ToString();
+            n.GetOrCreate("relation").Value = Relation(p.Index, o.Index).ToString();
             SetF(n, "d_ay", MathF.Cos(o.Ay - p.Ay));
             SetF(n, "RelativeSpeed", MathF.Sqrt(MathF.Pow(MathF.Sin(o.Ay) * o.Speed - MathF.Sin(p.Ay) * p.Speed, 2) + MathF.Pow(MathF.Cos(o.Ay) * o.Speed - MathF.Cos(p.Ay) * p.Speed, 2)));
         }
@@ -691,6 +731,7 @@ public partial class SeaView : Node3D
         ShipRt? tgt = s.TaskTarget != null ? ships.FirstOrDefault(o => ReferenceEquals(o.Chr, s.TaskTarget) && !o.Dying) : null;
         int task = s.Task;
         bool go = true, away = false, match = false; float standoff = 0f;
+        if (task == 4) { tgt = GroupLeader(s.TaskGroup); if (tgt == s) tgt = null; task = 3; }   // AITASK_DEFEND_GROUP: keep with the group's leader like a defender
         // a defender engages an enemy that comes close
         if (task == 3 && ships.Where(o => !o.Dying && !ReferenceEquals(o, s) && Relation(s.Index, o.Index) == 2 && Dist(s, o) < 320f).OrderBy(o => Dist(s, o)).FirstOrDefault() is { } foe) { tgt = foe; task = 1; }
         switch (task)
@@ -701,7 +742,7 @@ public partial class SeaView : Node3D
                 if (tgt != null)
                 {
                     // formation slot: followers of the same leader alternate to its sides, each row further back
-                    var mates = ships.Where(o => !o.Dying && o.Task == s.Task && ReferenceEquals(o.TaskTarget, s.TaskTarget)).OrderBy(o => o.Index).ToList();
+                    var mates = ships.Where(o => !o.Dying && o.Task == s.Task && ReferenceEquals(o.TaskTarget, s.TaskTarget) && o.TaskGroup == s.TaskGroup).OrderBy(o => o.Index).ToList();
                     int k = Math.Max(0, mates.IndexOf(s));
                     float side = (k % 2 == 0 ? 1f : -1f) * (task == 2 ? 28f + 22f * (k / 2) : 45f), back = -(task == 2 ? 30f + 28f * (k / 2) : 10f);
                     float sn = MathF.Sin(tgt.Ay), cs = MathF.Cos(tgt.Ay);

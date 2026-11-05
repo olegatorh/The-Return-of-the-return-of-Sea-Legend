@@ -68,8 +68,6 @@ public partial class SeaView
     /// <summary>True when the point is close to a fort cannon (balls that land there hit the fort, not the bare island).</summary>
     bool NearFort(float x, float z) => forts.Any(f => f.Cannons.Any(c => MathF.Abs(c.Pos.X - x) < 40f && MathF.Abs(c.Pos.Z - z) < 40f));
 
-    int Relation(int a, int b) => Conv.ToInt(it.CallTop("GetRelation", V.Int(a), V.Int(b)));
-
     void TickForts(float dt)
     {
         var player = ships.FirstOrDefault(s => s.IsPlayer);

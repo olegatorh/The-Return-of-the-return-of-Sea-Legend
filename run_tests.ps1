@@ -91,6 +91,14 @@ if ($Sea) {
                 '--seapos=-500,-400,3.0@700', '--call=SeaAI_SailToLocator(reload_1)@800', '--act@1300', '--shot-frame=1500')
         $fail += Invoke-Godot 'sailto' $st 300 @('[sea] sail to', '[sea] action: Moor')
         $fail += Invoke-Godot 'fight' $c 400 @('fires 4 cannons', 'hit on CapitanFF01', 'fort FalaiseDeFleur Commander: 38 cannons')
+        # relations: France is made neutral (UpdateRelations -> AI_MESSAGE_UPDATE_RELATIONS), the squadron a trade group (AI_MESSAGE_GROUP_SET_TYPE); our broadside
+        # raises ShpFireAction, the script (Ship_FireAction -> Ship_NationAgressive, quest NationUpdate) turns the ship hostile and gives its group the attack task
+        $n = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+               '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250',
+               '--seapos=-110,100,0@2400', '--call=SetNationRelation2MainCharacter(1,1)@2430', '--call=Group_SetType(FortFranceSquadron,trade)@2430', '--call=UpdateRelations()@2435',
+               '--duel@2450', '--fire@2700', '--shot-frame=3100')
+        $fail += Invoke-Godot 'neutral' $n 400 @("relation Blaze -> CapitanFF01 (group 'FortFranceSquadron'): enemy -> neutral", "fire action: Blaze fires at CapitanFF01 (group 'FortFranceSquadron', neutral)",
+                                                  "relation Blaze -> CapitanFF01 (group 'FortFranceSquadron'): neutral -> enemy", 'CapitanFF01 task: attack Blaze')
         # boarding: the French ship is parked 25 m abeam with our sails down; its crew is stronger, so the script boards us itself (Ship_CheckMainCharacter ->
         # Sea_AbordageLoad): upper deck, gun deck, cabin (the enemy group is killed by a hook, Space = next deck), the ransack screen, swap the ships, leave:
         # the old ship sinks (AI_MESSAGE_SWAP_SHIPS / AI_MESSAGE_CHARACTER_DEAD) and we are back at sea on the captured one

@@ -248,7 +248,7 @@ public partial class SeaView
             {
                 if (s.Dying || s.Index == menuChar) continue;
                 bool mine = Companions(p).Contains(s);
-                int rel = s.IsPlayer ? 0 : Conv.ToInt(it.CallTop("GetRelation", V.Int(p.Index), V.Int(s.Index)));
+                int rel = s.IsPlayer ? 0 : Relation(p.Index, s.Index);
                 bool ok = (mine && (mode & ModeMyShip) != 0) || (!mine && ((rel == 2 && (mode & ModeEnemyShip) != 0) || (rel == 0 && (mode & ModeFriendShip) != 0) || (rel == 1 && (mode & ModeNeutralShip) != 0)));
                 if (ok) cand.Add(s);
             }
