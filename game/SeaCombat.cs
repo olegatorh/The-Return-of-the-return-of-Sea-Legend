@@ -160,7 +160,7 @@ public partial class SeaView
             b.P += b.V * dt;
             b.Node.Position = new Vector3(b.P.X, b.P.Y, -b.P.Z);
             bool done = false;
-            foreach (var o in ships) if (o.Index != b.Owner && !o.Dying && !b.SailHit.Contains(o.Index) && InsideRigging(o, b.P)) { b.SailHit.Add(o.Index); RiggingHit(o, b); }
+            foreach (var o in ships) if (o.Index != b.Owner && !o.Dying && InsideRigging(o, b.P)) RiggingPass(o, b, from);      // masts and sails it touches (SeaSails.cs)
             // ships
             foreach (var o in ships)
             {
@@ -193,39 +193,13 @@ public partial class SeaView
         if (it.Globals.TryGetValue("AIBalls", out var g) && g.Val.Attr is { } a) a.GetOrCreate("CurrentBallType").Value = b.Type.ToString();
     }
 
-    /// <summary>The volume of masts and sails above the hull.</summary>
+    /// <summary>The volume of masts and sails above the deck (a coarse test before the exact mast / sail checks).</summary>
     static bool InsideRigging(ShipRt s, Vector3 p)
     {
         float dx = p.X - s.X, dz = p.Z - s.Z;
         float sn = MathF.Sin(s.Ay), cs = MathF.Cos(s.Ay);
         float fwd = dx * sn + dz * cs, side = dx * cs - dz * sn;
-        return MathF.Abs(fwd) < s.Length * 0.4f && MathF.Abs(side) < Math.Max(5f, s.Length * 0.2f) && p.Y > Math.Max(5f, s.Height * 0.4f) && p.Y < s.Height * 1.9f && s.Sail > 0f;
-    }
-
-    /// <summary>A ball through the rigging tears sail cloth (Ship.SP, percent) and with chain shot may bring a mast down (script event ShpMastDamage decides).</summary>
-    void RiggingHit(ShipRt s, Ball b)
-    {
-        var sh = s.Chr.Find("Ship", false);
-        if (sh == null) return;
-        bool knippel;
-        string goodName = it.Globals.TryGetValue("Goods", out var goods) && goods.Arr != null && b.Type >= 0 && b.Type < goods.Arr.Length ? goods.Arr[b.Type].Val.Attr?.Get("Name")?.Value ?? "" : "";
-        knippel = goodName.Equals("Knippels", StringComparison.OrdinalIgnoreCase);
-        float loss = knippel ? 3.5f : goodName.Equals("Grapes", StringComparison.OrdinalIgnoreCase) ? 0.6f : 1.2f;
-        SetF(sh, "SP", Math.Max(0f, F(sh, "SP", 100f) - loss));
-        it.FireEvent("ShpSailDamage", new List<V> { V.Int(s.Index), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z) });
-        if (s.Masts.Count > 0 && Random.Shared.NextDouble() < (knippel ? 0.25 : 0.04))
-        {
-            int mi = Random.Shared.Next(s.Masts.Count);
-            if (s.MastsDown.Contains(mi)) return;
-            float dmg = Conv.ToFloat(it.FireEvent("ShpMastDamage", new List<V> { V.Int(2), V.Int(mi + 1), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z), V.Float(0.3f), V.A(s.Chr) }));
-            if (dmg >= 1f)
-            {
-                s.MastsDown.Add(mi);
-                s.Masts[mi].node.Visible = false; foreach (var sl in s.Masts[mi].sails) { s.Sails.Remove(sl); sl.Visible = false; }
-                SetF(sh, "SP", Math.Max(0f, F(sh, "SP", 100f) - 20f));
-                GD.Print($"[sea] mast {mi + 1} of {s.Chr.Get("id")?.Value} falls");
-            }
-        }
+        return MathF.Abs(fwd) < s.Length * 0.6f && MathF.Abs(side) < Math.Max(6f, s.Length * 0.3f) && p.Y > 2f && p.Y < s.Height * 1.9f;
     }
 
     /// <summary>A box around the hull: length x 0.2 length wide x ship height.</summary>

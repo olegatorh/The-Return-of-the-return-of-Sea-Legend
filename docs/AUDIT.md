@@ -54,9 +54,9 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 |---|---|---|---|---|
 | `sea_ai` (sea_ai) | кораблі, групи, задачі, гармати | 🟡 обробляє 51001, 51010, 51011, 51017, 51018, 51021-51025, 51027; **немає** `SWAP_SHIPS` 51014 (захоплення корабля після абордажу), `SET_OFFICER_2_SHIP` 51013, `SHIP_CHANGE_GROUP` 51012, `CHARACTER_DEAD` 51026, `UPDATE_RELATIONS` 51016, `SET_COMPANION_ENEMY` 51028, `GROUP_SET_TYPE` 51020, `GROUP_SET_LOCATION_OTHER_GROUP` 51019 (переслідування), `CANNON_FIRE/RELOAD` 51002/51003, `SET_CAMERAS_ATTRIBUTE` 51004 | `Sea.cs:180-226` | **51014/51013/51026/51016** — без них захоплення кораблів і зміна відносин не відображаються |
 | `Ship` (ship) | модель, фізика, пожежі, імпульси | 🟡 модель/рух/хвилі/крен ✅ (через sea_ai); `MSG_SHIP_CREATE` 50300 у `[nohandler]`; немає `ACTIVATE_FIRE_PLACE` 50304 і `GET_NUM_FIRE_PLACES` 50306 (**вогонь на палубі не видно**), `ADD_MOVE_IMPULSE` 50308, `GET_CHARACTER_INDEX` 50307 | `smoke_sea.log`, `AIShip.c:816-858` | пожежі на кораблях |
-| `Sail` (rigging) | вітрила: роздування, згортання, дірки | 🟡 вітрила лише видимі/невидимі (`Sea.cs:452`), без анімації згортання, без дірок (`MSG_SAIL_SCRIPT_PROCESSING` 40099 "RandomSailsDmg" ❌), без вигину від вітру | `Sea.cs:452` | анімація вітрил + дірки |
+| `Sail` (rigging) | вітрила: роздування, згортання, дірки | ✅ згортання до рею / складання трикутних за станом 0 / 0.5 / 1 (анімація, ROLLINGSPEED, rollSSailForm/rollTSailForm), роздування й тріпотіння від вітру (fSsailWindDepend/fTsailWindDepend), поворот реїв до вітру (MAXTURNANGL), дірки: `DoSailHole`, `RandomHole2Sail`, `DeleteOneSailHole`, `funcGetSailSpeed`, `MSG_SAIL_SCRIPT_PROCESSING` 40099 "RandomSailsDmg" → `evntRandomSailDmg`, текстура `parus_hole.tga`; стан 0.5 = прямі вітрила взяті на половину (моє прочитання) | `SeaSails.cs`, скріни `--sailholes=me@N` | тінь вітру між вітрилами |
 | `Rope`, `Vant`, `Flag` (rigging) | канати, ванти, прапори | 🟡 будуються з міток моделі (`RiggingFx.cs`), прапор нації ✅; `MSG_FLAG_INIT` 40200 для **прапорів міст/фортів** ❌ (`[nohandler] Flag 40200`) | `RiggingFx.cs`, `smoke_*` | прапори в локаціях і на фортах |
-| `MAST` (MAST.dll) | падіння щогли | 🟡 подія `ShpMastDamage` + лог "mast falls", візуального падіння і `MASTFALL` 77500 для матросів немає | `SeaCombat.cs:205-226`, `SeaSailors.cs:73` | анімація падіння |
+| `MAST` (MAST.dll) | падіння щогли | ✅ ядро проти щогли → `ShpMastDamage` (`Ship.Masts.mastN`), на 1: `EventMastFall` (скрипт шле 77500, матроси звільняють точки щогли), `DoSailHole` з ім'ям щогли для її вітрил, щогла з реями/вітрилами/прапором падає за борт і тоне, канати прибираються; зламані у збереженні щогли не будуються | `SeaSails.cs`, `SeaSailors.cs`, `--mastfall=me@N` | зіткнення щогли з кораблями/островом |
 | `Island` (ISLAND) | острів, відображення | ✅ 50100; `ISLAND_START` 50102 у `[nohandler]` | `Sea.cs:101` | — |
 | `locator` | локатори островів | ✅ 1504 | `Sea.cs:104` | — |
 | `sea` (sea) | вода, хвилі, відображення, піна | 🟡 шейдер хвиль, френель, відблиск ✅; немає прозорості з дном (`_sb`), відображень, піни біля берега (`RESOURCE/foam`) | `OutdoorEnv.cs`, `SeaWaves.cs`, `Location.cs:105` | піна берега, прозорість |
@@ -68,7 +68,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `battle_interface` (battle_interface) | HUD моря | 🟡 власний макет з оригінальних текстур (`SeaHud.cs`, `SeaCommands.cs`); `BI_IN_SET_COMMAND_MODE` 46013, `BI_MSG_REFRESH` 46005, `BI_MSG_SET_ISLAND` 46003 у `[nohandler]`; не підіймаються `evntBISelectShip`, `GetRiggingData`, `GetSailTextureData`, `BI_GetData`, `evntSetUsingAbility` | `smoke_map.log`, `smoke_fight.log` | довести до оригінального контракту |
 | `shippointer` | стрілка над вибраним кораблем | ❌ (46301) | `BattleInterface.c:1854` | дрібниця |
 | `IBoardingStatus` | смуги HP під час абордажу | ❌ (`LOG_INIT_CHARCTER_HP` 45025) | `LogInterface.c:162` | разом з абордажем |
-| `PEOPLE_ON_SHIP` | матроси на палубі | 🟡 ходять графами, біжать до гармат; немає реакції на падіння щогли, лазіння | `SeaSailors.cs` | — |
+| `PEOPLE_ON_SHIP` | матроси на палубі | 🟡 ходять графами, біжать до гармат; падіння щогли (77500) закриває її точки; немає лазіння | `SeaSailors.cs` | — |
 | `SEA_OPERATOR` | кінокамера пострілів/влучань | ❌ (`[nohandler] 77400`) | `smoke_*`, `shipBortFire.c:45` | низький |
 | `AISeaGoods` | плаваючі бочки з вантажем | ❌ (`ShpEatSwimGood` не підіймається) | `AISeaGoods.c`, `MODELS/SwimGoods` | середній (лут після бою) |
 | `SINKEFFECT` | вир/бульбашки при потопленні | ❌ | — | низький |
@@ -135,7 +135,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 1. ~~**Земний HUD `battle_land_interface`**~~ — зроблено (`LandHud.cs`).
 2. **Повний цикл абордажу і захоплення**: `AI_MESSAGE_SWAP_SHIPS` 51014, `SET_OFFICER_2_SHIP` 51013, `CHARACTER_DEAD` 51026, `IBoardingStatus`, екрани `ransack_*`; сценарій тесту від зіткнення до призового корабля.
 3. **Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.
-4. **Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).
+4. ~~**Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).~~ — зроблено (`SeaSails.cs`).
 5. **Пожежі на кораблях** (`MSG_SHIP_ACTIVATE_FIRE_PLACE`/`GET_NUM_FIRE_PLACES`) і частинки з оригінальних `INI/PARTICLES/*.ini` (`PS_CREATEX`, `PS_DELETE`, `PS_CLEARALL`).
 6. **Звуки персонажів** (`Event_ChrSnd_Attack/Hit/Dead/Body`) і **голосові привітання NPC** (`Greetings_alias.ini`).
 7. **Параметри бою NPC зі скрипта** (`NPC_Event_GetAttackActive/GetDefenceActive/GetFireActive/GetAggresive`, `Location_CharacterIsFight/FightGo/FightStay`) замість власних правил.

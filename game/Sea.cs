@@ -35,9 +35,12 @@ public partial class SeaView : Node3D
         public Attr? TaskTarget;
         public float TaskX, TaskZ;
         public float Length = 30f, Height = 12f, Width = 8f;
-        public List<Node3D> Sails = new();
-        public List<(Node3D node, List<Node3D> sails)> Masts = new();
-        public readonly HashSet<int> MastsDown = new();
+        public List<SailRt> Sails = new();             // SeaSails.cs
+        public List<MastRt> Masts = new();
+        public List<RiggingFx.Rope> Ropes = new();
+        public HashSet<Node3D> YardNodes = new();       // yards that turn to the wind (their ropes are in YardRopes)
+        public MeshInstance3D? FixedRopes, YardRopes;
+        public float YardYaw, YardSet, RopeYaw, RopeTimer;
         public List<(string bort, Vector3 pos)> Cannons = new();
         public readonly Dictionary<string, float> ReadyAt = new();
     }
@@ -101,6 +104,7 @@ public partial class SeaView : Node3D
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
         i.EntityHandlers["PEOPLE_ON_SHIP"] = (e, fmt, d) => OnPeopleOnShip(e, d);      // sailors on deck (SeaSailors.cs)
+        RegisterSails(i);                                                                 // Sail entity and the sail natives (SeaSails.cs)
         i.EntityHandlers["locator"] = (e, fmt, d) => d.Length > 1 && Conv.ToInt(d[0]) == 1504 && d[1].Attr is { } isl ? LocateIsland(isl) : V.Int(0);
     }
 
@@ -170,7 +174,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); ClearSailors(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -239,12 +243,14 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons; rt.Ropes = model.Ropes; rt.YardNodes = model.YardNodes; rt.FixedRopes = model.FixedRopes; rt.YardRopes = model.YardRopes;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
         rt.Sail = sp >= 0.75f ? 1f : sp >= 0.25f ? 0.5f : 0f;
         rt.Speed = 0f;
+        foreach (var sl in rt.Sails) sl.Roll = rt.Sail >= 0.99f ? 0f : rt.Sail >= 0.49f ? (sl.ForeAft ? 0f : 0.5f) : 1f;
+        ApplyRiggingState(rt);
         ships.Add(rt);
         Publish(rt);
         it.FireEvent("ShpCreate", new List<V> { V.Int(index), V.A(chr.Get("Ship")) });
@@ -252,7 +258,12 @@ public partial class SeaView : Node3D
         GD.Print($"[sea] ship {chr.Get("id")?.Value} group='{group}' groups=[{string.Join(",", groupPos.Keys)}] type={name} at ({rt.X:0},{rt.Z:0}) ay={rt.Ay:0.00} sail={rt.Sail} length={rt.Length:0.0}");
     }
 
-    sealed class ShipModel { public readonly List<(Node3D node, List<Node3D> sails)> Masts = new(); public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<Node3D> Sails = new(); public float Length = 30f, Height = 12f, Width = 8f; }
+    sealed class ShipModel
+    {
+        public readonly List<MastRt> Masts = new(); public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<SailRt> Sails = new();
+        public float Length = 30f, Height = 12f, Width = 8f;
+        public List<RiggingFx.Rope> Ropes = new(); public readonly HashSet<Node3D> YardNodes = new(); public MeshInstance3D? FixedRopes, YardRopes;
+    }
 
     /// <summary>Row-major D3D label matrix (vx, vy, vz, pos) -> Godot transform (z negated).</summary>
     static Transform3D LabelTransform(float[] m) =>
@@ -291,6 +302,7 @@ public partial class SeaView : Node3D
         foreach (var l in hull.Labels.Where(l => l.Group.StartsWith("cannon", StringComparison.OrdinalIgnoreCase)))
             sm.Cannons.Add((l.Group.ToLowerInvariant(), new Vector3(l.M[12], l.M[13], l.M[14])));
         var sailTex = GameAssets.Texture(SailTexture(nation));
+        var triTex = GameAssets.Texture("ships\\parus_common.tga") ?? sailTex;
         foreach (var ml in hull.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("mast", StringComparison.OrdinalIgnoreCase)))
         {
             var mast = Load("_" + ml.Name);
@@ -302,8 +314,10 @@ public partial class SeaView : Node3D
             if (false) foreach (var n in mastNode.FindChildren("*", "MeshInstance3D", true, false)) { var mi = (MeshInstance3D)n; var bb = mi.Mesh.GetAabb(); GD.Print(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[mastobj] {0} {1}: center ({2:0.0};{3:0.0};{4:0.0}) size ({5:0.0};{6:0.0};{7:0.0}) surfaces {8}", ml.Name, mi.Name, bb.GetCenter().X, bb.GetCenter().Y, bb.GetCenter().Z, bb.Size.X, bb.Size.Y, bb.Size.Z, mi.Mesh.GetSurfaceCount())); }
             if (System.Environment.GetEnvironmentVariable("SEADOGS_NOMAST") is not { } nm || !nm.Split(',').Contains(ml.Name)) sm.Root.AddChild(mastNode);
             parts.Add(new(mastNode, mast));
-            var mastSails = new List<Node3D>();
-            sm.Masts.Add((mastNode, mastSails));
+            var mr = new MastRt { Node = mastNode, Name = ml.Name.ToLowerInvariant(), Num = TrailingNumber(ml.Name), Top = Math.Max(2f, ModelFactory.Bounds(mastNode).End.Y), Bowsprit = mastNode.Basis.Y.Normalized().Y < 0.7f };
+            mr.Base = new Vector3(mastNode.Position.X, mastNode.Position.Y, -mastNode.Position.Z);
+            sm.Masts.Add(mr);
+            sm.Sails.AddRange(MakeSails(mast, mastNode, sm.Root, mr, sailTex, triTex));          // sails on the stays of this mast
             foreach (var rl in mast.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
             {
                 var rey = Load("_" + rl.Name);
@@ -314,54 +328,22 @@ public partial class SeaView : Node3D
                 if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("REY " + rl.Name, reyNode);
                 mastNode.AddChild(reyNode);
                 parts.Add(new(reyNode, rey));
-                foreach (var grp in rey.Labels.Where(l => l.Group.StartsWith("sail", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("sail", StringComparison.OrdinalIgnoreCase)).GroupBy(l => l.Group))
+                var sails = MakeSails(rey, reyNode, sm.Root, mr, sailTex, triTex).ToList();
+                sm.Sails.AddRange(sails);
+                // a yard with square sails turns to the wind round the vertical of the ship (not on the bowsprit)
+                if (!mr.Bowsprit && sails.Any(x => !x.ForeAft))
                 {
-                    var c = new Vector3[4];
-                    int have = 0;
-                    foreach (var l in grp)
-                        if (l.Name.Length == 5 && l.Name[4] >= '1' && l.Name[4] <= '4') { c[l.Name[4] - '1'] = new Vector3(l.M[12], l.M[13], -l.M[14]); have++; }
-                    if (have != 4) continue;
-                    var sail = BuildSail(c, sailTex);
-                    reyNode.AddChild(sail);
-                    sm.Sails.Add(sail); mastSails.Add(sail);
+                    mr.Yards.Add(new YardRt { Node = reyNode, Rest = reyNode.Transform, Axis = (mastNode.Basis.Inverse() * Vector3.Up).Normalized() });
+                    sm.YardNodes.Add(reyNode);
                 }
             }
         }
-        if (RiggingFx.BuildRopes(sm.Root, parts) is { } ropes) sm.Root.AddChild(ropes);
-        foreach (var flag in RiggingFx.BuildFlags(sm.Root, parts, nation)) sm.Root.AddChild(flag);
+        float total = sm.Sails.Sum(x => x.Area);
+        foreach (var sl in sm.Sails) sl.Power = total > 0f ? sl.Area / total : 0f;
+        sm.Ropes = RiggingFx.CollectRopes(parts);
+        BuildShipRopes(sm.Root, sm.Ropes, sm.YardNodes, ref sm.FixedRopes, ref sm.YardRopes, true);
+        foreach (var (host, flag) in RiggingFx.BuildFlags(parts, nation)) host.AddChild(flag);
         return sm;
-    }
-
-    /// <summary>A sail: bilinear patch over the four corners (perimeter order: top-left, top-right, bottom-right, bottom-left) with a bulge towards one side.</summary>
-    static MeshInstance3D BuildSail(Vector3[] c, Texture2D? tex)
-    {
-        const int N = 8;
-        Vector3 top0 = c[0], top1 = c[1], bot1 = c[2], bot0 = c[3];
-        var normal = ((top1 - top0).Cross(bot0 - top0)).Normalized();
-        float width = (top1 - top0).Length();
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        Vector3 P(int i, int j)
-        {
-            float u = i / (float)N, v = j / (float)N;
-            var p = (top0.Lerp(top1, u)).Lerp(bot0.Lerp(bot1, u), v);
-            return p + normal * (MathF.Sin(MathF.PI * u) * MathF.Sin(MathF.PI * Math.Min(1f, v * 1.1f)) * width * 0.12f);
-        }
-        for (int j = 0; j < N; j++)
-            for (int i = 0; i < N; i++)
-            {
-                var a = (P(i, j), new Vector2(i / (float)N, j / (float)N)); var bb = (P(i + 1, j), new Vector2((i + 1) / (float)N, j / (float)N));
-                var d = (P(i, j + 1), new Vector2(i / (float)N, (j + 1) / (float)N)); var e = (P(i + 1, j + 1), new Vector2((i + 1) / (float)N, (j + 1) / (float)N));
-                foreach (var t in new[] { a, bb, e, a, e, d }) { st.SetUV(t.Item2); st.AddVertex(t.Item1); }
-            }
-        st.GenerateNormals();
-        var mat = new StandardMaterial3D
-        {
-            AlbedoTexture = tex, CullMode = BaseMaterial3D.CullModeEnum.Disabled, TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps,
-            AlphaScissorThreshold = 0.5f, Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor,
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.PerPixel, Roughness = 1f,
-        };
-        return new MeshInstance3D { Mesh = st.Commit(), MaterialOverride = mat, Name = "Sail" };
     }
 
     // ------------------------------------------------------------------ entity: Island
@@ -449,7 +431,6 @@ public partial class SeaView : Node3D
         s.Node.Position = new Vector3(s.X, 0f, -s.Z);
         s.Node.Rotation = new Vector3(0f, -s.Ay, 0f);
         ApplyRocking(s);
-        foreach (var sail in s.Sails) sail.Visible = s.Sail > 0.01f;
     }
 
     const float MassInertia = 0.1f, KnotsToMs = 0.514444f;       // ship.cpp: fMassInertia, KNOTS2METERS
@@ -512,6 +493,7 @@ public partial class SeaView : Node3D
         TickCombat(dt);
         TickForts(dt);
         TickSailors(dt);
+        TickSails(dt);
         RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0));
         UpdateCamera(dt, inputEnabled);
         UpdateHud();

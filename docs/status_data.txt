@@ -16,7 +16,7 @@ Interface | Store, shipyard, trade, cargo transfer screens | PORT | 55 | T | sto
 Interface | Key bindings | APPROX | 70 | T | own table in settings.ini instead of the script control system; mouse buttons not remappable
 Interface | Land HUD (battle_land_interface) and command menu | PORT | 75 | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner
 Interface | Sea HUD (battle_interface) and command menu | APPROX | 60 | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested
-Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | 75 | V | flags, rigging ropes, sail animation missing
+Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | 80 | V | hull, masts, yards, square/gaff/triangular sails, ropes, shrouds and flags from the model labels; sails roll/fold by the sail state, bulge and flap with the wind, yards brace to the wind (game/SeaSails.cs)
 Sea | Ship movement physics | APPROX | 50 | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling
 Sea | Wind, weather, sky, fog | PORT | 60 | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound
 Sea | Island, collisions, mooring | APPROX | 60 | V | collision by raycast of visible geometry; grounding events approximate
@@ -58,7 +58,8 @@ Entity class | rain | PORT | 70 | E |
 Entity class | Lightning | APPROX | 50 | E |
 Entity class | Sky | PORT | 70 | E |
 Entity class | Tornado | MISSING | 0 | E |
-Entity class | Sail | PORT | 60 | E |
+Entity class | Sail | PORT | 75 | V | rigging.ini [SAILS] roll/form/wind parameters; furled/half/full roll animation, wind bulge, yard turning (MAXTURNANGL), holes per DoSailHole/RandomHole2Sail/DeleteOneSailHole/funcGetSailSpeed and MSG_SAIL_SCRIPT_PROCESSING RandomSailsDmg (evntRandomSailDmg), parus_hole.tga; half state = square sails reefed half way (my reading); no sail-to-sail wind shadow, no tearing of whole sails
+Entity class | MAST | PORT | 70 | V | ball vs mast segment test -> ShpMastDamage (Ship.Masts.mastN), at 1: EventMastFall, DoSailHole with the mast name, mast with yards/sails/flags tips into the sea and sinks, its ropes removed, deck mast points closed (77500); masts broken in a save are not built; no mast collision with ships/island
 Entity class | Rope | MISSING | 0 | E |
 Entity class | Flag | MISSING | 0 | E |
 Entity class | Vant | MISSING | 0 | E |
@@ -84,7 +85,7 @@ Entity class | sea_ai | APPROX | 55 | E |
 Entity class | touch | STUB | 0 | E |
 Entity class | BallSplash | APPROX | 60 | E |
 Entity class | SINKEFFECT | STUB | 0 | E |
-Entity class | PEOPLE_ON_SHIP | APPROX | 50 | V | walk graphs from AI_MESSAGE_ADD_SHIP, crew size, POS.Mode, isNight; mast fall and climbing not done (game/SeaSailors.cs)
+Entity class | PEOPLE_ON_SHIP | APPROX | 50 | V | walk graphs from AI_MESSAGE_ADD_SHIP, crew size, POS.Mode, isNight; mast fall (77500) closes the mast points and the men there run off; climbing not done (game/SeaSailors.cs)
 Entity class | SeaLocatorShow | STUB | 0 | E |
 Entity class | TELESCOPE | MISSING | 0 | E |
 Entity class | Sharks | MISSING | 0 | E |

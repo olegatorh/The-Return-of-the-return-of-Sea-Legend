@@ -64,6 +64,7 @@ public partial class Main : Node
     readonly List<(int frame, float x, float z, float ay)> mapTeleports = new();      // test hook --mappos=x,z,ay@N: place the WORLD MAP ship once the map is built (retries every 10 frames)
     readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
+    readonly List<(int frame, string what)> rigTests = new();   // test hooks --mastfall@N / --sailholes@N (=me: of the player's ship): break a mast / hole the sails of the nearest other ship
     int controlAt = -1;
 
     public override void _Ready()
@@ -94,6 +95,7 @@ public partial class Main : Node
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
+            else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
@@ -833,6 +835,7 @@ public partial class Main : Node
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
         foreach (var (f, n) in ctls) if (f == frames) { if (landHud?.Command(n) != true) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) }); }
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
+        foreach (var (f, what) in rigTests) if (f == frames) sea.RigTest(what);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
         SeaTestHooks();
         foreach (var (f, nm) in loadAt) if (f == frames)

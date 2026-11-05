@@ -70,7 +70,9 @@ public partial class SeaView
                 if (d.Length > 1 && d[1].Attr is { } chr)
                     foreach (var dk in decks.Where(x => ReferenceEquals(x.Ship.Chr, chr)).ToList()) { dk.Root.QueueFree(); decks.Remove(dk); }
                 return V.Int(1);
-            case MSG_PEOPLES_ON_SHIP_MASTFALL: return V.Int(1);
+            case MSG_PEOPLES_ON_SHIP_MASTFALL:                                     // "lal": character, mast number (procMastFall in BattleInterface.c)
+                if (d.Length > 2 && d[1].Attr is { } mchr && decks.FirstOrDefault(x => ReferenceEquals(x.Ship.Chr, mchr)) is { } mdeck) MastFallOnDeck(mdeck, Conv.ToInt(d[2]));
+                return V.Int(1);
         }
         return V.Int(1);
     }
@@ -120,6 +122,30 @@ public partial class SeaView
             deck.Crew.Add(s);
         }
         GD.Print($"[sea] deck crew of {ship.Chr.Get("id")?.Value}: {deck.Crew.Count} sailors (crew {crew:0}) on a walk graph of {walk.P.Length} points");
+    }
+
+    /// <summary>A mast went over the side: its mast points (type 2 near the foot) leave the walk graph and the men there run to the nearest other point.</summary>
+    void MastFallOnDeck(Deck deck, int mastNum)
+    {
+        var m = deck.Ship.Masts.FirstOrDefault(x => x.Num == mastNum);
+        if (m == null) return;
+        var w = deck.Walk;
+        var gone = new HashSet<int>();
+        for (int i = 0; i < w.P.Length; i++)
+            if (w.Type[i] == 2 && new Vector2(w.P[i].X - m.Base.X, w.P[i].Z - m.Base.Z).Length() < 5f) gone.Add(i);
+        if (gone.Count == 0) return;
+        foreach (int i in gone) { foreach (int n in w.Next[i]) w.Next[n].Remove(i); w.Next[i].Clear(); }
+        foreach (var s in deck.Crew)
+        {
+            if (!gone.Contains(s.At) && !(s.Moving && gone.Contains(s.To))) continue;
+            var here = s.Moving ? w.P[s.At].Lerp(w.P[s.To], s.T) : w.P[s.At];
+            int best = Enumerable.Range(0, w.P.Length).Where(i => !gone.Contains(i) && w.Next[i].Count > 0).OrderBy(i => w.P[i].DistanceTo(here)).DefaultIfEmpty(-1).First();
+            if (best < 0) continue;
+            if (s.Moving && gone.Contains(s.To)) { s.At = s.To; s.T = 0f; }
+            s.Working = false; s.Route.Clear(); s.Prev = -1;
+            Go(s, best, true);
+        }
+        GD.Print($"[sea] mast {mastNum} fell on the deck of {deck.Ship.Chr.Get("id")?.Value}: {gone.Count} mast points closed");
     }
 
     void ClearSailors() { decks.Clear(); }        // the nodes go with the ship nodes

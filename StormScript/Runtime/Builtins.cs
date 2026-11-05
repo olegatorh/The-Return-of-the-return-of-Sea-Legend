@@ -183,6 +183,14 @@ public static class Builtins
         // ---- entities (engine objects are stubs for now; they record what scripts ask of them)
         Add("createentity", (it, a) => V.Int(it.CreateEntity(Arg(a, 0).Attr, S(a, 1)) ? 1 : 0));
         Add("deleteclass", (it, a) => { it.DeleteEntity(Arg(a, 0).Attr); return V.Void; });
+        // bool FindClass(&object, string class): binds the object to the first live entity of that class (e.g. MakeSailDmg -> the "Sail" entity)
+        Add("findclass", (it, a) =>
+        {
+            var e = it.Entities.FirstOrDefault(x => !x.Deleted && string.Equals(x.Class, S(a, 1), StringComparison.OrdinalIgnoreCase));
+            if (e == null) return V.Int(0);
+            if (Arg(a, 0).Attr is { } obj) obj.Entity = e;
+            return V.Int(1);
+        });
         Add("isentity", (_, a) => V.Int(Arg(a, 0).Attr?.Entity is { Deleted: false } ? 1 : 0));
         Add("sendmessage", (it, a) => it.SendMessage(Arg(a, 0).Attr, S(a, 1), a.Skip(2).ToArray()));
         Add("deleteentities", (it, _) => { it.DeleteAllEntities(null); return V.Void; });

@@ -69,6 +69,7 @@ are only covered by the smoke runs.
 | `--shot=path.png --shot-frame=N` | save a screenshot (path **without spaces**) and print diagnostics, then quit |
 | `--camdist=N`, `--move=X,Y@A-B`, `--control@N` | camera distance, hold a move direction (at sea: X = steering), give control to the player |
 | `--sail=+1@N`, `--act@N` | sea: sail state up/down; execute the offered sea action (Moor...). Env `SEADOGS_SEACAM=dist,pitch,yawOffset` fixes the sea camera |
+| `--mastfall@N`, `--sailholes@N` (`=me@N`: own ship) | sea: break the main mast / put balls through 8 sails of the nearest other ship through the script events (game/SeaSails.cs) |
 
 Sea test recipe (from a save made in the town port): `--ctl=Quick_Load@200 --call=initTutMainCharacterShip()@300 --call=SetPlayerShipLocation(184)@320 --goto=reload.reload1@400 --ctl=ChrAction@450`
 (184 = index of the port location in `Locations[]`); `run_tests.ps1 -Sea` does exactly this.

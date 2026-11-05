@@ -219,4 +219,13 @@ public sealed class InterpreterTests : IDisposable
         Assert.Equal("7", Str(h, "a"));
         Assert.Equal("3", Str(h, "b"));
     }
+
+    [Fact]
+    public void FindClassBindsALocalObjectToTheLiveEntity()
+    {
+        // MakeSailDmg (BattleInterface.c): object objSail; if (!FindClass(&objSail, "sail")) return; SendMessage(&objSail, ...)
+        var h = Run(@"object Sail; int r; int n; void Test() { CreateEntity(&Sail, ""Sail""); object o; r = FindClass(&o, ""sail""); n = FindClass(&o, ""nothing""); }");
+        Assert.Equal("1", Str(h, "r"));
+        Assert.Equal("0", Str(h, "n"));
+    }
 }

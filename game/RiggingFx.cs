@@ -18,43 +18,54 @@ static class RiggingFx
 
     static string RiggingIni = "";
 
-    public static Node3D? BuildRopes(Node3D shipRoot, IEnumerable<Part> parts)
+    /// <summary>A rope end: the node it hangs on and the point in that node's space.</summary>
+    public readonly record struct End(Node3D Node, Vector3 Local);
+    /// <summary>A rope between two ends (ropeb/ropee), or a shroud ladder (vant l, r on the hull, u on the mast) when <see cref="U"/> is set.</summary>
+    public sealed record Rope(End A, End B, End? U = null)
     {
-        var begins = new Dictionary<string, Vector3>(); var ends = new Dictionary<string, Vector3>(); var vants = new Dictionary<string, Vector3?[]>();
+        public IEnumerable<Node3D> Nodes => U is { } u ? new[] { A.Node, B.Node, u.Node } : new[] { A.Node, B.Node };
+    }
+
+    /// <summary>All ropes and shrouds of a ship, with their ends attached to the model parts (so that turning yards and falling masts can carry them).</summary>
+    public static List<Rope> CollectRopes(IEnumerable<Part> parts)
+    {
+        var begins = new Dictionary<string, End>(); var ends = new Dictionary<string, End>(); var vants = new Dictionary<string, End?[]>();
         foreach (var part in parts)
         {
-            var toRoot = ToRoot(part.Node, shipRoot);
             foreach (var l in part.Gm.Labels)
             {
                 string n = l.Name.ToLowerInvariant();
+                var at = new End(part.Node, new Vector3(l.M[12], l.M[13], -l.M[14]));
                 if (n.StartsWith("vant") && n.Length > 5 && "lru".IndexOf(n[^1]) >= 0 && int.TryParse(n.AsSpan(4, n.Length - 5), out _))      // shrouds: vant<N>l / r on the hull, u on the mast
                 {
-                    var vp = toRoot * new Vector3(l.M[12], l.M[13], -l.M[14]);
                     string vk = n.Substring(4, n.Length - 5);
-                    if (!vants.TryGetValue(vk, out var tri)) vants[vk] = tri = new Vector3?[3];
-                    tri["lru".IndexOf(n[^1])] = vp;
+                    if (!vants.TryGetValue(vk, out var tri)) vants[vk] = tri = new End?[3];
+                    tri["lru".IndexOf(n[^1])] = at;
                     continue;
                 }
                 bool isB = n.StartsWith("ropeb"), isE = n.StartsWith("ropee");
                 if (!isB && !isE) continue;
-                string num = n.Substring(5);
-                var pos = toRoot * new Vector3(l.M[12], l.M[13], -l.M[14]);
-                (isB ? begins : ends)[num] = pos;
+                (isB ? begins : ends)[n.Substring(5)] = at;
             }
         }
+        var list = new List<Rope>();
+        foreach (var (num, a) in begins) if (ends.TryGetValue(num, out var b)) list.Add(new Rope(a, b));
+        foreach (var tri in vants.Values) if (tri[0] is { } l && tri[1] is { } r && tri[2] is { } u) list.Add(new Rope(l, r, u));
+        return list;
+    }
+
+    /// <summary>One mesh of the given ropes in the ship root's space (the ends are read from the current transforms of their nodes).</summary>
+    public static MeshInstance3D? BuildRopes(Node3D shipRoot, IEnumerable<Rope> list, string name = "Ropes")
+    {
         var st = new SurfaceTool();
         st.Begin(Mesh.PrimitiveType.Triangles);
         int ropes = 0;
-        foreach (var (num, a) in begins)
+        foreach (var rope in list)
         {
-            if (!ends.TryGetValue(num, out var b)) continue;
-            AddRope(st, a, b);
-            ropes++;
-        }
-        foreach (var tri in vants.Values)
-        {
+            var a = ToRoot(rope.A.Node, shipRoot) * rope.A.Local; var b = ToRoot(rope.B.Node, shipRoot) * rope.B.Local;
+            if (rope.U is not { } ue) { AddRope(st, a, b); ropes++; continue; }
             // a shroud ladder: two ropes from the hull points up to the mast point, joined by rungs
-            if (tri[0] is not { } l || tri[1] is not { } r || tri[2] is not { } u) continue;
+            Vector3 l = a, r = b, u = ToRoot(ue.Node, shipRoot) * ue.Local;
             AddRope(st, l, u); AddRope(st, r, u);
             int rungs = Math.Clamp((int)((u.Y - Math.Min(l.Y, r.Y)) / 0.9f), 2, 14);
             for (int i = 1; i < rungs; i++)
@@ -69,13 +80,13 @@ static class RiggingFx
         {
             ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, CullMode = BaseMaterial3D.CullModeEnum.Disabled, AlbedoColor = new Color(0.30f, 0.22f, 0.13f),
         };
-        var mi = new MeshInstance3D { Mesh = st.Commit(), MaterialOverride = mat, Name = "Ropes", CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
+        var mi = new MeshInstance3D { Mesh = st.Commit(), MaterialOverride = mat, Name = name, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off };
         mi.SetMeta("ropes", ropes);
         return mi;
     }
 
     /// <summary>Transform of a node relative to the ship root (the nodes are not in the tree yet while the model is built).</summary>
-    static Transform3D ToRoot(Node3D n, Node3D root)
+    public static Transform3D ToRoot(Node3D n, Node3D root)
     {
         var t = Transform3D.Identity;
         for (Node? c = n; c != null && c != root; c = c.GetParent()) if (c is Node3D n3) t = n3.Transform * t;
@@ -134,8 +145,8 @@ void fragment() {
 
     public static void UpdateFlags(float time) { foreach (var m in flagMats) m.SetShaderParameter("t", time); }
 
-    /// <summary>Flags at the mast tops: the labels f1..f4 of every "flag*" group are the corners of one flag.</summary>
-    public static IEnumerable<Node3D> BuildFlags(Node3D shipRoot, IEnumerable<Part> parts, int nation)
+    /// <summary>Flags at the mast tops: the labels f1..f4 of every "flag*" group are the corners of one flag. Each flag hangs on its model part (a falling mast takes it along).</summary>
+    public static IEnumerable<(Node3D host, Node3D flag)> BuildFlags(IEnumerable<Part> parts, int nation)
     {
         var tex = GameAssets.Texture("ships\\flagall.tga") ?? GameAssets.Texture("flagall.tga");
         flagShader ??= new Shader { Code = FlagShader };
@@ -144,16 +155,15 @@ void fragment() {
         const int tiles = 8;
         foreach (var part in parts)
         {
-            var toRoot = ToRoot(part.Node, shipRoot);
             foreach (var grp in part.Gm.Labels.Where(l => l.Group.StartsWith("flag", StringComparison.OrdinalIgnoreCase)).GroupBy(l => l.Group))
             {
                 var c = new Vector3[4]; int have = 0;
                 foreach (var l in grp)
                 {
-                    if (l.Name.Length == 2 && l.Name[0] == 'f' && l.Name[1] >= '1' && l.Name[1] <= '4') { c[l.Name[1] - '1'] = toRoot * new Vector3(l.M[12], l.M[13], -l.M[14]); have++; }
+                    if (l.Name.Length == 2 && l.Name[0] == 'f' && l.Name[1] >= '1' && l.Name[1] <= '4') { c[l.Name[1] - '1'] = new Vector3(l.M[12], l.M[13], -l.M[14]); have++; }
                 }
                 if (have != 4) continue;
-                yield return MakeFlag(c, tex, tileIdx, tiles);
+                yield return (part.Node, MakeFlag(c, tex, tileIdx, tiles));
             }
         }
     }
