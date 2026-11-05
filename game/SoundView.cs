@@ -247,6 +247,9 @@ public partial class SoundView : Node
 
     // ------------------------------------------------------------------ engine-side API (characters, dialog)
     /// <summary>A 3D effect at a script-space position (VOLUME_FX), e.g. a character's step or sword.</summary>
+    /// <summary>True while a voice started with Play3D/Create is still alive (one-shots are released when they finish).</summary>
+    public bool VoiceAlive(int id) => id > 0 && voices.ContainsKey(id);
+
     public int Play3D(string name, float x, float y, float z) => Create(name, false, false, 1f, true, new Vector3(x, y, z));
 
     /// <summary>A stereo voice line at the speech volume (the dialog's NPC greeting).</summary>

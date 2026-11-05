@@ -130,7 +130,7 @@ public partial class Main : Node
             else if (a.StartsWith("--swing@")) swings.Add(int.Parse(a.Substring(8)));       // test hook: the hero strikes the nearest person (a quick click of the left button)
             else if (a.StartsWith("--animals@")) animalsAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
-            else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes") || a.StartsWith("--shipfire") || a.StartsWith("--shipboom") || a.StartsWith("--sharks") || a.StartsWith("--blot")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
+            else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes") || a.StartsWith("--shipfire") || a.StartsWith("--shipboom") || a.StartsWith("--sharks") || a.StartsWith("--blot") || a.StartsWith("--splash")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--killgroup=")) { var p = a.Substring(12).Split('@'); killGroups.Add((int.Parse(p[1]), p[0])); }

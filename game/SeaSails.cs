@@ -695,6 +695,7 @@ void fragment() {
     {
         if (what.StartsWith("sharks")) { SharkTest(what); return; }
         if (what.StartsWith("blot")) { BlotTest(); return; }
+        if (what.StartsWith("splash")) { SplashTest(); return; }
         var p = ships.FirstOrDefault(x => x.IsPlayer);
         bool me = what.EndsWith("=me");
         var o = me ? p : ships.Where(x => !x.IsPlayer && !x.Dying).OrderBy(x => p == null ? 0f : Dist(p, x)).FirstOrDefault() ?? p;

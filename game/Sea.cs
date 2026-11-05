@@ -101,16 +101,10 @@ public partial class SeaView : Node3D
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
         i.EntityHandlers["battle_interface"] = (e, fmt, d) => OnBattleInterface(d);   // BattleInterface.cs
         RiggingFx.FlagTexNum = nation => RetInt(it.FireEvent("GetRiggingData", new List<V> { V.Str("GetFlagTexNum"), V.Int(0), V.Int(nation) }), 0, 0);
-        // the class "particles" itself lives in Particles.cs (ParticleService); BallSplash (MSG_BALLSPLASH_ADD 77200) draws its water column with the
-        // original systems "watersplash" + "ball_splash" of particles.ini (BallSplash.dll has its own splash.tga sprite effect that is not reproduced)
+        // the class "particles" itself lives in Particles.cs (ParticleService); BallSplash (MSG_BALLSPLASH_ADD 77200) is the grid + splash.tga column of SeaSplash.cs
         i.EntityHandlers["BallSplash"] = (e, fmt, d) =>
         {
-            if (d.Length > 3 && Conv.ToInt(d[0]) == 77200 && ParticleService.Instance is { } ps)
-            {
-                var at = new Vector3(Conv.ToFloat(d[1]), 0f, Conv.ToFloat(d[3]));
-                ps.Create("watersplash", at, Vector3.Up, 0f);
-                ps.Create("ball_splash", at, Vector3.Up, 0f);
-            }
+            if (d.Length > 3 && Conv.ToInt(d[0]) == 77200) BallSplashAdd(Conv.ToFloat(d[1]), Conv.ToFloat(d[3]));
             return V.Int(1);
         };
         i.EntityHandlers["Ship"] = (e, fmt, d) => OnShipMessage(e, d);                     // fire places, character index (SeaFires.cs)

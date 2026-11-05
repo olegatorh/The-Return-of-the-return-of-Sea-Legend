@@ -63,6 +63,7 @@ float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 3; i++) h += wave_a[i] 
         TickGoods(dt);
         TickSharks(dt);
         TickBlots(dt);
+        TickSplashes(dt);
     }
 
     void ClearFx()
@@ -76,6 +77,7 @@ float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 3; i++) h += wave_a[i] 
         seaGoodsEnt = null;
         ClearSharks();
         ClearBlots();
+        ClearSplashes();
     }
 
     // ================================================================== Seafoam (libs/sea_foam)
@@ -93,7 +95,8 @@ float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 3; i++) h += wave_a[i] 
         public float U, V;
         public int[] Bow = new int[3];
         public bool Emitting;
-        public float BowZ;
+        public float BowZ, BowOldY;
+        public int BowSound;
     }
 
     readonly Dictionary<ShipRt, FoamRt> foams = new();
@@ -275,6 +278,16 @@ void fragment() {
             {
                 foreach (var id in f.Bow) if (id != 0) ps.Delete(id, true);
                 f.Bow = new int[3]; f.Emitting = false;
+            }
+            // seafoam.cpp RealizeShipFoam_Particles: in a storm the front emitter works while the bow rises by 5e-4 m/ms or more (doSplash); then the sound "ship_bow" plays
+            // at the bow, again when it has finished. (The original keeps the previous height in one static for all ships; here it is the last frame's height of the ship.)
+            if (storm && f.Emitting && SoundView.Instance is { } snd)
+            {
+                float z = f.BowZ * 0.92f + 0.1f + 0.25f * Math.Max(speed, 4f);
+                var bow = s.Node.GlobalTransform * new Vector3(0f, -0.2f, -z);
+                bool rising = dt > 0f && (bow.Y - f.BowOldY) / (dt * 1000f) >= 5e-4f;
+                f.BowOldY = bow.Y;
+                if (rising && !snd.VoiceAlive(f.BowSound)) f.BowSound = snd.Play3D("ship_bow", bow.X, SeaWaves.Height(bow.X, -bow.Z), -bow.Z);
             }
         }
     }
