@@ -22,7 +22,8 @@ public partial class WorldMapView
     sealed class Storm
     {
         public float X, Z, Dir, Speed, Life, Age, Alpha, Flash, BoltIn, Spin;
-        public bool Timed, Reported;
+        public bool Timed, Reported, Dying;
+        public float Live;                   // WdmStorm liveAlpha: 0..1
         public float InTime;
         public Node3D Node = null!;
         public readonly List<(Sprite3D s, float ang, float rad, float h, float size, Color tint)> Puffs = new();
@@ -98,9 +99,17 @@ void fragment() {
             ok = land == null || !land.IsLand(x, z);
         }
         if (!ok) { GD.Print("[map] storm: no open water around the player"); return false; }
+        // wdm_storm.cpp WdmStorm(): heading for the ship, turned aside by up to WDM_STORM_DIR_DIS (0.6 of a right angle) plus a little of the ship's own
+        // heading; speed WDM_STORM_DIR_SPD_MIN..MAX = 5..8
+        float dx = shipX - x, dz = shipZ - z, dl = MathF.Sqrt(dx * dx + dz * dz);
+        if (dl > 0f) { dx /= dl; dz /= dl; }
+        float dev = 0.6f * (1f - 2f * (float)rnd.NextDouble()), ox = dx;
+        dx -= dev * dz; dz += dev * ox;
+        float sk = (float)rnd.NextDouble() * 0.1f * 0.6f;
+        dx += MathF.Sin(shipAy) * sk; dz += MathF.Cos(shipAy) * sk;
         var s = new Storm
         {
-            X = x, Z = z, Dir = (float)rnd.NextDouble() * MathF.Tau, Speed = 2.5f + (float)rnd.NextDouble() * 2f,
+            X = x, Z = z, Dir = MathF.Atan2(dx, dz), Speed = 5f + (float)rnd.NextDouble() * 3f,
             Timed = true, Life = life > 0f ? life : 60f + (float)rnd.NextDouble() * 60f, Spin = (rnd.Next(2) == 0 ? -1f : 1f) * (0.05f + (float)rnd.NextDouble() * 0.05f),
             BoltIn = 1f + (float)rnd.NextDouble() * 2f,
         };
@@ -202,20 +211,25 @@ void fragment() {
         foreach (var s in storms.ToList())
         {
             s.Age += dt;
-            if (s.Timed) { s.Life -= dt; if (s.Life <= 0f) { GD.Print("[map] storm died out"); RemoveStorm(s); continue; } }
+            // WdmStorm::Update: born at +0.1 alpha per second; when the life is over or the ship is stormDistKill away it fades at -0.3 per second, then goes
+            if (s.Timed) s.Life -= dt;
+            float dk = MathF.Sqrt((s.X - shipX) * (s.X - shipX) + (s.Z - shipZ) * (s.Z - shipZ));
+            if (!s.Dying && ((s.Timed && s.Life <= 0f) || dk >= kill)) { s.Dying = true; GD.Print(dk >= kill ? "[map] storm left far behind" : "[map] storm died out"); }
+            if (s.Dying) { s.Live -= 0.3f * dt; if (s.Live <= 0f) { RemoveStorm(s); continue; } }
+            else s.Live = Math.Min(1f, s.Live + 0.1f * dt);
             // drift; islands are solid: turn away from land ahead, never move onto it
             if (land != null && land.LandAhead(s.X, s.Z, s.Dir, StormCore + 12f)) s.Dir += 0.9f * dt;
             float nx = s.X + MathF.Sin(s.Dir) * s.Speed * dt, nz = s.Z + MathF.Cos(s.Dir) * s.Speed * dt;
             if (land == null || !land.IsLand(nx, nz)) { s.X = nx; s.Z = nz; }
             else s.Dir += 1.5f * dt;
             float d = MathF.Sqrt((s.X - shipX) * (s.X - shipX) + (s.Z - shipZ) * (s.Z - shipZ));
-            if (d > kill) { GD.Print("[map] storm left far behind"); RemoveStorm(s); continue; }
-            // visibility: fade in when born, out at the end of the life and with the distance
-            float a = Math.Clamp(s.Age / 3f, 0f, 1f) * (s.Timed ? Math.Clamp(s.Life / 4f, 0f, 1f) : 1f);
+            // visibility: the life alpha times the distance alpha (1 inside stormViewDistMin, 0 at stormViewDistMax)
+            float a = s.Live;
             float view = 1f - Math.Clamp((d - viewMin) / Math.Max(1f, viewMax - viewMin), 0f, 1f);
-            s.Alpha = a * (0.25f + 0.75f * view);
+            s.Alpha = a * view;
             AnimateStorm(s, dt);
-            if (d < StormCore && a > 0.5f) { inStorm = true; s.InTime += dt; if (hit == null || s.InTime > hit.InTime) hit = s; }
+            // the player is in a storm that is not being removed (killMe) and whose clouds are near (CheckIntersection); a storm still fading in counts
+            if (d < StormCore && !s.Dying && s.Age > 2f) { inStorm = true; s.InTime += dt; if (hit == null || s.InTime > hit.InTime) hit = s; }
             else { s.InTime = 0f; s.Reported = false; }
         }
         Root!.GetOrCreate("info").GetOrCreate("playerInStorm").Value = inStorm ? "1" : "0";
