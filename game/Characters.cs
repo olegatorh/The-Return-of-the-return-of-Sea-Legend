@@ -304,15 +304,19 @@ public partial class CharacterView : Node3D
     const string BlobShader = @"
 shader_type spatial;
 render_mode unshaded, depth_draw_never, cull_disabled, blend_mix;
+varying float VERTEX_VIEW_D;
 void vertex() {
     vec4 v = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
     v.xyz -= normalize(v.xyz) * 0.1;
+    VERTEX_VIEW_D = length(v.xyz);
     POSITION = PROJECTION_MATRIX * v;
 }
 void fragment() {
     float r = length(UV - vec2(0.5)) * 2.0;
+    float d = VERTEX_VIEW_D;
     ALBEDO = vec3(0.0);
-    ALPHA = 0.7 * (1.0 - smoothstep(0.15, 1.0, r));
+    // shadow.cpp: Shadow.Density.Foot 0x60 = 0.38; fades out between 8 and 16 m from the camera
+    ALPHA = 0.38 * (1.0 - smoothstep(0.15, 1.0, r)) * (1.0 - smoothstep(8.0, 16.0, d));
 }";
     static ShaderMaterial BlobMaterial() => blobMat ??= new ShaderMaterial { Shader = new Shader { Code = BlobShader }, RenderPriority = 1 };
 

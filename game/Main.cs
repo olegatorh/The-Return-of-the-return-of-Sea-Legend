@@ -166,6 +166,13 @@ public partial class Main : Node
         {
             if (int.TryParse(vs.Get("WindowWidth"), out int ww) && int.TryParse(vs.Get("WindowHeight"), out int wh) && ww >= 640 && wh >= 480) GetWindow().Size = new Vector2I(ww, wh);
             if (vs.Get("Fullscreen")?.Trim() == "1") GetWindow().Mode = Window.ModeEnum.Fullscreen;
+            if (GetWindow().Mode == Window.ModeEnum.Windowed)      // the window sits in the middle of the primary monitor, never across two screens
+            {
+                var scr = DisplayServer.GetPrimaryScreen();
+                var area = DisplayServer.ScreenGetUsableRect(scr);
+                var sz = GetWindow().Size;
+                GetWindow().Position = area.Position + new Vector2I(Math.Max(0, (area.Size.X - sz.X) / 2), Math.Max(0, (area.Size.Y - sz.Y) / 2));
+            }
         }
         sea = new SeaView(host.It);
         AddChild(sea);

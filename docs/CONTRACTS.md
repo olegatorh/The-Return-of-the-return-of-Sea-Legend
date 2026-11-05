@@ -1,8 +1,8 @@
 # Контракти рушія: скрипти ↔ порт (автоматичний аудит)
 
-_Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
+_Згенеровано `python tools/contract_audit.py` 2026-11-05 15:54. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
 
-Джерела: скрипти `addon/merged/PROGRAM` (1139 файлів, 1154 #define, 4137 функцій), порт `StormScript/Runtime` + `game/*.cs` (73 файлів), reference `reference/storm-engine` (95 класів, 219 подій, 159 native), логи: 50 (`game/smoke_*.log`, `reports/*/log_tail.txt`).
+Джерела: скрипти `addon/merged/PROGRAM` (1139 файлів, 1154 #define, 4137 функцій), порт `StormScript/Runtime` + `game/*.cs` (74 файлів), reference `reference/storm-engine` (95 класів, 219 подій, 159 native), логи: 50 (`game/smoke_*.log`, `reports/*/log_tail.txt`).
 
 ## Відомі обмеження
 * Обробник порту «обробляє» код, якщо число коду (або підкоманда-рядок) трапляється будь-де в коді, досяжному з лямбди `EntityHandlers[...]` (замикання викликів до 5 рівнів, неоднозначні методи — усі кандидати). Тому пропуски скоріше НЕДОоцінені: випадковий збіг числа ховає проблему, але хибних «немає» мало. Заглушки `case N: return 0` рахуються як обробка.
@@ -21,10 +21,10 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Повідомлення (runtime) | 0 | 1 | 0 | 26 |
 | Сутності | 40 | 12 | 0 | 13 |
 | Функції рушія | 77 | 4 | 12 | 21 |
-| Події | 186 | 38 | 2 | 24 |
-| Параметри подій: формат | 95 | 0 | 0 | 6 |
+| Події | 187 | 37 | 2 | 24 |
+| Параметри подій: формат | 96 | 0 | 0 | 6 |
 | Параметри подій | 208 | 0 | 0 | 2 |
-| Події: runtime | 0 | 0 | 0 | 39 |
+| Події: runtime | 0 | 0 | 0 | 40 |
 | Ресурси | 0 | 10 | 0 | 0 |
 | Ресурси: ini | 82 | 7 | 0 | 6 |
 
@@ -35,27 +35,27 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | 2 | Повідомлення | SINKEFFECT → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:7 | немає EntityHandlers["SINKEFFECT"] | оригінал: обробляє (src/libs/sink_effect/src/sink_effect.cpp:39); [nohandler] 1× у логах |
 | 3 | Повідомлення | Seafoam → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:5 | немає EntityHandlers["Seafoam"] | оригінал: обробляє (src/libs/sea_foam/src/seafoam.cpp:457); [nohandler] 1× у логах |
 | 4 | Повідомлення | blots → MSG_BLOTS_SETMODEL (30600) fmt "lia" | SEA_AI/AIFort.c:253 | немає EntityHandlers["blots"] | оригінал: обробляє (src/libs/blot/src/blots.cpp:70); [nohandler] 6× у логах |
-| 5 | Повідомлення | fader → FADER_STARTFRAME (33002) fmt "l" | Loc_ai/LAi_boarding.c:543, QUESTS/quests.c:896 (+10) | код 33002 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227 |
-| 6 | Повідомлення | xinterface → MSG_INTERFACE_FOURIMAGE_CHANGE (45020) fmt "lsl" | INTERFACE/passengers.c:327, INTERFACE/shipyard.c:1332 (+1) | код 45020 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
+| 5 | Повідомлення | fader → FADER_STARTFRAME (33002) fmt "l" | Loc_ai/LAi_boarding.c:543, QUESTS/quests.c:896 (+10) | код 33002 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234 |
+| 6 | Повідомлення | xinterface → MSG_INTERFACE_FOURIMAGE_CHANGE (45020) fmt "lsl" | INTERFACE/passengers.c:327, INTERFACE/shipyard.c:1332 (+1) | код 45020 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
 | 7 | Сутності | Animals | animals.c:6, animals.c:62 | немає реалізації; скрипти шлють йому 7 різних повідомлень | оригінал: CREATE_CLASS(ANIMALS) |
 | 8 | Сутності | HELPCHOOSER | INTERFACE/interface.c:1223 | немає реалізації; скрипти шлють йому 1 різних повідомлень | оригінал: CREATE_CLASS(HELPCHOOSER) |
 | 9 | Сутності | SINKEFFECT | SEA_AI/sea.c:195 | немає реалізації; скрипти шлють йому 1 різних повідомлень | оригінал: CREATE_CLASS(SINKEFFECT) |
 | 10 | Сутності | Seafoam | SEA_AI/sea.c:837 | немає реалізації; скрипти шлють йому 1 різних повідомлень | оригінал: CREATE_CLASS(SEAFOAM) |
 | 11 | Сутності | blots | SEA_AI/AIFort.c:252 | немає реалізації; скрипти шлють йому 1 різних повідомлень | оригінал: CREATE_CLASS(Blots) |
-| 12 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddRats" fmt "lsl" | Locations/locations_loader.c:491, Locations/locations_loader.c:494 (+5) | підкоманду "AddRats" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| 13 | Повідомлення | locationcamera → MSG_CAMERA_MOVE (30513) fmt "lf" | Locations/locations_camera.c:52, Locations/locations_loader.c:445 | код 30513 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254 |
+| 12 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddRats" fmt "lsl" | Locations/locations_loader.c:491, Locations/locations_loader.c:494 (+5) | підкоманду "AddRats" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| 13 | Повідомлення | locationcamera → MSG_CAMERA_MOVE (30513) fmt "lf" | Locations/locations_camera.c:52, Locations/locations_loader.c:445 | код 30513 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261 |
 | 14 | Події | ievntGetHelpTexture | INTERFACE/ship.c:154, INTERFACE/store.c:65 | НЕ підіймається портом | оригінал: core.Event "s" (src/libs/xinterface/src/xinterface.cpp:3301) |
-| 15 | Повідомлення | ILogAndActions → LOG_AND_ACTIONS_CHANGE (45026) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:72 | код 45026 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313 |
-| 16 | Повідомлення | ILogAndActions → LOG_AND_ACTIONS_INIT (45022) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:22 | код 45022 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313 |
+| 15 | Повідомлення | ILogAndActions → LOG_AND_ACTIONS_CHANGE (45026) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:72 | код 45026 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320 |
+| 16 | Повідомлення | ILogAndActions → LOG_AND_ACTIONS_INIT (45022) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:22 | код 45022 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320 |
 | 17 | Повідомлення | Island → MSG_ISLAND_START (50102) fmt "l" | SEA_AI/AIIsland.c:3 | код 50102 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:120 |
 | 18 | Повідомлення | Island → MSG_LOCATION_ADD_MODEL (30100) fmt "liss" | Locations/locations_loader.c:674 | код 30100 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:120 |
-| 19 | Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference) |
-| 20 | Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference) |
-| 21 | Повідомлення | locationcamera → MSG_CAMERA_SLEEP (30520) fmt "ll" | Locations/locations_camera.c:59 | код 30520 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254 |
-| 22 | Повідомлення | npcharacter → MSG_NPCHARACTER_GETTASK (30403) fmt "le" | Characters/characters_ai.c:167 | код 30403 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference) |
+| 19 | Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference) |
+| 20 | Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference) |
+| 21 | Повідомлення | locationcamera → MSG_CAMERA_SLEEP (30520) fmt "ll" | Locations/locations_camera.c:59 | код 30520 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261 |
+| 22 | Повідомлення | npcharacter → MSG_NPCHARACTER_GETTASK (30403) fmt "le" | Characters/characters_ai.c:167 | код 30403 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference) |
 | 23 | Повідомлення | ship → AI_MESSAGE_SET_LAYERS (51015) fmt "lss" | SEA_AI/AISea.c:6 | код 51015 не знайдено в обробнику | оригінал: обробляє (src/libs/ship/src/ship.cpp:1210); порт: game/Sea.cs:116; клас визначено за кодом (reference) |
-| 24 | Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
-| 25 | Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
+| 24 | Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
+| 25 | Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
 | 26 | Повідомлення | HELPCHOOSER → MSG_HELPCHOOSER_START (45200) fmt "ls" | INTERFACE/interface.c:1229 | немає EntityHandlers["HELPCHOOSER"] | оригінал: обробляє (src/libs/xinterface/src/help_chooser/help_chooser.cpp:180) |
 | 27 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_BALL_UPDATE (77401) fmt "lalffffff" | SEA_AI/AIBalls.c:166 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
 | 28 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_FIRE (77400) fmt "lisffffff" | SEA_AI/shipBortFire.c:45 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
@@ -68,9 +68,9 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | 35 | Події | SeaGetLayers | SEA_AI/AIShip.c:88 | НЕ підіймається портом | оригінал: core.Event "i" (src/libs/ship/src/ship.cpp:1438) |
 | 36 | Події | Shp2Strand | SEA_AI/AIShip.c:97 | НЕ підіймається портом | оригінал: core.Event "ll" (src/libs/ship/src/ship.cpp:511) |
 | 37 | Події | ShpEatSwimGood | SEA_AI/AISeaGoods.c:18 | НЕ підіймається портом | оригінал: core.Event "llsl" (src/libs/sea_ai/src/ai_sea_goods.cpp:92) |
-| 38 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddEagle" fmt "ls" | Locations/locations_loader.c:469 | підкоманду "AddEagle" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| 39 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddFlys" fmt "lsfff" | Locations/locations_loader.c:404 | підкоманду "AddFlys" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| 40 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddLizards" fmt "ls" | Locations/locations_loader.c:481 | підкоманду "AddLizards" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
+| 38 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddEagle" fmt "ls" | Locations/locations_loader.c:469 | підкоманду "AddEagle" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| 39 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddFlys" fmt "lsfff" | Locations/locations_loader.c:404 | підкоманду "AddFlys" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| 40 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddLizards" fmt "ls" | Locations/locations_loader.c:481 | підкоманду "AddLizards" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
 
 ## Повідомлення — розбіжності (40)
 | Контракт | Елемент | Місце в скриптах | Стан у порту | Докази |
@@ -79,39 +79,39 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Повідомлення | SINKEFFECT → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:7 | немає EntityHandlers["SINKEFFECT"] | оригінал: обробляє (src/libs/sink_effect/src/sink_effect.cpp:39); [nohandler] 1× у логах |
 | Повідомлення | Seafoam → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:5 | немає EntityHandlers["Seafoam"] | оригінал: обробляє (src/libs/sea_foam/src/seafoam.cpp:457); [nohandler] 1× у логах |
 | Повідомлення | blots → MSG_BLOTS_SETMODEL (30600) fmt "lia" | SEA_AI/AIFort.c:253 | немає EntityHandlers["blots"] | оригінал: обробляє (src/libs/blot/src/blots.cpp:70); [nohandler] 6× у логах |
-| Повідомлення | fader → FADER_STARTFRAME (33002) fmt "l" | Loc_ai/LAi_boarding.c:543, QUESTS/quests.c:896, reload.c:288 (+9) | код 33002 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227 |
-| Повідомлення | xinterface → MSG_INTERFACE_FOURIMAGE_CHANGE (45020) fmt "lsl" | INTERFACE/passengers.c:327, INTERFACE/shipyard.c:1332, INTERFACE/transfer_characters.c:459 | код 45020 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddRats" fmt "lsl" | Locations/locations_loader.c:491, Locations/locations_loader.c:494, Locations/locations_loader.c:503 (+4) | підкоманду "AddRats" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| Повідомлення | locationcamera → MSG_CAMERA_MOVE (30513) fmt "lf" | Locations/locations_camera.c:52, Locations/locations_loader.c:445 | код 30513 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254 |
-| Повідомлення | ILogAndActions → LOG_AND_ACTIONS_CHANGE (45026) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:72 | код 45026 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313 |
-| Повідомлення | ILogAndActions → LOG_AND_ACTIONS_INIT (45022) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:22 | код 45022 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313 |
+| Повідомлення | fader → FADER_STARTFRAME (33002) fmt "l" | Loc_ai/LAi_boarding.c:543, QUESTS/quests.c:896, reload.c:288 (+9) | код 33002 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234 |
+| Повідомлення | xinterface → MSG_INTERFACE_FOURIMAGE_CHANGE (45020) fmt "lsl" | INTERFACE/passengers.c:327, INTERFACE/shipyard.c:1332, INTERFACE/transfer_characters.c:459 | код 45020 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddRats" fmt "lsl" | Locations/locations_loader.c:491, Locations/locations_loader.c:494, Locations/locations_loader.c:503 (+4) | підкоманду "AddRats" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| Повідомлення | locationcamera → MSG_CAMERA_MOVE (30513) fmt "lf" | Locations/locations_camera.c:52, Locations/locations_loader.c:445 | код 30513 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261 |
+| Повідомлення | ILogAndActions → LOG_AND_ACTIONS_CHANGE (45026) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:72 | код 45026 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320 |
+| Повідомлення | ILogAndActions → LOG_AND_ACTIONS_INIT (45022) fmt "lll" | BATTLE_INTERFACE/LogInterface.c:22 | код 45022 не знайдено в обробнику | оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320 |
 | Повідомлення | Island → MSG_ISLAND_START (50102) fmt "l" | SEA_AI/AIIsland.c:3 | код 50102 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:120 |
 | Повідомлення | Island → MSG_LOCATION_ADD_MODEL (30100) fmt "liss" | Locations/locations_loader.c:674 | код 30100 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:120 |
-| Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference) |
-| Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference) |
-| Повідомлення | locationcamera → MSG_CAMERA_SLEEP (30520) fmt "ll" | Locations/locations_camera.c:59 | код 30520 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254 |
-| Повідомлення | npcharacter → MSG_NPCHARACTER_GETTASK (30403) fmt "le" | Characters/characters_ai.c:167 | код 30403 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference) |
+| Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference) |
+| Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference) |
+| Повідомлення | locationcamera → MSG_CAMERA_SLEEP (30520) fmt "ll" | Locations/locations_camera.c:59 | код 30520 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261 |
+| Повідомлення | npcharacter → MSG_NPCHARACTER_GETTASK (30403) fmt "le" | Characters/characters_ai.c:167 | код 30403 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference) |
 | Повідомлення | ship → AI_MESSAGE_SET_LAYERS (51015) fmt "lss" | SEA_AI/AISea.c:6 | код 51015 не знайдено в обробнику | оригінал: обробляє (src/libs/ship/src/ship.cpp:1210); порт: game/Sea.cs:116; клас визначено за кодом (reference) |
-| Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
-| Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221 |
+| Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
+| Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228 |
 | Повідомлення | HELPCHOOSER → MSG_HELPCHOOSER_START (45200) fmt "ls" | INTERFACE/interface.c:1229 | немає EntityHandlers["HELPCHOOSER"] | оригінал: обробляє (src/libs/xinterface/src/help_chooser/help_chooser.cpp:180) |
 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_BALL_UPDATE (77401) fmt "lalffffff" | SEA_AI/AIBalls.c:166 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_FIRE (77400) fmt "lisffffff" | SEA_AI/shipBortFire.c:45 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddEagle" fmt "ls" | Locations/locations_loader.c:469 | підкоманду "AddEagle" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddFlys" fmt "lsfff" | Locations/locations_loader.c:404 | підкоманду "AddFlys" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddLizards" fmt "ls" | Locations/locations_loader.c:481 | підкоманду "AddLizards" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "GetPatchMiddlePos" fmt "lseee" | animals.c:9 | підкоманду "GetPatchMiddlePos" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242 |
-| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "DistToLocator" fmt "lssse" | Characters/characters_ai.c:151 | підкоманду "DistToLocator" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference) |
-| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "FindForvardLocator" fmt "lsse" | Characters/characters_ai.c:160 | підкоманду "FindForvardLocator" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference) |
-| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "IsActive" fmt "ls" | Loc_ai/types/LAi_player.c:44 | підкоманду "IsActive" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference) |
-| Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74, SEA_AI/Cabin.c:252 (+1) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303 |
-| Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303 |
-| Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303 |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddEagle" fmt "ls" | Locations/locations_loader.c:469 | підкоманду "AddEagle" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddFlys" fmt "lsfff" | Locations/locations_loader.c:404 | підкоманду "AddFlys" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "AddLizards" fmt "ls" | Locations/locations_loader.c:481 | підкоманду "AddLizards" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "GetPatchMiddlePos" fmt "lseee" | animals.c:9 | підкоманду "GetPatchMiddlePos" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249 |
+| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "DistToLocator" fmt "lssse" | Characters/characters_ai.c:151 | підкоманду "DistToLocator" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference) |
+| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "FindForvardLocator" fmt "lsse" | Characters/characters_ai.c:160 | підкоманду "FindForvardLocator" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference) |
+| Повідомлення | npcharacter → MSG_CHARACTER_EX_MSG (30373) "IsActive" fmt "ls" | Loc_ai/types/LAi_player.c:44 | підкоманду "IsActive" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference) |
+| Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74, SEA_AI/Cabin.c:252 (+1) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310 |
+| Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310 |
+| Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310 |
 | Повідомлення | TELESCOPE → MSG_TELESCOPE_INIT_ARRAYS (77300) fmt "leee" | SEA_AI/sea.c:846 | код 77300 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41; [nohandler] 6× у логах |
 | Повідомлення | scrshoter → MSG_SCRSHOT_READ (45043) fmt "lsse" | INTERFACE/save_load.c:653, INTERFACE/save_load.c:655 | немає EntityHandlers["scrshoter"] | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); клас визначено за кодом (reference) |
 | Повідомлення | scrshoter → MSG_SCRSHOT_RELEASE (45044) fmt "ls" | INTERFACE/save_load.c:693 | немає EntityHandlers["scrshoter"] | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); клас визначено за кодом (reference) |
 | Повідомлення | ship → MSG_SHIP_CREATE (50300) fmt "laa" | Locations/locations_loader.c:874, Locations/locations_loader.c:894 | код 50300 приймається без дії (згаданий лише в коментарі обробника) | оригінал: обробляє (src/libs/ship/src/ship.cpp:1210); порт: game/Sea.cs:116 |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316, Locations/locators_test.c:321 (+7) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; лише налагоджувальні скрипти |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316, Locations/locators_test.c:321 (+7) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; лише налагоджувальні скрипти |
 | Повідомлення | TELESCOPE → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:8 | код 50301 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41 |
 | Повідомлення | TELESCOPE → MSG_TELESCOPE_REQUEST (77301) fmt "l" | SEA_AI/telescope.c:4 | код 77301 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41 |
 | Повідомлення | TMPTELEPORT → 42222 fmt "la" | teleport.c:242 | немає EntityHandlers["TMPTELEPORT"] | оригінал: обробляє (src/libs/teleport/src/teleport.cpp:199); лише налагоджувальні скрипти |
@@ -157,7 +157,7 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Функції рушія | GetNextLineString() ×1 | Locations/locators_test.c:28 | немає в порті (Builtins/HostFunctions) | оригінал: 0 арг. (src/libs/location/src/location_script_lib.cpp:379); native-оголошення: native string GetNextLineString() (Locations/locations.c:18); у логах не траплялась; лише налагоджувальні скрипти |
 | Функції рушія | GetEntityName() ×1 | INTERFACE/save_load.c:706 | порт читає лише 0 з 1 арг. | порт: StormScript/Runtime/Builtins.cs:172; у reference немає |
 
-## Події — розбіжності (40)
+## Події — розбіжності (39)
 | Контракт | Елемент | Місце в скриптах | Стан у порту | Докази |
 |---|---|---|---|---|
 | Події | ievntGetHelpTexture | INTERFACE/ship.c:154, INTERFACE/store.c:65 | НЕ підіймається портом | оригінал: core.Event "s" (src/libs/xinterface/src/xinterface.cpp:3301) |
@@ -182,7 +182,6 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Події | DisableScroll | INTERFACE/helpscreen.c:29 | НЕ підіймається портом | оригінал: core.Event "sl" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:926) |
 | Події | EmergencyDialogExit | dialog.c:9 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/dialog/src/dialog.cpp:925) |
 | Події | EventSGMode | Loc_ai/LAi_utils.c:706 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/location/src/player.cpp:82) |
-| Події | GetCurrentCharge | BATTLE_INTERFACE/BattleInterface.c:86 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420) |
 | Події | GetInterfaceTexture | INTERFACE/save_load.c:23 | НЕ підіймається портом | оригінал: core.Event "sl\|sls" (src/libs/xinterface/src/nodes/xi_scroll_image.cpp:677) |
 | Події | GetQuestTextFileName | INTERFACE/BaseInterface.c:6 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/xinterface/src/xinterface.cpp:214) |
 | Події | GetRelationEvent | NATIONS/nations.c:3 | НЕ підіймається портом | оригінал: core.Event "ll" (src/libs/sea_ai/src/ai_helper.cpp:95) |
@@ -281,6 +280,7 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Події: runtime | Location_CharacterTaskFailure | Loc_ai/LAi_init.c:31 | жодного разу в регресійних прогонах | порт: game/Characters.cs:147; [events] топ-40 у 20 логах |
 | Події: runtime | ShpDelete | BATTLE_INTERFACE/BattleInterface.c:79 | жодного разу в регресійних прогонах | порт: game/Sea.cs:548; [events] топ-40 у 20 логах |
 | Події: runtime | ShpFireAction | SEA_AI/AIShip.c:105 | жодного разу в регресійних прогонах | порт: game/SeaAI.cs:112; [events] топ-40 у 20 логах |
+| Події: runtime | ShpGetBortFireDelta | SEA_AI/AIShip.c:106 | жодного разу в регресійних прогонах | порт: game/SeaCombat.cs:139; [events] топ-40 у 20 логах |
 | Події: runtime | Shp_ShipIslColl | SEA_AI/AIShip.c:92 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:91; [events] топ-40 у 20 логах |
 | Події: runtime | WorldMap_DeleteShipEncounter | WorldMap/worldmap.c:72 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:135; [events] топ-40 у 20 логах |
 | Події: runtime | WorldMap_EventWindowChangeSelectoin | WorldMap/worldmap.c:68 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:360; [events] топ-40 у 20 логах |
@@ -307,7 +307,7 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 15:44. Не 
 | Події: runtime | TornadoDamage | SEA_AI/AIShip.c:110 | жодного разу в регресійних прогонах | порт: game/WeatherFx.cs:130; [events] топ-40 у 20 логах |
 | Події: runtime | evntCheckEnableLocator | BATTLE_INTERFACE/BattleInterface.c:98 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:271; [events] топ-40 у 20 логах |
 | Події: runtime | evntCheckEnableShip | BATTLE_INTERFACE/BattleInterface.c:99 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:257; [events] топ-40 у 20 логах |
-| Події: runtime | evntSave | INTERFACE/save_load.c:259, INTERFACE/save_load.c:846 | жодного разу в регресійних прогонах | порт: game/Main.cs:936; [events] топ-40 у 20 логах |
+| Події: runtime | evntSave | INTERFACE/save_load.c:259, INTERFACE/save_load.c:846 | жодного разу в регресійних прогонах | порт: game/Main.cs:943; [events] топ-40 у 20 логах |
 | Події: runtime | evntUpdateFormtText | INTERFACE/addon_team.c:81, INTERFACE/controls.c:63 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:917; [events] топ-40 у 20 логах |
 | Функції рушія | LayerAddObject() ×101 | animals.c:63, animals.c:64 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:208; оригінал: 3 арг. (src/libs/core/src/internal_functions.cpp:118) |
 | Функції рушія | LayerCreate() ×19 | dialog.c:115, dialog.c:181 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:208; у reference немає |

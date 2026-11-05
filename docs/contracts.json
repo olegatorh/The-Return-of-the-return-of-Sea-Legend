@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-05 15:44",
+ "generated": "2026-11-05 15:54",
  "inputs": {
   "program": "E:\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\port\\addon\\merged\\PROGRAM",
   "reference": true,
@@ -82,13 +82,13 @@
    "info": 21
   },
   "Події": {
-   "implemented": 186,
-   "missing": 38,
+   "implemented": 187,
+   "missing": 37,
    "mismatched": 2,
    "info": 24
   },
   "Параметри подій: формат": {
-   "implemented": 95,
+   "implemented": 96,
    "missing": 0,
    "mismatched": 0,
    "info": 6
@@ -103,7 +103,7 @@
    "implemented": 0,
    "missing": 0,
    "mismatched": 0,
-   "info": 39
+   "info": 40
   },
   "Ресурси": {
    "implemented": 0,
@@ -195,7 +195,7 @@
     "WorldMap/worldmap_reload.c:173"
    ],
    "status": "код 33002 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227",
+   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234",
    "score": 80,
    "kind": "missing",
    "cls": "fader",
@@ -211,7 +211,7 @@
     "INTERFACE/transfer_characters.c:459"
    ],
    "status": "код 45020 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 73,
    "kind": "missing",
    "cls": "xinterface",
@@ -292,7 +292,7 @@
     "Locations/locations_loader.c:537"
    ],
    "status": "підкоманду \"AddRats\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 72,
    "kind": "missing",
    "cls": "location",
@@ -307,7 +307,7 @@
     "Locations/locations_loader.c:445"
    ],
    "status": "код 30513 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 72,
    "kind": "missing",
    "cls": "locationcamera",
@@ -337,7 +337,7 @@
     "BATTLE_INTERFACE/LogInterface.c:72"
    ],
    "status": "код 45026 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320",
    "score": 71,
    "kind": "missing",
    "cls": "ilogandactions",
@@ -351,7 +351,7 @@
     "BATTLE_INTERFACE/LogInterface.c:22"
    ],
    "status": "код 45022 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320",
    "score": 71,
    "kind": "missing",
    "cls": "ilogandactions",
@@ -393,7 +393,7 @@
     "Locations/locations.c:86"
    ],
    "status": "код 30181 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 71,
    "kind": "missing",
    "cls": "location",
@@ -407,7 +407,7 @@
     "Locations/locations.c:79"
    ],
    "status": "код 30180 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 71,
    "kind": "missing",
    "cls": "location",
@@ -421,7 +421,7 @@
     "Locations/locations_camera.c:59"
    ],
    "status": "код 30520 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 71,
    "kind": "missing",
    "cls": "locationcamera",
@@ -435,7 +435,7 @@
     "Characters/characters_ai.c:167"
    ],
    "status": "код 30403 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 71,
    "kind": "missing",
    "cls": "npcharacter",
@@ -463,7 +463,7 @@
     "INTERFACE/mainmenu.c:407"
    ],
    "status": "код 45057 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 71,
    "kind": "missing",
    "cls": "xinterface",
@@ -477,7 +477,7 @@
     "INTERFACE/interface.c:1669"
    ],
    "status": "код 45054 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 71,
    "kind": "missing",
    "cls": "xinterface",
@@ -659,7 +659,7 @@
     "Locations/locations_loader.c:469"
    ],
    "status": "підкоманду \"AddEagle\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 66,
    "kind": "missing",
    "cls": "location",
@@ -673,7 +673,7 @@
     "Locations/locations_loader.c:404"
    ],
    "status": "підкоманду \"AddFlys\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 66,
    "kind": "missing",
    "cls": "location",
@@ -687,7 +687,7 @@
     "Locations/locations_loader.c:481"
    ],
    "status": "підкоманду \"AddLizards\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 66,
    "kind": "missing",
    "cls": "location",
@@ -701,7 +701,7 @@
     "animals.c:9"
    ],
    "status": "підкоманду \"GetPatchMiddlePos\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 66,
    "kind": "missing",
    "cls": "location",
@@ -715,7 +715,7 @@
     "Characters/characters_ai.c:151"
    ],
    "status": "підкоманду \"DistToLocator\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 66,
    "kind": "missing",
    "cls": "npcharacter",
@@ -729,7 +729,7 @@
     "Characters/characters_ai.c:160"
    ],
    "status": "підкоманду \"FindForvardLocator\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 66,
    "kind": "missing",
    "cls": "npcharacter",
@@ -743,7 +743,7 @@
     "Loc_ai/types/LAi_player.c:44"
    ],
    "status": "підкоманду \"IsActive\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 66,
    "kind": "missing",
    "cls": "npcharacter",
@@ -876,7 +876,7 @@
     "SEA_AI/Cabin.c:256"
    ],
    "status": "код 20505 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 62,
    "kind": "missing",
    "cls": "modelr",
@@ -891,7 +891,7 @@
     "SEA_AI/sea.c:557"
    ],
    "status": "код 20503 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 60,
    "kind": "missing",
    "cls": "modelr",
@@ -966,20 +966,6 @@
    "kind": "missing",
    "handlers": [
     "LAi_GetSGMode"
-   ]
-  },
-  {
-   "contract": "Події",
-   "item": "GetCurrentCharge",
-   "sites": [
-    "BATTLE_INTERFACE/BattleInterface.c:86"
-   ],
-   "status": "НЕ підіймається портом",
-   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420)",
-   "score": 60,
-   "kind": "missing",
-   "handlers": [
-    "GetCurrentCharge"
    ]
   },
   {
@@ -1183,7 +1169,7 @@
     "ITEMS/itemLogic.c:24"
    ],
    "status": "код 20510 не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 59,
    "kind": "missing",
    "cls": "modelr",
@@ -1317,7 +1303,7 @@
     "Locations/locators_test.c:386"
    ],
    "status": "підкоманду \"TestLocatorsGroup\" не знайдено в обробнику",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; лише налагоджувальні скрипти",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; лише налагоджувальні скрипти",
    "score": 45,
    "kind": "missing",
    "cls": "location",
@@ -2527,6 +2513,17 @@
   },
   {
    "contract": "Події: runtime",
+   "item": "ShpGetBortFireDelta",
+   "sites": [
+    "SEA_AI/AIShip.c:106"
+   ],
+   "status": "жодного разу в регресійних прогонах",
+   "evidence": "порт: game/SeaCombat.cs:139; [events] топ-40 у 20 логах",
+   "score": 18,
+   "kind": "info"
+  },
+  {
+   "contract": "Події: runtime",
    "item": "Shp_ShipIslColl",
    "sites": [
     "SEA_AI/AIShip.c:92"
@@ -2839,7 +2836,7 @@
     "INTERFACE/save_load.c:846"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Main.cs:936; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Main.cs:943; [events] топ-40 у 20 логах",
    "score": 15,
    "kind": "info"
   },
@@ -3616,7 +3613,7 @@
     "BATTLE_INTERFACE/ActivePerksShow.c:108"
    ],
    "status": "обробник не розрізняє коди (однаково реагує на будь-яке повідомлення)",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/active_perk_shower.cpp:80); порт: game/Main.cs:355",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/active_perk_shower.cpp:80); порт: game/Main.cs:362",
    "score": 0,
    "kind": "ok",
    "cls": "activeperkshower",
@@ -3630,7 +3627,7 @@
     "BATTLE_INTERFACE/ActivePerksShow.c:192"
    ],
    "status": "обробник не розрізняє коди (однаково реагує на будь-яке повідомлення)",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/active_perk_shower.cpp:80); порт: game/Main.cs:355",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/active_perk_shower.cpp:80); порт: game/Main.cs:362",
    "score": 0,
    "kind": "ok",
    "cls": "activeperkshower",
@@ -3658,7 +3655,7 @@
     "INTERFACE/interface.c:1100"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/aviplayer/aviplayer.cpp:161); порт: game/Main.cs:181",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/aviplayer/aviplayer.cpp:161); порт: game/Main.cs:188",
    "score": 0,
    "kind": "ok",
    "cls": "caviplayer",
@@ -3672,7 +3669,7 @@
     "Loc_ai/LAi_groups.c:319"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3686,7 +3683,7 @@
     "Loc_ai/LAi_groups.c:317"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3700,7 +3697,7 @@
     "Loc_ai/LAi_groups.c:336"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3714,7 +3711,7 @@
     "Loc_ai/LAi_groups.c:285"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3728,7 +3725,7 @@
     "Loc_ai/LAi_groups.c:301"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3742,7 +3739,7 @@
     "Loc_ai/LAi_groups.c:86"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3756,7 +3753,7 @@
     "Loc_ai/LAi_groups.c:169"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3770,7 +3767,7 @@
     "Loc_ai/LAi_groups.c:118"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3784,7 +3781,7 @@
     "Loc_ai/LAi_groups.c:211"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3798,7 +3795,7 @@
     "Loc_ai/LAi_groups.c:90"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3813,7 +3810,7 @@
     "Loc_ai/LAi_groups.c:108"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3827,7 +3824,7 @@
     "Loc_ai/LAi_groups.c:151"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3841,7 +3838,7 @@
     "Loc_ai/LAi_groups.c:157"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3855,7 +3852,7 @@
     "Loc_ai/LAi_groups.c:190"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3869,7 +3866,7 @@
     "Loc_ai/LAi_groups.c:133"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3883,7 +3880,7 @@
     "Loc_ai/LAi_groups.c:127"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3897,7 +3894,7 @@
     "Loc_ai/LAi_groups.c:145"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3911,7 +3908,7 @@
     "Loc_ai/LAi_groups.c:139"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3925,7 +3922,7 @@
     "Loc_ai/LAi_groups.c:181"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3939,7 +3936,7 @@
     "Loc_ai/LAi_groups.c:326"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3953,7 +3950,7 @@
     "Loc_ai/LAi_groups.c:295"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:305",
+   "evidence": "оригінал: обробляє (src/libs/location/src/characters_groups.cpp:407); порт: game/Main.cs:312",
    "score": 0,
    "kind": "ok",
    "cls": "charactersgroups",
@@ -3967,7 +3964,7 @@
     "BATTLE_INTERFACE/LogInterface.c:162"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/i_boarding_status.cpp:28); порт: game/Main.cs:319",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/i_boarding_status.cpp:28); порт: game/Main.cs:326",
    "score": 0,
    "kind": "ok",
    "cls": "iboardingstatus",
@@ -3981,7 +3978,7 @@
     "BATTLE_INTERFACE/LogInterface.c:177"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/i_boarding_status.cpp:28); порт: game/Main.cs:319",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/i_boarding_status.cpp:28); порт: game/Main.cs:326",
    "score": 0,
    "kind": "ok",
    "cls": "iboardingstatus",
@@ -3995,7 +3992,7 @@
     "BATTLE_INTERFACE/LogInterface.c:239"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320",
    "score": 0,
    "kind": "ok",
    "cls": "ilogandactions",
@@ -4010,7 +4007,7 @@
     "INTERFACE/utilite.c:160"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313; клас визначено за кодом",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320; клас визначено за кодом",
    "score": 0,
    "kind": "ok",
    "cls": "ilogandactions",
@@ -4026,7 +4023,7 @@
     "BATTLE_INTERFACE/LogInterface.c:94"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320",
    "score": 0,
    "kind": "ok",
    "cls": "ilogandactions",
@@ -4040,7 +4037,7 @@
     "BATTLE_INTERFACE/LogInterface.c:79"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:313",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/log_and_action.cpp:102); порт: game/Main.cs:320",
    "score": 0,
    "kind": "ok",
    "cls": "ilogandactions",
@@ -4085,7 +4082,7 @@
     "ITEMS/itemLogic.c:238"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "modelr",
@@ -4101,7 +4098,7 @@
     "SEA_AI/sea.c:558"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 0,
    "kind": "ok",
    "cls": "modelr",
@@ -4122,7 +4119,7 @@
     "SEA_AI/Deck_ships.c:39"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 0,
    "kind": "ok",
    "cls": "modelr",
@@ -4137,7 +4134,7 @@
     "ITEMS/itemLogic.c:23"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310",
    "score": 0,
    "kind": "ok",
    "cls": "modelr",
@@ -4160,7 +4157,7 @@
     "ITEMS/itemLogic.c:499"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:303; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:310; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "modelr",
@@ -4290,7 +4287,7 @@
     "INTERFACE/option_sl.c:34"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4313,7 +4310,7 @@
     "sound.c:410"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4328,7 +4325,7 @@
     "sound.c:346"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4351,7 +4348,7 @@
     "sound.c:384"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4365,7 +4362,7 @@
     "sound.c:97"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4379,7 +4376,7 @@
     "sound.c:83"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4393,7 +4390,7 @@
     "sound.c:90"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4407,7 +4404,7 @@
     "seadogs.c:199"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4422,7 +4419,7 @@
     "INTERFACE/option_sl.c:108"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4442,7 +4439,7 @@
     "sound.c:357"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4458,7 +4455,7 @@
     "sound.c:378"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:307",
+   "evidence": "оригінал: обробляє (src/libs/sound/src/sound.cpp:42); порт: game/Main.cs:314",
    "score": 0,
    "kind": "ok",
    "cls": "sound",
@@ -4601,7 +4598,7 @@
     "BATTLE_INTERFACE/LandInterface.c:910"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325; [nohandler] 15× у логах",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332; [nohandler] 15× у логах",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4615,7 +4612,7 @@
     "BATTLE_INTERFACE/LandInterface.c:368"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325; [nohandler] 2× у логах",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332; [nohandler] 2× у логах",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4632,7 +4629,7 @@
     "BATTLE_INTERFACE/LandInterface.c:1200"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: НЕ обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325",
+   "evidence": "оригінал: НЕ обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4646,7 +4643,7 @@
     "BATTLE_INTERFACE/LogInterface.c:275"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4660,7 +4657,7 @@
     "BATTLE_INTERFACE/LandInterface.c:737"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325; [nohandler] 11× у логах",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332; [nohandler] 11× у логах",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4674,7 +4671,7 @@
     "BATTLE_INTERFACE/LandInterface.c:589"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:325; [nohandler] 3× у логах",
+   "evidence": "оригінал: обробляє (src/libs/battle_interface/src/land/battle_land.cpp:66); порт: game/Main.cs:332; [nohandler] 3× у логах",
    "score": 0,
    "kind": "ok",
    "cls": "battle_land_interface",
@@ -4717,7 +4714,7 @@
     "dialog.c:177"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/dialog/src/dialog.cpp:886); порт: game/Main.cs:331",
+   "evidence": "оригінал: обробляє (src/libs/dialog/src/dialog.cpp:886); порт: game/Main.cs:338",
    "score": 0,
    "kind": "ok",
    "cls": "dialog",
@@ -4732,7 +4729,7 @@
     "dialog.c:178"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/dialog/src/dialog.cpp:886); порт: game/Main.cs:331",
+   "evidence": "оригінал: обробляє (src/libs/dialog/src/dialog.cpp:886); порт: game/Main.cs:338",
    "score": 0,
    "kind": "ok",
    "cls": "dialog",
@@ -4763,7 +4760,7 @@
     "WorldMap/worldmap.c:107"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227",
+   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234",
    "score": 0,
    "kind": "ok",
    "cls": "fader",
@@ -4790,7 +4787,7 @@
     "WorldMap/worldmap_reload.c:172"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227",
+   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234",
    "score": 0,
    "kind": "ok",
    "cls": "fader",
@@ -4819,7 +4816,7 @@
     "WorldMap/worldmap_reload.c:131"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227",
+   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234",
    "score": 0,
    "kind": "ok",
    "cls": "fader",
@@ -4834,7 +4831,7 @@
     "WorldMap/worldmap.c:108"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:227",
+   "evidence": "оригінал: обробляє (src/libs/location/src/fader.cpp:171); порт: game/Main.cs:234",
    "score": 0,
    "kind": "ok",
    "cls": "fader",
@@ -4877,7 +4874,7 @@
     "Locations/locations_loader.c:401"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4892,7 +4889,7 @@
     "Locations/locators_test.c:407"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4906,7 +4903,7 @@
     "Characters/characters.c:86"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4920,7 +4917,7 @@
     "seadogs.c:593"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4934,7 +4931,7 @@
     "Locations/locations_loader.c:657"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4948,7 +4945,7 @@
     "Locations/locations.c:64"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4963,7 +4960,7 @@
     "Locations/locators_test.c:141"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4977,7 +4974,7 @@
     "Locations/locations.c:69"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -4992,7 +4989,7 @@
     "Locations/locators_test.c:133"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5006,7 +5003,7 @@
     "Locations/locations_loader.c:730"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5020,7 +5017,7 @@
     "Locations/locations_loader.c:737"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5034,7 +5031,7 @@
     "Locations/locations_loader.c:689"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5048,7 +5045,7 @@
     "Locations/locations_loader.c:704"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5062,7 +5059,7 @@
     "Locations/locations_loader.c:721"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5076,7 +5073,7 @@
     "Locations/locations.c:133"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5090,7 +5087,7 @@
     "seadogs.c:575"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5107,7 +5104,7 @@
     "Locations/locators_test.c:253"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5121,7 +5118,7 @@
     "Locations/locations_loader.c:935"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5138,7 +5135,7 @@
     "Locations/locators_test.c:269"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5153,7 +5150,7 @@
     "Locations/locators_test.c:142"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5168,7 +5165,7 @@
     "Locations/locators_test.c:138"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5182,7 +5179,7 @@
     "seadogs.c:645"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5197,7 +5194,7 @@
     "Locations/locators_test.c:306"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:242",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:249",
    "score": 0,
    "kind": "ok",
    "cls": "location",
@@ -5211,7 +5208,7 @@
     "Locations/locations_camera.c:24"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 0,
    "kind": "ok",
    "cls": "locationcamera",
@@ -5225,7 +5222,7 @@
     "Locations/locations_camera.c:43"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 0,
    "kind": "ok",
    "cls": "locationcamera",
@@ -5239,7 +5236,7 @@
     "Locations/locations_loader.c:437"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 0,
    "kind": "ok",
    "cls": "locationcamera",
@@ -5253,7 +5250,7 @@
     "Locations/locations_camera.c:34"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:254",
+   "evidence": "оригінал: обробляє (src/libs/location/src/location_camera.cpp:358); порт: game/Main.cs:261",
    "score": 0,
    "kind": "ok",
    "cls": "locationcamera",
@@ -5295,7 +5292,7 @@
     "Characters/characters_ai.c:145"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5309,7 +5306,7 @@
     "Characters/characters_events.c:31"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5323,7 +5320,7 @@
     "Characters/characters_events.c:38"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5337,7 +5334,7 @@
     "Characters/characters_ai.c:128"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5351,7 +5348,7 @@
     "Characters/characters_ai.c:137"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5365,7 +5362,7 @@
     "Loc_ai/LAi_utils.c:460"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5379,7 +5376,7 @@
     "Characters/characters_ai.c:5"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5398,7 +5395,7 @@
     "Loc_ai/types/LAi_player.c:59"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5415,7 +5412,7 @@
     "BATTLE_INTERFACE/LogInterface.c:216"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5434,7 +5431,7 @@
     "dialog.c:213"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5448,7 +5445,7 @@
     "Loc_ai/LAi_utils.c:293"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5475,7 +5472,7 @@
     "seadogs.c:1337"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5489,7 +5486,7 @@
     "Loc_ai/LAi_utils.c:683"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5515,7 +5512,7 @@
     "Loc_ai/templates/LAi_walk.c:8"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5530,7 +5527,7 @@
     "Locations/locations_loader.c:576"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5561,7 +5558,7 @@
     "Loc_ai/types/LAi_warrior.c:72"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5575,7 +5572,7 @@
     "Characters/characters.c:53"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5589,7 +5586,7 @@
     "Characters/characters.c:125"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5603,7 +5600,7 @@
     "Characters/characters.c:107"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5617,7 +5614,7 @@
     "Characters/characters.c:92"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5631,7 +5628,7 @@
     "Characters/characters.c:99"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5647,7 +5644,7 @@
     "QUESTS/fort_reaction.c:2089"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5661,7 +5658,7 @@
     "Characters/characters.c:51"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5676,7 +5673,7 @@
     "Characters/CharacterUtilite.c:5305"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5699,7 +5696,7 @@
     "QUESTS/quests_reaction.c:6013"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5713,7 +5710,7 @@
     "Characters/characters.c:70"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5727,7 +5724,7 @@
     "Characters/characters.c:75"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5741,7 +5738,7 @@
     "Characters/characters.c:80"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5755,7 +5752,7 @@
     "Characters/characters_ai.c:122"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5769,7 +5766,7 @@
     "Characters/characters_ai.c:112"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5784,7 +5781,7 @@
     "Characters/characters_ai.c:107"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5798,7 +5795,7 @@
     "Characters/characters_ai.c:117"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5812,7 +5809,7 @@
     "Characters/characters.c:119"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5826,7 +5823,7 @@
     "Characters/characters.c:114"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5841,7 +5838,7 @@
     "QUESTS/quests_reaction.c:328"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5855,7 +5852,7 @@
     "Characters/characters.c:131"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5869,7 +5866,7 @@
     "Characters/characters_ai.c:97"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5883,7 +5880,7 @@
     "Characters/characters_ai.c:92"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -5904,7 +5901,7 @@
     "Characters/characters_ai.c:87"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:362; клас визначено за кодом (reference)",
+   "evidence": "оригінал: обробляє (src/libs/location/src/character.cpp:694); порт: game/Main.cs:369; клас визначено за кодом (reference)",
    "score": 0,
    "kind": "ok",
    "cls": "npcharacter",
@@ -6491,7 +6488,7 @@
     "INTERFACE/utilite.c:58"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6505,7 +6502,7 @@
     "INTERFACE/utilite.c:39"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6519,7 +6516,7 @@
     "INTERFACE/helpscreen.c:73"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6534,7 +6531,7 @@
     "INTERFACE/save_load.c:364"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6548,7 +6545,7 @@
     "INTERFACE/helpscreen.c:78"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6562,7 +6559,7 @@
     "INTERFACE/utilite.c:155"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6577,7 +6574,7 @@
     "INTERFACE/utilite.c:48"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6591,7 +6588,7 @@
     "INTERFACE/interface.c:1184"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6605,7 +6602,7 @@
     "INTERFACE/utilite.c:53"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6621,7 +6618,7 @@
     "INTERFACE/save_load.c:555"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6638,7 +6635,7 @@
     "utils.c:384"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6652,7 +6649,7 @@
     "INTERFACE/utilite.c:73"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6666,7 +6663,7 @@
     "INTERFACE/interface.c:1190"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6680,7 +6677,7 @@
     "INTERFACE/utilite.c:127"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6694,7 +6691,7 @@
     "INTERFACE/utilite.c:226"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6770,7 +6767,7 @@
     "INTERFACE/transfer_main.c:13"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6785,7 +6782,7 @@
     "INTERFACE/QuestBook.c:79"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6799,7 +6796,7 @@
     "INTERFACE/option_sl.c:204"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6860,7 +6857,7 @@
     "INTERFACE/ship.c:968"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6970,7 +6967,7 @@
     "INTERFACE/utilite.c:136"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6984,7 +6981,7 @@
     "INTERFACE/utilite.c:68"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -6998,7 +6995,7 @@
     "INTERFACE/save_load.c:394"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7013,7 +7010,7 @@
     "INTERFACE/utilite.c:28"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7027,7 +7024,7 @@
     "INTERFACE/transfer_characters.c:458"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7041,7 +7038,7 @@
     "seadogs.c:442"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7055,7 +7052,7 @@
     "INTERFACE/option_sl.c:209"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7070,7 +7067,7 @@
     "INTERFACE/save_load.c:164"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7102,7 +7099,7 @@
     "INTERFACE/store.c:648"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7116,7 +7113,7 @@
     "INTERFACE/utilite.c:79"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7130,7 +7127,7 @@
     "INTERFACE/utilite.c:33"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7144,7 +7141,7 @@
     "INTERFACE/utilite.c:212"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7158,7 +7155,7 @@
     "INTERFACE/utilite.c:63"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7178,7 +7175,7 @@
     "INTERFACE/QuestBook.c:103"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7192,7 +7189,7 @@
     "INTERFACE/utilite.c:123"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7206,7 +7203,7 @@
     "INTERFACE/utilite.c:165"
    ],
    "status": "обробляється",
-   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:221",
+   "evidence": "оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:228",
    "score": 0,
    "kind": "ok",
    "cls": "xinterface",
@@ -7263,7 +7260,7 @@
    "sites": [
     "BATTLE_INTERFACE/LogInterface.c:24"
    ],
-   "status": "підіймається: game/Main.cs:806 (+1)",
+   "status": "підіймається: game/Main.cs:813 (+1)",
    "evidence": "оригінал: core.Event \"s\" (src/libs/battle_interface/src/log_and_action.cpp:62); у логах: 3×",
    "score": 0,
    "kind": "ok",
@@ -7352,7 +7349,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:88"
    ],
    "status": "підіймається: game/BattleInterface.cs:175",
-   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 11852×",
+   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 11858×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7412,7 +7409,7 @@
     "SEA_AI/AIBalls.c:48"
    ],
    "status": "підіймається: game/SeaCombat.cs:272",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 77×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 111×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7440,7 +7437,7 @@
     "SEA_AI/AIBalls.c:45"
    ],
    "status": "підіймається: game/SeaCombat.cs:280",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 619×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 576×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7496,7 +7493,7 @@
     "SEA_AI/AICannon.c:18"
    ],
    "status": "підіймається: game/SeaCombat.cs:205",
-   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 904×",
+   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 901×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7538,7 +7535,7 @@
     "SEA_AI/AICannon.c:15"
    ],
    "status": "підіймається: game/SeaAI.cs:86 (+2)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 472×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 469×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7611,8 +7608,8 @@
    "sites": [
     "Loc_ai/LAi_init.c:28"
    ],
-   "status": "підіймається: game/Main.cs:642",
-   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 73180×",
+   "status": "підіймається: game/Main.cs:649",
+   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 74602×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7641,8 +7638,8 @@
    "sites": [
     "Loc_ai/LAi_init.c:29"
    ],
-   "status": "підіймається: game/Main.cs:640",
-   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 17899×",
+   "status": "підіймається: game/Main.cs:647",
+   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 17904×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7725,7 +7722,7 @@
     "seadogs.c:66",
     "test.c:2"
    ],
-   "status": "підіймається: game/Main.cs:475 (+3)",
+   "status": "підіймається: game/Main.cs:482 (+3)",
    "evidence": "у reference не підіймається; скрипти теж підіймають (BATTLE_INTERFACE/LandInterface.c:304); у логах: 75×",
    "score": 0,
    "kind": "ok",
@@ -7840,7 +7837,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:47"
    ],
    "status": "підіймається: game/SeaSails.cs:405",
-   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 49×",
+   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 47×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7914,7 +7911,7 @@
     "Loc_ai/LAi_sounds.c:3"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:2849); у логах: 24×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:2849); у логах: 23×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7928,7 +7925,7 @@
     "Loc_ai/LAi_sounds.c:27"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1938); у логах: 24×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1938); у логах: 23×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7942,7 +7939,7 @@
     "Loc_ai/LAi_sounds.c:75"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 4×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 5×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8012,7 +8009,7 @@
     "INTERFACE/interface.c:22"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:288); у логах: 57×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:288); у логах: 49×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8050,7 +8047,7 @@
     "INTERFACE/interface.c:20"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:273); у логах: 32×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:273); у логах: 25×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8124,7 +8121,7 @@
     "SEA_AI/AIFort.c:26"
    ],
    "status": "підіймається: game/SeaForts.cs:62",
-   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 77×",
+   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 111×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8143,6 +8140,20 @@
    "kind": "ok",
    "handlers": [
     "Fort_CreateEvent"
+   ]
+  },
+  {
+   "contract": "Події",
+   "item": "GetCurrentCharge",
+   "sites": [
+    "BATTLE_INTERFACE/BattleInterface.c:86"
+   ],
+   "status": "підіймається: game/Sea.cs:693",
+   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420); у логах: 13055×",
+   "score": 0,
+   "kind": "ok",
+   "handlers": [
+    "GetCurrentCharge"
    ]
   },
   {
@@ -8500,7 +8511,7 @@
     "Loc_ai/LAi_init.c:37"
    ],
    "status": "підіймається: game/Characters.cs:941",
-   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 4×",
+   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 5×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8542,7 +8553,7 @@
     "Loc_ai/LAi_init.c:43"
    ],
    "status": "підіймається: game/Characters.cs:640",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 121×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 119×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8556,7 +8567,7 @@
     "Loc_ai/LAi_init.c:30"
    ],
    "status": "підіймається: game/Characters.cs:656",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 12×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 9×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8616,7 +8627,7 @@
     "Loc_ai/LAi_init.c:35"
    ],
    "status": "підіймається: game/Characters.cs:138",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 36×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 22×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8630,7 +8641,7 @@
     "Loc_ai/LAi_init.c:36"
    ],
    "status": "підіймається: game/Characters.cs:138",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1279); у логах: 2×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1279); у логах: 13×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8686,7 +8697,7 @@
     "Loc_ai/LAi_init.c:41"
    ],
    "status": "підіймається: game/Characters.cs:153",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 39×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 30×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8798,7 +8809,7 @@
     "Loc_ai/LAi_fightparams.c:610"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:142); у логах: 61×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:142); у логах: 64×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8812,7 +8823,7 @@
     "Loc_ai/LAi_fightparams.c:608"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "у reference не підіймається; у логах: 61×",
+   "evidence": "у reference не підіймається; у логах: 64×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8826,7 +8837,7 @@
     "Loc_ai/LAi_fightparams.c:606"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:96); у логах: 61×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:96); у логах: 64×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8840,7 +8851,7 @@
     "Loc_ai/LAi_fightparams.c:607"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:121); у логах: 61×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:121); у логах: 64×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8854,7 +8865,7 @@
     "Loc_ai/LAi_fightparams.c:609"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:138); у логах: 61×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:138); у логах: 64×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9196,7 +9207,7 @@
     "SEA_AI/sea.c:224"
    ],
    "status": "підіймається: game/SeaCombat.cs:160",
-   "evidence": "оригінал: core.Event \"lisffffff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:33); у логах: 20×",
+   "evidence": "оригінал: core.Event \"lisffffff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:33); у логах: 12×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9210,7 +9221,7 @@
     "SEA_AI/AIShip.c:108"
    ],
    "status": "підіймається: game/SeaFires.cs:115",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:304); у логах: 29×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:304); у логах: 9×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9256,7 +9267,7 @@
     "SEA_AI/AIShip.c:95"
    ],
    "status": "підіймається: game/SeaFires.cs:116",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 494×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 359×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9284,7 +9295,7 @@
     "SEA_AI/AIShip.c:106"
    ],
    "status": "підіймається: game/SeaCombat.cs:139",
-   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); у логах: 8×",
+   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); 0× у [events] 20 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9298,7 +9309,7 @@
     "SEA_AI/AIShip.c:114"
    ],
    "status": "підіймається: game/SeaSails.cs:416",
-   "evidence": "оригінал: core.Event \"llffffa|llffffaa|llffffal\" (src/libs/ship/src/ship.cpp:813); у логах: 24×",
+   "evidence": "оригінал: core.Event \"llffffa|llffffaa|llffffal\" (src/libs/ship/src/ship.cpp:813); у логах: 30×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9312,7 +9323,7 @@
     "SEA_AI/AIShip.c:94"
    ],
    "status": "підіймається: game/SeaSails.cs:404",
-   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 49×",
+   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 47×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9340,7 +9351,7 @@
     "SEA_AI/AIShip.c:91"
    ],
    "status": "підіймається: game/SeaCombat.cs:172",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13049×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13055×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9354,7 +9365,7 @@
     "SEA_AI/AIShip.c:103"
    ],
    "status": "підіймається: game/SeaCombat.cs:266",
-   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 170×",
+   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 179×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9368,7 +9379,7 @@
     "SEA_AI/AIShip.c:90"
    ],
    "status": "підіймається: game/SeaCombat.cs:174",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13049×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13055×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9656,7 +9667,7 @@
     "WorldMap/worldmap.c:73"
    ],
    "status": "підіймається: game/WorldMap.cs:334",
-   "evidence": "оригінал: core.Event \"f\" (src/libs/worldmap/src/world_map.cpp:429); у логах: 56×",
+   "evidence": "оригінал: core.Event \"f\" (src/libs/worldmap/src/world_map.cpp:429); у логах: 55×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9852,7 +9863,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:91"
    ],
    "status": "підіймається: game/BattleInterface.cs:119",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/battle_interface/src/sea/island_descr.cpp:63); у логах: 21×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/battle_interface/src/sea/island_descr.cpp:63); у логах: 14×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9898,7 +9909,7 @@
     "INTERFACE/save_load.c:301",
     "seadogs.c:1442"
    ],
-   "status": "підіймається: game/Main.cs:930",
+   "status": "підіймається: game/Main.cs:937",
    "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:303); у логах: 11×",
    "score": 0,
    "kind": "ok",
@@ -9913,8 +9924,8 @@
    "sites": [
     "INTERFACE/interface.c:18"
    ],
-   "status": "підіймається: game/Main.cs:931",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 13×",
+   "status": "підіймається: game/Main.cs:938",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 12×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9928,7 +9939,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:48"
    ],
    "status": "підіймається: game/SeaSails.cs:392",
-   "evidence": "оригінал: core.Event \"lslfflll\" (src/libs/rigging/src/sail.cpp:2344); у логах: 9×",
+   "evidence": "оригінал: core.Event \"lslfflll\" (src/libs/rigging/src/sail.cpp:2344); у логах: 7×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9942,7 +9953,7 @@
     "INTERFACE/save_load.c:259",
     "INTERFACE/save_load.c:846"
    ],
-   "status": "підіймається: game/Main.cs:936",
+   "status": "підіймається: game/Main.cs:943",
    "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:265)",
    "score": 0,
    "kind": "ok",
@@ -10162,7 +10173,7 @@
     "Weather/WhrWeather.c:226",
     "CONTROLS/controls.c:2"
    ],
-   "status": "підіймається: game/Main.cs:884",
+   "status": "підіймається: game/Main.cs:891",
    "evidence": "у reference не підіймається; у логах: 50665×",
    "score": 0,
    "kind": "ok",
@@ -10403,7 +10414,7 @@
    "sites": [
     "BATTLE_INTERFACE/ActivePerksShow.c:74"
    ],
-   "status": "EntityHandlers[\"ActivePerkShower\"] (game/Main.cs:355)",
+   "status": "EntityHandlers[\"ActivePerkShower\"] (game/Main.cs:362)",
    "evidence": "оригінал: CREATE_CLASS(ActivePerkShower)",
    "score": 0,
    "kind": "ok",
@@ -10427,7 +10438,7 @@
    "sites": [
     "INTERFACE/interface.c:1098"
    ],
-   "status": "EntityHandlers[\"CAviPlayer\"] (game/Main.cs:181)",
+   "status": "EntityHandlers[\"CAviPlayer\"] (game/Main.cs:188)",
    "evidence": "оригінал: CREATE_CLASS(CAviPlayer)",
    "score": 0,
    "kind": "ok",
@@ -10439,7 +10450,7 @@
    "sites": [
     "Loc_ai/LAi_groups.c:19"
    ],
-   "status": "EntityHandlers[\"CharactersGroups\"] (game/Main.cs:305)",
+   "status": "EntityHandlers[\"CharactersGroups\"] (game/Main.cs:312)",
    "evidence": "оригінал: CREATE_CLASS(CharactersGroups)",
    "score": 0,
    "kind": "ok",
@@ -10463,7 +10474,7 @@
    "sites": [
     "BATTLE_INTERFACE/LogInterface.c:153"
    ],
-   "status": "EntityHandlers[\"IBoardingStatus\"] (game/Main.cs:319)",
+   "status": "EntityHandlers[\"IBoardingStatus\"] (game/Main.cs:326)",
    "evidence": "оригінал: CREATE_CLASS(IBoardingStatus)",
    "score": 0,
    "kind": "ok",
@@ -10475,7 +10486,7 @@
    "sites": [
     "BATTLE_INTERFACE/LogInterface.c:18"
    ],
-   "status": "EntityHandlers[\"ILogAndActions\"] (game/Main.cs:313)",
+   "status": "EntityHandlers[\"ILogAndActions\"] (game/Main.cs:320)",
    "evidence": "оригінал: CREATE_CLASS(ILogAndActions)",
    "score": 0,
    "kind": "ok",
@@ -10516,7 +10527,7 @@
     "SEA_AI/sea.c:555",
     "test.c:10"
    ],
-   "status": "EntityHandlers[\"MODELR\"] (game/Main.cs:303)",
+   "status": "EntityHandlers[\"MODELR\"] (game/Main.cs:310)",
    "evidence": "оригінал: CREATE_CLASS(MODELR)",
    "score": 0,
    "kind": "ok",
@@ -10553,7 +10564,7 @@
     "SEA_AI/AICameras.c:23"
    ],
    "status": "без обробника повідомлень; клас згадується в коді порту",
-   "evidence": "оригінал: CREATE_CLASS(SHIP_CAMERA); порт: game/Sea.cs:873",
+   "evidence": "оригінал: CREATE_CLASS(SHIP_CAMERA); порт: game/Sea.cs:877",
    "score": 0,
    "kind": "ok",
    "cls": "ship_camera"
@@ -10588,7 +10599,7 @@
    "sites": [
     "sound.c:485"
    ],
-   "status": "EntityHandlers[\"Sound\"] (game/Main.cs:307)",
+   "status": "EntityHandlers[\"Sound\"] (game/Main.cs:314)",
    "evidence": "оригінал: CREATE_CLASS(SOUND)",
    "score": 0,
    "kind": "ok",
@@ -10672,7 +10683,7 @@
    "sites": [
     "BATTLE_INTERFACE/LandInterface.c:58"
    ],
-   "status": "EntityHandlers[\"battle_land_interface\"] (game/Main.cs:325)",
+   "status": "EntityHandlers[\"battle_land_interface\"] (game/Main.cs:332)",
    "evidence": "оригінал: CREATE_CLASS(BATTLE_LAND_INTERFACE)",
    "score": 0,
    "kind": "ok",
@@ -10698,7 +10709,7 @@
     "dialog.c:92",
     "dialog.c:172"
    ],
-   "status": "EntityHandlers[\"dialog\"] (game/Main.cs:331)",
+   "status": "EntityHandlers[\"dialog\"] (game/Main.cs:338)",
    "evidence": "оригінал: CREATE_CLASS(DIALOG)",
    "score": 0,
    "kind": "ok",
@@ -10731,7 +10742,7 @@
     "WorldMap/worldmap_reload.c:109",
     "WorldMap/worldmap_reload.c:169"
    ],
-   "status": "EntityHandlers[\"fader\"] (game/Main.cs:227)",
+   "status": "EntityHandlers[\"fader\"] (game/Main.cs:234)",
    "evidence": "оригінал: CREATE_CLASS(Fader)",
    "score": 0,
    "kind": "ok",
@@ -10756,7 +10767,7 @@
     "Locations/locations_loader.c:158",
     "Locations/locators_test.c:129"
    ],
-   "status": "EntityHandlers[\"location\"] (game/Main.cs:242)",
+   "status": "EntityHandlers[\"location\"] (game/Main.cs:249)",
    "evidence": "оригінал: CREATE_CLASS(Location)",
    "score": 0,
    "kind": "ok",
@@ -10768,7 +10779,7 @@
    "sites": [
     "Locations/locations_loader.c:436"
    ],
-   "status": "EntityHandlers[\"locationcamera\"] (game/Main.cs:254)",
+   "status": "EntityHandlers[\"locationcamera\"] (game/Main.cs:261)",
    "evidence": "оригінал: CREATE_CLASS(LocationCamera)",
    "score": 0,
    "kind": "ok",
@@ -10878,7 +10889,7 @@
    "sites": [
     "INTERFACE/BaseInterface.c:10"
    ],
-   "status": "EntityHandlers[\"xinterface\"] (game/Main.cs:221)",
+   "status": "EntityHandlers[\"xinterface\"] (game/Main.cs:228)",
    "evidence": "оригінал: CREATE_CLASS(XINTERFACE)",
    "score": 0,
    "kind": "ok",
@@ -11763,7 +11774,7 @@
     "INTERFACE/option_sl.c:189"
    ],
    "status": "impl (host)",
-   "evidence": "порт: game/Main.cs:176; оригінал: 3 арг. (src/libs/xinterface/src/string_service/str_service.cpp:1627); native-оголошення: native void XI_SetColorCorrection(float fContrast, float fGamma, float fBrightness) (INTERFACE/utilite.c:9)",
+   "evidence": "порт: game/Main.cs:183; оригінал: 3 арг. (src/libs/xinterface/src/string_service/str_service.cpp:1627); native-оголошення: native void XI_SetColorCorrection(float fContrast, float fGamma, float fBrightness) (INTERFACE/utilite.c:9)",
    "score": 0,
    "kind": "ok",
    "args_used": [
