@@ -33,7 +33,7 @@ public partial class SeaView
     {
         if (a == b) return 0;
         if (relCache.TryGetValue((a, b), out var r)) return r;
-        r = Conv.ToInt(it.CallTop("GetRelation", V.Int(a), V.Int(b)));
+        r = Conv.ToInt(it.FireEvent("GetRelationEvent", new List<V> { V.Int(a), V.Int(b) }));        // AIHelper::CalcRelations: core.Event(GET_RELATION_EVENT, "ll")
         relCache[(a, b)] = r;
         return r;
     }

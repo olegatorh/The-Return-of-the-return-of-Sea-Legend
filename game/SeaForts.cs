@@ -15,7 +15,7 @@ namespace SeaDogs;
 /// </summary>
 public partial class SeaView
 {
-    sealed class FortCannon { public Vector3 Pos; public float Damage, Next, Dir, FireIn = -1f; public bool Dead; public Vector3 Aim; }
+    sealed class FortCannon { public string Kind = "1"; public Vector3 Pos; public float Damage, Next, Dir, FireIn = -1f; public bool Dead; public Vector3 Aim; }
 
     sealed class Fort { public Attr Chr = null!; public int Index; public List<FortCannon> Cannons = new(); public Attr? Island; }
 
@@ -34,7 +34,7 @@ public partial class SeaView
             try
             {
                 foreach (var l in GmFile.Parse(File.ReadAllBytes(file)).Labels.Where(l => l.Name.StartsWith("cannon", StringComparison.OrdinalIgnoreCase) || l.Name.StartsWith("culverin", StringComparison.OrdinalIgnoreCase)))
-                    f.Cannons.Add(new FortCannon { Pos = new Vector3(l.M[12], l.M[13], l.M[14]), Dir = MathF.Atan2(l.M[8], l.M[10]), Next = 2f + Random.Shared.NextSingle() * 8f });
+                    f.Cannons.Add(new FortCannon { Kind = l.Name.StartsWith("culverin", StringComparison.OrdinalIgnoreCase) ? "2" : "1", Pos = new Vector3(l.M[12], l.M[13], l.M[14]), Dir = MathF.Atan2(l.M[8], l.M[10]), Next = 2f + Random.Shared.NextSingle() * 8f });
             }
             catch (Exception ex) { GD.PrintErr("[sea] fort locators: " + ex.Message); }
         }
@@ -76,10 +76,10 @@ public partial class SeaView
             if (Conv.ToInt(V.Str(f.Chr.Find("Fort.Mode", false)?.Value ?? "0")) != 0) continue;        // only a fort in normal mode shoots
             var sh = f.Chr.Find("Ship", false);
             if (sh == null) continue;
-            float v0 = Math.Max(20f, F(sh, "Cannons.SpeedV0", 70f));
             foreach (var c in f.Cannons)
             {
                 if (c.Dead) continue;
+                float v0 = FortCannonV0(f, sh, c);
                 // AICannon::Fire: the shot leaves after the script's fire delay (CANNON_GET_FIRE_TIME), at the elevation that reaches the aim point
                 if (c.FireIn >= 0f)
                 {
@@ -111,6 +111,20 @@ public partial class SeaView
                 c.FireIn = Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(f.Chr) })));
             }
         }
+    }
+
+    /// <summary>AIFort::Execute: "cannon" labels use Fort.Cannons.Type.1, "culverin" labels Type.2; when the type differs from Ship.Cannons.Type it is written there and the script
+    /// recomputes the shot data (event CannReCaclParam -> Cannon_RecalculateParameters: SpeedV0 of the cannon x the ball, FireAngMin/Max). Returns the muzzle speed.</summary>
+    float FortCannonV0(Fort f, Attr sh, FortCannon c)
+    {
+        var want = f.Chr.Find("Fort.Cannons.Type." + c.Kind, false)?.Value;
+        if (want != null && sh.Find("Cannons.Type", false)?.Value != want)
+        {
+            sh.Find("Cannons.Type", true)!.Value = want;
+            it.FireEvent("CannReCaclParam", new List<V> { V.Int(f.Index) });
+            GD.Print($"[sea] fort {f.Chr.Get("id")?.Value}: cannon type {want} -> SpeedV0 {F(sh, "Cannons.SpeedV0", 0f):0.0}, FireAngMax {F(sh, "Cannons.FireAngMax", 0f):0.00}");
+        }
+        return Math.Max(20f, F(sh, "Cannons.SpeedV0", 70f));
     }
 
     void LaunchRaw(Attr chr, Vector3 p, int owner, int type, float v0, float dir, float elev)
