@@ -689,6 +689,10 @@ public partial class SeaView : Node3D
             d.Target = MakeHudShip(target, Dist(p, target));
             foreach (var m in d.Markers) if (m.Name == d.Target.Name && Math.Abs(m.Distance - d.Target.Distance) < 0.5f) m.Target = true;
         }
+        // the navigator: the script's picture of the loaded charge (GetCurrentCharge) and the other ships for the minimap
+        d.NavCharge = Conv.ToInt(it.FireEvent("GetCurrentCharge", new List<V>()));
+        foreach (var o in ships)
+            if (!ReferenceEquals(o, p)) d.NavShips.Add(new NavShip { Dx = o.X - p.X, Dz = o.Z - p.Z, Ay = o.Ay, Relation = Relation(p.Index, o.Index), Dead = o.Dying });
         d.Menu = BuildMenu();
         d.BiVisible = biVisible; d.NotEnoughBalls = biNotEnoughBalls;
         ReportSelectedShip();

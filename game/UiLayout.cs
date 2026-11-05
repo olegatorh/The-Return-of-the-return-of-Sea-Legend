@@ -11,6 +11,10 @@ public static class UiLayout
 {
     public const float BaseW = 720f, BaseH = 540f;
 
+    /// <summary>The battle interface (HUD) is laid out in pixels of the real screen by the script (BattleInterface.c / LandInterface.c: 64 px icons at left 16, bottom 80 ...), designed for
+    /// 800 x 600. The 540 high base canvas shows that layout at 540 / 600 of its size; widths and heights keep their pixel proportions on a wide window.</summary>
+    public const float Hud = BaseH / 600f;
+
     /// <summary>Offset that centres the 720x540 base canvas inside the visible area.</summary>
     public static Vector2 Extra(Node n)
     {

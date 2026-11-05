@@ -49,6 +49,8 @@ public sealed class HudData
     public List<HudMarker> Markers = new();
     public string Info = "";
     public HudMenu? Menu;
+    public int NavCharge = -1;                      // GetCurrentCharge: picture of the navigator charge icon (small_cannons.tga rows)
+    public List<NavShip> NavShips = new();
     public bool BiVisible = true, NotEnoughBalls;     // battle_interface BI_SET_VISIBLE / BI_MSG_NOT_ENOUGH_BALLS_FLAG (BattleInterface.cs)
 }
 
@@ -61,11 +63,8 @@ public partial class SeaHud : CanvasLayer
 {
     const string Dir = "battle_interface\\";
     readonly Control root = new() { Name = "SeaHudRoot", MouseFilter = Control.MouseFilterEnum.Ignore };
-    readonly Control nav = new() { Name = "Navigator", MouseFilter = Control.MouseFilterEnum.Ignore };
-    readonly TextureProgressBar windBar = new(), speedBar = new();
-    readonly TextureRect[] gunArc = new TextureRect[4];
-    readonly Control compassBox = new(), windBox = new();
-    readonly Label speedText = new(), sailText = new(), actionText = new();
+    readonly NavigatorView nav = new() { Name = "Navigator" };
+    readonly Label actionText = new();
     readonly VBoxContainer squad = new() { Name = "Squadron" };
     readonly Control targetPanel = new() { Name = "Target" };
     readonly Label targetName = new(), targetInfo = new();
@@ -131,52 +130,7 @@ public partial class SeaHud : CanvasLayer
 
     void BuildNavigator()
     {
-        const float S = 230f;                                     // the navigator textures are 256x256
-        nav.Size = new Vector2(S, S);
-        nav.SetAnchorsPreset(Control.LayoutPreset.TopRight);        // the original puts the navigator in the top right corner
-        nav.OffsetLeft = -S - 8; nav.OffsetTop = 8; nav.OffsetRight = -8; nav.OffsetBottom = S + 8;
         root.AddChild(nav);
-        float k = S / 256f;
-        nav.AddChild(Tex("indicators_dark_and_center_ship.tga", Vector2.Zero, new Vector2(S, S)));
-        // gun readiness: the four arcs of the ring texture (bow, starboard, stern, port)
-        var rects = new Rect2[] { new(80, 24, 100, 32), new(176, 40, 60, 176), new(80, 202, 100, 32), new(20, 40, 60, 176) };
-        for (int i = 0; i < 4; i++)
-        {
-            gunArc[i] = Tex("indicators_cannons_reload.tga", rects[i].Position * k, rects[i].Size * k, rects[i]);
-            nav.AddChild(gunArc[i]);
-        }
-        // wind (left half, blue) and ship speed (right half, orange) fill the outer ring from the bottom gap upwards
-        var ring = GameAssets.Texture(Dir + "indicators_wind_and_ship.tga");
-        foreach (var (bar, cw) in new[] { (windBar, false), (speedBar, true) })
-        {
-            bar.TextureProgress = ring;
-            bar.FillMode = (int)TextureProgressBar.FillModeEnum.Clockwise;
-            bar.NinePatchStretch = false;
-            bar.MinValue = 0; bar.MaxValue = 1; bar.Step = 0.001;
-            bar.Position = Vector2.Zero; bar.Size = new Vector2(S, S);
-            bar.RadialInitialAngle = cw ? 180f : 180f;
-            bar.RadialFillDegrees = 180f;
-            bar.MouseFilter = Control.MouseFilterEnum.Ignore;
-            nav.AddChild(bar);
-        }
-        windBar.FillMode = (int)TextureProgressBar.FillModeEnum.CounterClockwise;
-        // the compass card turns with the heading
-        compassBox.Position = new Vector2(S / 2, S / 2); compassBox.Size = Vector2.Zero;
-        var card = Tex("compass.tga", new Vector2(-S * 0.36f, -S * 0.36f), new Vector2(S * 0.72f, S * 0.72f));
-        card.PivotOffset = card.Size / 2;
-        compassBox.AddChild(card);
-        nav.AddChild(compassBox);
-        // wind pointer around the card
-        windBox.Position = new Vector2(S / 2, S / 2); windBox.Size = Vector2.Zero;
-        var arrow = Tex("wind_pointer.tga", new Vector2(-9, -S * 0.40f), new Vector2(18, S * 0.30f));
-        arrow.PivotOffset = new Vector2(9, S * 0.40f);
-        windBox.AddChild(arrow);
-        nav.AddChild(windBox);
-        sailText.Position = new Vector2(0, S + 14);
-        foreach (var l in new[] { speedText, sailText }) { l.AddThemeFontSizeOverride("font_size", 15); l.AddThemeColorOverride("font_color", new Color(1f, 0.95f, 0.8f)); l.AddThemeColorOverride("font_outline_color", Colors.Black); l.AddThemeConstantOverride("outline_size", 4); l.MouseFilter = Control.MouseFilterEnum.Ignore; }
-        speedText.Position = new Vector2(S / 2 - 50, S / 2 + 30); speedText.Size = new Vector2(100, 20); speedText.HorizontalAlignment = HorizontalAlignment.Center;
-        sailText.Visible = false;
-        nav.AddChild(speedText);
     }
 
     void BuildSquadron()
@@ -373,23 +327,8 @@ public partial class SeaHud : CanvasLayer
     {
         lastOn = d.On;
         spyAlpha = Math.Clamp(spyAlpha + (SpyVisible && scopeAmount > 0.5f ? 1f : -1f) * (float)GetProcessDeltaTime() / 0.5f, 0f, 1f);
-        spyPanel.QueueRedraw();
-        Visible = d.On && !suspended;
-        if (!d.On || suspended) return;
         // navigator
-        float heading = d.Heading;
-        ((Control)compassBox.GetChild(0)).Rotation = -heading;
-        ((Control)compassBox.GetChild(0)).PivotOffset = ((Control)compassBox.GetChild(0)).Size / 2;
-        windBox.Rotation = d.WindTo - heading;
-        windBar.Value = Math.Clamp(d.WindSpeed / 30f, 0f, 1f);
-        speedBar.Value = Math.Clamp(d.Speed / 20f, 0f, 1f);
-        speedText.Text = $"{d.Speed:0.0}";
-        for (int i = 0; i < 4; i++)
-        {
-            gunArc[i].Visible = d.HasGuns[i];
-            float r = d.Ready[i];
-            gunArc[i].Modulate = r >= 1f ? new Color(1f, 1f, 1f, 1f) : new Color(1f, 1f, 1f, 0.25f + 0.4f * r);
-        }
+        nav.Set(d);
         // squadron
         while (rows.Count < d.Squadron.Count)
         {
