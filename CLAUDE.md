@@ -92,6 +92,15 @@ version of the same engine). **Before guessing any engine behaviour, look it up 
 battle_interface, worldmap, location, xinterface, sound_service, tornado, sea_foam, sink_effect, ...). Differences to PotC are possible: the scripts of
 this game remain the specification; use the C++ for formulas, constants, timings, message formats and event argument orders.
 
+## Engine contract audit (automatic)
+`python tools/contract_audit.py` (or `run_tests.ps1 -Contracts`, after the smoke runs so it sees fresh logs; ~10 s, stdlib only, always exits 0) writes
+**`docs/CONTRACTS.md`** (tables sorted by player visibility) and `docs/contracts.json`: what the scripts expect from the engine vs what the port does —
+native functions (missing / stubs / arity), entity classes (`EntityHandlers`), every `SendMessage` code/sub-command per target class (static closure of
+the C# handler + `[nohandler]` from the logs, and whether the original `ProcessMessage` in `reference/storm-engine` handles it), engine-raised events
+(`FireEvent`/`PostEventInternal`, interface ini `event:`) and their `GetEventData()` order/types vs the arguments the port passes and the reference
+`core.Event` format, resources not found in the logs, ini files/sections never read. Use it to pick the next gap; check an entry in the code before
+acting (known limitations are listed at the top of the report). Re-run it after implementing a contract.
+
 ## Working method that paid off
 * Scripts are the specification. To implement an engine class, grep the scripts for `SendMessage(&Obj, "fmt", MSG_...)`, the `#define`d message numbers
   (`messages.h`) and the events the engine must raise (`GetEventData()` order in the handlers). Never guess a contract before reading its script users.
