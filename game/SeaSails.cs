@@ -109,7 +109,7 @@ public partial class SeaView
         public readonly List<YardRt> Yards = new();
     }
 
-    sealed class FallingMast { public Node3D Node = null!; public Transform3D Start; public Vector3 Axis; public float Ang, Vel, T, Sink; }
+    sealed class FallingMast { public Node3D Node = null!; public Transform3D Start; public Vector3 Axis, Drift; public float Ang, Vel, T, Sink; }
     readonly List<FallingMast> fallingMasts = new();
 
     void ClearSails()
@@ -438,21 +438,60 @@ void fragment() {
         var fwd = (s.Node.GlobalBasis * Vector3.Forward) with { Y = 0f };
         if (fwd.LengthSquared() < 1e-4f) fwd = Vector3.Forward;
         if (m.Bowsprit) fwd = (s.Node.GlobalBasis * Vector3.Right) with { Y = 0f };
-        fallingMasts.Add(new FallingMast { Node = m.Node, Start = g, Axis = fwd.Normalized() * (Random.Shared.Next(2) == 0 ? 1f : -1f), Vel = 0.05f });
+        // mast.cpp MAST::Mount: the mast tips sideways at a constant rate (mast.ini fMinZdang + fVarZdang x rand, per 10 ms), away from the nearest ship closer
+        // than 63 m (else to a random side), and keeps the ship's velocity of that moment
+        float sign = Random.Shared.Next(2) == 0 ? 1f : -1f;
+        var foot = g.Origin;
+        var near = ships.Where(o => o != s && !o.Dying).OrderBy(o => new Vector2(o.X - foot.X, -o.Z - foot.Z).LengthSquared()).FirstOrDefault();
+        var axis = fwd.Normalized();
+        if (near != null && new Vector2(near.X - foot.X, -near.Z - foot.Z).LengthSquared() < 4000f)
+        {
+            var side = axis.Cross(Vector3.Up);                                              // the side the mast falls to with a positive rotation about axis
+            sign = side.Dot(new Vector3(near.X - foot.X, 0f, -near.Z - foot.Z)) > 0f ? -1f : 1f;
+        }
+        var mi = MastIni;
+        float vel = (mi.MinZdang + mi.VarZdang * Random.Shared.NextSingle()) * 10f;
+        var shipVel = new Vector3(MathF.Sin(s.Ay), 0f, -MathF.Cos(s.Ay)) * s.Speed * (1853f / 3600f);
+        fallingMasts.Add(new FallingMast { Node = m.Node, Start = g, Axis = axis * sign, Vel = vel, Drift = shipVel });
     }
 
+    sealed class MastIniData { public float MinZdang = 0.04f, VarZdang = 0.02f, MaxDeep = 20f, DeepStep = 3f; }
+    static MastIniData? mastIni;
+    static MastIniData MastIni
+    {
+        get
+        {
+            if (mastIni != null) return mastIni;
+            mastIni = new MastIniData();
+            try
+            {
+                var sec = IniFile.Load(GameAssets.Resource("INI\\mast.ini")).Get("MAST");
+                float Fv(string k, float d) => float.TryParse(sec?.Get(k)?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : d;
+                mastIni.MinZdang = Fv("fMinZdang", 0.04f); mastIni.VarZdang = Fv("fVarZdang", 0.02f); mastIni.MaxDeep = Fv("fMaxDeep", 20f); mastIni.DeepStep = Fv("fDeepStep", 3f);
+            }
+            catch (Exception ex) { GD.PrintErr("[mast] mast.ini: " + ex.Message); }
+            return mastIni;
+        }
+    }
+
+    /// <summary>
+    /// MAST::Execute: the mast turns at its constant rate until it lies on the water (the original stops the turn when the trace hits the water, here at
+    /// ~1.45 rad from upright), drifts with the ship's old velocity, then sinks at fDeepStep m/s and is removed fMaxDeep m under the surface.
+    /// </summary>
     void TickFallingMasts(float dt)
     {
+        var mi = MastIni;
         for (int i = fallingMasts.Count - 1; i >= 0; i--)
         {
             var f = fallingMasts[i];
             if (!GodotObject.IsInstanceValid(f.Node)) { fallingMasts.RemoveAt(i); continue; }
             f.T += dt;
-            if (f.Ang < 1.45f) { f.Vel += 1.7f * MathF.Sin(f.Ang + 0.12f) * dt; f.Ang = Math.Min(1.45f, f.Ang + f.Vel * dt); }
-            else f.Sink += dt * (0.4f + f.Sink * 0.3f);
+            if (f.Ang < 1.45f) f.Ang = Math.Min(1.45f, f.Ang + f.Vel * dt);
+            else f.Sink += mi.DeepStep * dt;
             var b = new Basis(f.Axis, f.Ang) * f.Start.Basis;
-            f.Node.GlobalTransform = new Transform3D(b, f.Start.Origin + Vector3.Down * (f.Sink + MathF.Min(1f, f.Ang / 1.45f) * MathF.Max(0f, f.Start.Origin.Y - 0.5f)));
-            if (f.T > 16f) { f.Node.QueueFree(); fallingMasts.RemoveAt(i); }
+            var origin = f.Start.Origin + f.Drift * f.T + Vector3.Down * (f.Sink + MathF.Min(1f, f.Ang / 1.45f) * MathF.Max(0f, f.Start.Origin.Y - 0.5f));
+            f.Node.GlobalTransform = new Transform3D(b, origin);
+            if (f.Sink > mi.MaxDeep + 10f || f.T > 60f) { f.Node.QueueFree(); fallingMasts.RemoveAt(i); }
         }
     }
 
