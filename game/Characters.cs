@@ -289,10 +289,31 @@ public partial class CharacterView : Node3D
             MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = woman ? new Color(0.9f, 0.4f, 0.6f) : new Color(0.3f, 0.6f, 0.95f) },
         };
         AddChild(placeholder);
+        AddChild(new MeshInstance3D { Mesh = BlobMesh(), MaterialOverride = BlobMaterial(), Position = new Vector3(0, 0.04f, 0), Name = "Shadow", CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         AddChild(new Label3D { Text = id, Position = new Vector3(0, 2.1f, 0), Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, PixelSize = 0.004f, NoDepthTest = true, Name = "NameTag" });
     }
 
     public override void _ExitTree() => All.Remove(Ent.Root);
+
+    // the engine's "shadow" class: a soft dark blob on the ground under every character
+    static PlaneMesh? blobMesh;
+    static ShaderMaterial? blobMat;
+    static PlaneMesh BlobMesh() => blobMesh ??= new PlaneMesh { Size = new Vector2(1.2f, 1.2f) };
+    // the walk patch lies a few centimetres under the drawn floor: the blob is pulled 0.1 m towards the camera in view space so it is not buried
+    const string BlobShader = @"
+shader_type spatial;
+render_mode unshaded, depth_draw_never, cull_disabled, blend_mix;
+void vertex() {
+    vec4 v = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+    v.xyz -= normalize(v.xyz) * 0.1;
+    POSITION = PROJECTION_MATRIX * v;
+}
+void fragment() {
+    float r = length(UV - vec2(0.5)) * 2.0;
+    ALBEDO = vec3(0.0);
+    ALPHA = 0.7 * (1.0 - smoothstep(0.15, 1.0, r));
+}";
+    static ShaderMaterial BlobMaterial() => blobMat ??= new ShaderMaterial { Shader = new Shader { Code = BlobShader }, RenderPriority = 1 };
 
     public void ShowNameTag(bool on) { if (GetNodeOrNull<Label3D>("NameTag") is { } l) l.Visible = on; }
 

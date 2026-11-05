@@ -146,7 +146,7 @@ public partial class CharacterRig : Node3D
 
     void AddMesh(GmFile g, string name)
     {
-        var matCache = new Dictionary<int, StandardMaterial3D>();
+        var matCache = new Dictionary<int, ShaderMaterial>();
         for (int oi = 0; oi < g.Objects.Count; oi++)
         {
             var m = g.ExtractObject(g.Objects[oi]);
@@ -178,8 +178,11 @@ public partial class CharacterRig : Node3D
             var mesh = new ArrayMesh();
             mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
             int mi = g.Objects[oi].Material;
-            if (!matCache.TryGetValue(mi, out var mat)) matCache[mi] = mat = ModelFactory.MakeMaterial(g, mi, "characters", false);
-            mat.AlbedoColor = new Color(0.9f, 0.9f, 0.9f);
+            if (!matCache.TryGetValue(mi, out var mat))
+            {
+                matCache[mi] = mat = CharShading.Make(ModelFactory.MakeMaterial(g, mi, "characters", false));
+                Shading.Add(mat);
+            }
             mesh.SurfaceSetMaterial(0, mat);
             if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)
             {
@@ -204,8 +207,12 @@ public partial class CharacterRig : Node3D
         return true;
     }
 
+    /// <summary>Per-character lighting (weather sun/ambient + the nearest location lights), see LocationLights.cs.</summary>
+    public readonly CharShading.State Shading = new();
+
     public override void _Process(double delta)
     {
+        if (IsVisibleInTree()) Shading.Update(GlobalPosition);
         if (cur == null) return;
         float len = Math.Max(cur.End - cur.Start, 1);
         float prev = time;

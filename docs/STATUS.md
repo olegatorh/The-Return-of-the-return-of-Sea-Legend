@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 31 subsystems below): **71 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **15227** lines of C# (`StormScript/` library + `game/`)
+* Port code: **15616** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -40,7 +40,7 @@ Layers (where the behaviour comes from):
 | Core | Save / load (OnSave/OnLoad, attribute snapshot) | PORT | ████████░░ 85 % | T | round-trip unit test + load in game |
 | Data | Textures .tx, geometry .gm, animation .an/.ani, patches .ptc, lighting .col, ini, texts | NATIVE | █████████░ 90 % | V | read from the original files; some .gm versions and effects unsupported |
 | Language | Ukrainian translation layer | PORT | ███████░░░ 70 % | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality) |
-| Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 85 % | V | compared with screenshots; no shadows or animated props |
+| Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 88 % | V | compared with screenshots (day/night town, tavern); day/night model sets + baked .col; point lights (ADD_LIGHT, lights.ini types, flicker, coronas) shade the characters; blob shadow under every character; MODEL_SET_ROT / SET_UVS (stage-0 texture slide of waterfalls/rivers); second texture stage and reflections not drawn |
 | Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | ████████░░ 80 % | V | walk/run/follow/fight tasks work; ragdoll and many animations missing |
 | Land | Melee combat (swings, damage by script, death) | APPROX | ██████░░░░ 65 % | T | NPC fight AI driven by the script (test melee): rates from NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire, FightGo/FightStay/TaskFailure "Fight", Location_CharacterIsFight (also before the hero draws) / IsFire; damage by Location_CharacterAttack/Block/Fire; block, parry, recoil, hit reactions, NPC pistol shots, engine recharge of chr_ai.charge; how the rates turn into actions and all timings are mine (C++ not available); PotC has no fast/force/round/break attack kinds or energy |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
@@ -67,18 +67,18 @@ Layers (where the behaviour comes from):
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
 
-## Engine classes that the scripts create (67)
+## Engine classes that the scripts create (69)
 
 The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `SendMessage(&obj, ...)`, events and a few native functions (`docs/engine_surface.txt`).
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 26 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 10 | `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (60%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
+| PORT | 27 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| APPROX | 11 | `shadow` (60%), `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (60%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
 | STUB | 22 | `ActivePerkShower`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **36 of 67** (54 %); stubs: 22, missing: 9.
+Classes with real behaviour: **38 of 69** (55 %); stubs: 22, missing: 9.
 
 ## How accuracy is checked (and what is still unchecked)
 

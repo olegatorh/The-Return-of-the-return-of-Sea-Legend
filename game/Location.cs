@@ -28,7 +28,39 @@ public partial class LocationView : Node3D
     public PtcFile? Patch;
     static readonly HashSet<string> warned = new();
 
+    readonly List<(Node3D node, Vector3 speed)> spinners = new();
+    readonly List<(List<StandardMaterial3D> mats, Vector2 speed)> sliders = new();
+    float animTime;
+
     public LocationView(Interp it, Entity ent) { this.it = it; Ent = ent; Name = "Location"; }
+
+    /// <summary>Interiors have no weather (loc.environment.weather != "true"): the characters get an indoor ambient.</summary>
+    public bool Indoor => Ent.Root.Find("environment.weather", false)?.Value != "true";
+
+    public override void _ExitTree() => LocationLights.RemoveOwned(this);
+
+    static List<StandardMaterial3D> ModelMaterials(Node3D n)
+    {
+        var r = new List<StandardMaterial3D>();
+        foreach (var c in n.GetChildren())
+            if (c is MeshInstance3D { Mesh: { } mesh })
+                for (int i = 0; i < mesh.GetSurfaceCount(); i++)
+                    if (mesh.SurfaceGetMaterial(i) is StandardMaterial3D m && !r.Contains(m)) r.Add(m);
+        return r;
+    }
+
+    /// <summary>Animated models: rotating parts (MODEL_SET_ROT) and sliding textures of water falls and rivers (MODEL_SET_UVS).</summary>
+    public override void _Process(double delta)
+    {
+        float dt = (float)delta;
+        animTime += dt;
+        foreach (var (node, sp) in spinners) node.Rotation += sp * dt;
+        foreach (var (mats, sp) in sliders)
+        {
+            var off = new Vector3((sp.X * animTime) % 1f, (sp.Y * animTime) % 1f, 0);
+            foreach (var m in mats) m.Uv1Offset = off;
+        }
+    }
 
     static void Warn(string s) { if (warned.Add(s)) GD.Print("[location] not implemented: " + s); }
 
@@ -47,7 +79,22 @@ public partial class LocationView : Node3D
             case 30100: return V.Int(AddModel(S(1)) ? 1 : 0);                    // ADD_MODEL "lssl"
             case 30101: return V.Int(0);                                         // GET_MODEL: no model objects yet
             case 30110: PlaceLastModel(S(1), S(2)); return V.Int(1);             // MODEL_SET_POS
-            case 30111: case 30112: case 30113: case 30114: return V.Int(1);
+            case 30111:                                                          // MODEL_SET_ROT "lfff": spin speed (rad/s) around the model's own axes
+                if (lastNode == null) return V.Int(0);
+                // D3D -> Godot mirrors z: rotations about x and y change sign
+                spinners.Add((lastNode, new Vector3(-Conv.ToFloat(d[1]), -Conv.ToFloat(d[2]), Conv.ToFloat(d[3]))));
+                GD.Print($"[location] {lastNode.Name}: rotates {spinners[^1].speed} rad/s");
+                return V.Int(1);
+            case 30112:                                                          // MODEL_SET_UVS "lffff": texture slide speed u0,v0 (stage 0), u1,v1 (stage 1)
+            {
+                if (lastNode == null) return V.Int(0);
+                var sp = new Vector2(Conv.ToFloat(d[1]), Conv.ToFloat(d[2]));
+                // only the first texture stage is drawn: the second stage's slide (sea-bottom caustics, light rays) has nothing to move here
+                if (sp != Vector2.Zero) sliders.Add((ModelMaterials(lastNode), sp));
+                GD.Print($"[location] {lastNode.Name}: uv slide {sp} (stage 1: {Conv.ToFloat(d[3])}, {Conv.ToFloat(d[4])})");
+                return V.Int(1);
+            }
+            case 30113: case 30114: return V.Int(1);                             // MODEL_LAMPS (unused by the scripts: commented out), MODEL_REFLECTION
             case 30120:                                                          // SET_CHRS_PATCH: walkable surface
                 try { Patch = PtcFile.Parse(File.ReadAllBytes(ModelFile(S(1), ".ptc"))); GD.Print($"[location] patch {S(1)}: {Patch.Tris.Length} triangles"); return V.Int(1); }
                 catch (Exception e) { GD.PrintErr($"[location] patch {S(1)}: {e.Message}"); return V.Int(0); }
@@ -55,7 +102,8 @@ public partial class LocationView : Node3D
             case 30122: return V.Int(File.Exists(ModelFile(S(1), ".gm")) ? 1 : 0);    // SET_JMP_PATCH
             case 30125: groupRadius[S(1)] = Conv.ToFloat(d[2]); return V.Int(1);
             case 30126: locRadius[(S(1).ToLowerInvariant(), S(2).ToLowerInvariant())] = Conv.ToFloat(d[3]); return V.Int(1);
-            case 30128: return V.Int(1);                                         // ADD_LIGHT
+            case 30128:                                                          // ADD_LIGHT "lsfff": light type (lights.ini), position
+                return V.Int(LocationLights.Add(this, S(1), Conv.ToFloat(d[2]), Conv.ToFloat(d[3]), Conv.ToFloat(d[4])) ? 1 : 0);
             case 30130: UpdateLocators(); return V.Int(1);
             case 30152:                                                          // SETCHRPOSITIONS: remember where everybody stands (for a save)
             {

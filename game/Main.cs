@@ -628,6 +628,7 @@ public partial class Main : Node
             sea.TestTurn = 0f;
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1) sea.TestTurn = dir.X;
             sea.Tick(dt, dialogView == null && !UiOpen);
+            LocationLights.SyncWeather(host.It, false);
             outdoor.Sync(host.It, sea.Cam, delta);
             weatherFx.Sync(host.It, sea.Cam, delta);
             return;
@@ -635,6 +636,8 @@ public partial class Main : Node
 
         // follow camera
         var cam = CurrentLocation()?.Cam;
+        LocationLights.SyncWeather(host.It, CurrentLocation()?.Indoor ?? false);
+        if (cam != null) LocationLights.Tick((float)delta, cam.GlobalPosition);
         outdoor.Sync(host.It, cam, delta);
         weatherFx.Sync(host.It, cam, delta);
         if (cam == null) return;
