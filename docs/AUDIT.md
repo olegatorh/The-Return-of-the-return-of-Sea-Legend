@@ -38,7 +38,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `ILogAndActions` | журнал і підказка дії | ✅ (`LOG_LAUNCH_ACTIONS` 45023, `LI_OTHER_MSG` 45029 не використовуються) | `LogHud.cs` | — |
 | `battle_land_interface` | земний HUD: портрети героя й офіцерів зі смугами HP, іконки команд | ✅ 46013/46100-46104: портрети (HP, перезарядка, заряди пістоля, іконки повідомлень, блимання тривоги/отрути), меню команд по Enter (`BI_SetPossibleCommands` / `BI_CommandEndChecking` / `BI_LaunchCommand`, `UserIcons`, `ComState`); точне змішування/порядок малювання C++ невідомі | `LandHud.cs`, тест `landhud`, `review/land*.png` | — |
 | `Animals` (animals) | чайки, риби, метелики, акули | ❌ (`[nohandler] 77100-77109`) | `smoke_sea.log`, `smoke_fight.log` | чайки/метелики — дешева атмосфера |
-| `blots` (Blot) | сліди від ударів на корпусі/фортах | ❌ (`[nohandler] 30600`) | `smoke_*` | низький пріоритет |
+| `blots` (Blot) | сліди від ударів на фортах | ✅ сліди на стіні форту видно на скріншоті (`--blot@N`, дуель біля Мартиніки) | `SeaBlots.cs` | — |
 | `Sound` (SOUND, SoundService) | аліаси, схеми, 3D | 🟡 усі ini з `INI/ALIASES` (з `Greetings_alias.ini`: 224 привітання, 78 з 87 імен у скриптах є в ini — решти нема й в оригіналі); 3D-звук у точці (`SOUND_WAV_3D` + x,y,z) з `minDistance/maxDistance` аліаса; немає `SET_3D_PARAM`, `DUPLICATE`, `GET_POSITION`, позиції камери 77001/77002 (слухач = камера Godot) | `SoundView.cs`, `SEADOGS_SOUNDLOG=1` | `SET_3D_PARAM` |
 | `particles` (PARTICLES) | системи з `INI/PARTICLES/*.ini` | ✅ усі 36 систем з 5 ini (ключі, які читає PARTICLES.dll: емісія, час життя, криві розміру/альфи/швидкості/обертання/вітру, вага, техніки Particles / Particles_Inv / ParticlesFire); `PS_CREATE/CREATEX/_RIC/CREATEXX` 10000-10009, `PS_DELETE` 10007, `PS_CLEARALL` 10006, `PS_PAUSEALL` 10010, `PS_SETVECTORS` 10001; вітер з атрибутів `windpower/winddirection`. Одиниці виведені з даних (вихідного C++ немає); текстура вогню малюється адитивно (інакше тьмяна); `[geo]`-частинки лише через `blast` | `Particles.cs`, скріни `review/pfx*.png` | — |
 | `blast` | вибухи (LM_SETPOINT) | 🟡 1600/1601: 6-11 уламків `MODELS/particles/palka01..05` розлітаються балістично (точна поведінка оригіналу невідома); дим/спалах — системи `blast`/`blast_inv` скрипту | `Particles.cs`, `--shipboom@N` | — |
@@ -50,7 +50,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `HELPCHOOSER` | вибір розділу довідки за картинкою | ❌ | `interface.c:1229`, `helpchooser.ini` | разом з екраном довідки |
 | `ActivePerkShower` | іконки активних навичок на HUD | ✅ 47000 "add"/"del": іконки `PerkList.list` з таблиці `Textures` скрипту (сітка horz×vert), прямокутник `InitActivePerkShower`, місця згори вниз у правому стовпці, далі лівіше (`active_perk_shower.cpp`; бо `showWindow` рушій не заповнює — рахується для 800×600 і опущений під навігатор моря); суша й море | `ActivePerks.cs`, скрін з `--call=ActivateCharacterPerk(#Blaze,Turn180)` | — |
 | `artifact` | ефект артефакту (квест) | ❌ | `MODELS/...`, `PARTICLES/artifact.ini` | квестовий |
-| `shadow.dll`, `WaterRings.dll`, `blade.dll` (створює рушій) | тіні персонажів, кола у воді, сліди клинка/кров | ❌ (`MSG_BLADE_*` у скриптах не вживаються) | — | тіні — помітно |
+| `shadow.dll`, `WaterRings.dll`, `blade.dll` (створює рушій) | тіні персонажів, кола у воді, сліди клинка/кров | 🟡 **тіні ✅** (`CharShadow.cs`: силует від сонця в текстуру, проекція на полігони локації, густина/затухання як у `shadow.cpp`); кола у воді — див. `docs/VERIFIED.md` S6; `MSG_BLADE_*` у скриптах не вживаються | `CharShadow.cs`, `SEADOGS_NOSHADOW`, `SEADOGS_SHADOWDEBUG` | — |
 
 ### 1.2 Море
 | Клас (DLL) | Оригінал | Порт | Докази | Що зробити |
@@ -75,8 +75,8 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `SEA_OPERATOR` | кінокамера пострілів/влучань | ❌ (`[nohandler] 77400`) | `smoke_*`, `shipBortFire.c:45` | низький |
 | `AISeaGoods` | плаваючі бочки з вантажем | ❌ (`ShpEatSwimGood` не підіймається) | `AISeaGoods.c`, `MODELS/SwimGoods` | середній (лут після бою) |
 | `SINKEFFECT` | вир/бульбашки при потопленні | ❌ | — | низький |
-| `Sharks` (SeaCreatures) | акули | ❌ | — | низький |
-| `Weather`, `Sky`, `rain`, `Lightning`, `SunGlow`, `Tornado` (WEATHER, Tornado) | погода | 🟡 небо, туман, дощ, блискавка, смерч ✅; `SunGlow` (сонце/відблиски) ❌; грому немає; не підіймаються `EWhr_GetWindAngle/Speed/FogDensity`, `WhrCalcFogColor` | `OutdoorEnv.cs`, `WeatherFx.cs` | SunGlow, звук грому |
+| `Sharks` (SeaCreatures) | акули | ✅ плавник, слід-клин і стрибок видно на скріншотах (`--sharks=jump@N`) | `SeaSharks.cs` | — |
+| `Weather`, `Sky`, `rain`, `Lightning`, `SunGlow`, `Tornado` (WEATHER, Tornado) | погода | 🟡 небо, туман, дощ, блискавка, смерч ✅; `SunGlow` (сонце + 8 відблисків) ✅ (білі квадрати були від туману: `fog_disabled`); грому немає; не підіймаються `EWhr_GetWindAngle/Speed/FogDensity`, `WhrCalcFogColor` | `OutdoorEnv.cs`, `WeatherFx.cs` | SunGlow, звук грому |
 
 ### 1.3 Карта світу
 | Клас | Оригінал | Порт | Докази | Що зробити |
@@ -114,7 +114,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Земля | рукопашний бій | ✅/🟡 ШІ бою NPC за скриптом (тест `melee`): частоти атаки/захисту/пострілу, агресивність і дозвіл стріляти з `NPC_Event_Get*`/`EnableFire`; події `Location_CharacterFightGo/FightStay`, `TaskFailure "Fight"`, `IsFight` (і перед тим, як герой дістає шаблю), `IsFire`; шкода — `Location_CharacterAttack/Block/Fire`; як частоти перетворюються на дії та таймінги — мої (C++ немає); у PotC немає видів атак fast/force/round/break і енергії | `Characters.cs`, `smoke_melee.log` | `Location_CharacterEndAction` |
 | Земля | діалоги | ✅ текст; ❌ голова, голосові привітання | `Dialog.cs` | Greetings |
 | Земля | предмети на землі, скрині | 🟡 скриня відкривається (`review/chest.png`, `bx*.png`), підбір ❓ | `Main.cs:238` | сценарій тесту |
-| Земля | квести, кат-сцени | 🟡 логіка скриптова ✅; рух камери `MSG_CAMERA_MOVE`, `WideScreen`, відео ❌ | `quests_movie.c` | — |
+| Земля | квести, кат-сцени | 🟡 логіка скриптова ✅; `MSG_CAMERA_MOVE`/`SLEEP`/`TOPOS`, `WideScreen` ✅, анімація `LAi_ActorAnimation` завершується (`Location_Character_EndAction`); відео ❌ | `quests_movie.c` | — |
 | Земля | земний HUD (`battle_land_interface`) | ✅ портрети + меню команд (розмова, швидкий перехід, двері, зілля, скриня) | `LandHud.cs`, тест `landhud` | — |
 | Море | кораблі, рух, хвилі, зіткнення | ✅/🟡 | `smoke_sea.log`, STATUS 50-75 % | — |
 | Море | ШІ кораблів | ✅/🟡 рішення приймають скрипти: рушій підіймає `Shp_ChkSituation` (щосекунди на кожен корабель ШІ, `SeaAI.Update.Situation.MinEnemyDistance`), `GrpChkTsk` (кожні 3 с на групу), `ShpFireAction` (кораблі в секторі залпу гравця); нейтральний корабель, по якому стріляють, стає ворожим, маркер червоніє, група отримує задачу атаки й переслідує (тест `neutral`, скріни `smoke_neutral*.png`); задачі move/attack/follow/defend/defend group/flee/ram; константи керування (дистанції, сектор залпу 0.7 рад, періоди подій) мої | `SeaAI.cs`, `Sea.cs` `Steer` | маневрування в бою (обхід з навітряного боку) |
@@ -122,7 +122,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Море | абордаж | ✅/🟡 повний цикл (тест `board`): ворог сильніший — бере на абордаж сам (`Ship_CheckMainCharacter` з `SeaAI.Update`), гравець — командою «Абордаж» (`Sea_AbordageLoad`); верхня палуба → гарматна → каюта (команди знаходять одна одну через радіус «say» груп), екран грабунку, обмін кораблями, потоплення, повернення в море; сцени з абордажними гаками немає; здача ворога (ransack_join/captain) не перевірена | `review/board_*.png`, `smoke_board.log` | ransack_join/captain, офіцер через transfer_characters |
 | Море | форти | 🟡 стріляють, отримують шкоду; захоплення фортів/колоній (екрани `fortcapture`, `colony_*`) ❓ | `SeaForts.cs` | сценарій |
 | Море | камери палуби/каюти, підзорна труба | 🟡 труба ✅ без панелі; каюта/палуба як локації ✅; камера з палуби ❌ | — | — |
-| Море | погода, шторм, смерч | 🟡 дощ/блискавка/смерч ✅, грім ❌, SunGlow ❌ | `WeatherFx.cs` | — |
+| Море | погода, шторм, смерч | 🟡 дощ/блискавка/смерч ✅, грім ❌, SunGlow ✅ | `WeatherFx.cs` | — |
 | Море | частинки (дим, вогонь, бризки) | ✅ оригінальні системи `INI/PARTICLES` (дим гармат, вибухи, бризки, пожежі кораблів і фортів); у локаціях — смолоскипи, свічки, вогнища, дим з локаторів | `Particles.cs` | — |
 | Море | плаваючий вантаж, акули, чайки | ❌ | — | — |
 | Карта світу | сцена, кораблі, зустрічі, дата | ✅/🟡 | `smoke_map.log` | — |
@@ -151,3 +151,9 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 13. **Атмосфера**: чайки/метелики/риби (`Animals`), `SunGlow`, грім, піна біля берега, прозора вода з дном, `AISeaGoods` (плаваючий вантаж), акули, `SINKEFFECT`.
 14. **Відео** (9 `.wmv`) — потрібна конвертація в `.ogv` (інструмент лише з дозволу власника); кат-сцени: `MSG_CAMERA_MOVE`, `WideScreen`.
 15. **Шрифти оригіналу** (`fonts.ini`), прапори міст і фортів (`MSG_FLAG_INIT` для локацій), `blots`, ~~`shippointer`, `ActivePerkShower`~~ (зроблено: `SeaTelescope.cs`, `ActivePerks.cs`); оновити `CLAUDE.md`/`ARCHITECTURE.md`/`status_data.txt` згідно з розділом 0.
+
+## Прохід по морських залишках (2026-11-05)
+`SunGlow` увімкнено за замовчуванням (причина білих квадратів — туман Godot; відблиски та диск сонця на скріншоті). Акули, сліди на фортах, `BallSplash` (сітка `explos.tga` + 64 кадри `splash.tga`, як у `t_splash.cpp`), звук `ship_bow` у шторм, `Shp2Strand` (посадка на мілину: `ship_aground`), `MSG_SHIP_CREATE` 50300 (кораблі та шлюпка у портовій локації), `GetRelationEvent`/`CannReCaclParam` перевірені на скріншотах/логах (докладно: `docs/VERIFIED.md`, розділ «Sea leftovers pass»). `water_rings` створює лише сухопутний `Character` при плаванні — не морська справа. Залишилось: `CannUnload` (порт заряджає по одному ядру на залп, а не на кожну гармату), `SeaGetLayers`, `WhrCalcFogColor`, `MSG_TELESCOPE_REQUEST`, `sea_operator` (камера-оператор), тінь від вітрил для сонця (`SAILS_TRACE`).
+
+## Камера, керування, стрибки, плавання, тіні на суші (2026-11-05)
+`LandCamera.cs` (камера слідування за `camera_follow.cpp`: радіус 3, пробні промені 0.25, згладжування радіуса), класичне керування за `player.cpp`/`init_pc.c` (F10 або прапорець на екрані клавіш; миша повертає героя, A/D — поворот, W/S/ПКМ/СКМ — хід, біг за замовчуванням, Shift = крок), Tab = вид з очей, `CharacterJump.cs` (стрибок з уступів по `jumpPatch`, плавання), `CharShadow.cs` (тіні), події `CharacterGroup_UpdateAlarm`, `CameraPosAng`, `Location_Character_EndAction`. Деталі й тести — `docs/VERIFIED.md` L12-L21. Лишається: `FREE`-режим і треки камери (`-1/-2/-3` у `location_camera.cpp`), дії `fall*` (їх нема в `man.ani`), розмиття 3x3 тіні, тінь від зброї, штовхання хвилями під час плавання.
