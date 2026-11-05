@@ -21,7 +21,7 @@ public partial class SeaView
     {
         public Vector3 Pos, Vel, Force, FForce, SPos, Angs, RForce;       // engine coordinates (x, y up, z)
         public float YDir, DirTime, Accs, RTime, Turn, Imspd, Speed = (SharkMaxSpeed + SharkMinSpeed) * 0.5f, ShipY, VBase, AniTime, JumpTime;
-        public bool SpeedUp;
+        public bool SpeedUp, Pinned;       // Pinned: test hook, ignores ships
         public CharacterRig? Rig;
         public MeshInstance3D? Track;
         public ShaderMaterial? TrackMat;
@@ -64,7 +64,7 @@ void fragment() {
         foreach (var sh in ships)
         {
             float rd2 = (sh.Width * sh.Width + sh.Length * sh.Length) * 3f;
-            foreach (var s in sharks) SharkShip(s, sh.X, sh.Z, rd2);
+            foreach (var s in sharks) if (!s.Pinned) SharkShip(s, sh.X, sh.Z, rd2);
         }
         foreach (var s in sharks) SharkStep(s, camX, camZ, dt);
     }
@@ -280,5 +280,25 @@ void fragment() {
         else if (s.JumpTime <= 0f && s.SPos.Y > -0.1f && (rnd & 0xf0) != 0) { act = "Shark_Jump"; loop = false; s.JumpTime = 60f + Rand(100f); s.AniTime = 47f / Math.Max(1f, s.Rig.Fps); }
         else { act = "Shark_Swim"; s.AniTime = 2f + Rand(3f); }
         s.Rig!.Play(act, loop, true);
+    }
+
+    /// <summary>Test hook --sharks@N (=jump: also starts the jump animation): puts the first shark 14 m abeam of the player's ship at the surface so the camera sees fin, track and jump.</summary>
+    public void SharkTest(string what)
+    {
+        var p = ships.FirstOrDefault(x => x.IsPlayer);
+        if (p == null) { GD.Print("[sea] sharks test: no ship"); return; }
+        if (!sharksBuilt) { sharksEnt ??= fxEntity("Sharks"); if (sharksEnt == null) { GD.Print("[sea] sharks test: no Sharks entity"); return; } BuildSharks(); }
+        if (sharks.Count == 0) return;
+        float sx = MathF.Sin(p.Ay), sz = MathF.Cos(p.Ay);
+        var s = sharks[0];
+        s.Pos = new Vector3(p.X + sz * 14f + sx * 6f, -0.3f, p.Z - sx * 14f + sz * 6f);
+        s.SPos = s.Pos; s.Angs = new Vector3(0f, p.Ay, 0f); s.Vel = Vector3.Zero; s.YDir = -0.3f; s.DirTime = 100f; s.Imspd = 0f; s.Pinned = true;
+        if (s.Rig != null)
+        {
+            bool jump = what.Contains("jump");
+            s.Rig.Play(jump ? "Shark_Jump" : "Shark_Swim", !jump, true);
+            s.AniTime = jump ? 47f / Math.Max(1f, s.Rig.Fps) : 100f;
+        }
+        GD.Print($"[sea] sharks test: shark 0 at {s.Pos.X:F1},{s.Pos.Z:F1} ({what})");
     }
 }

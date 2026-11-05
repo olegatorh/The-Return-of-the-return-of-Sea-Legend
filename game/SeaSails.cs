@@ -693,6 +693,8 @@ void fragment() {
     /// <summary>--mastfall@N (--mastfall=me@N: of the player's ship): the main mast of the nearest other ship takes a ball with 0.95 damage already on it; --sailholes@N: eight balls through its sails.</summary>
     public void RigTest(string what)
     {
+        if (what.StartsWith("sharks")) { SharkTest(what); return; }
+        if (what.StartsWith("blot")) { BlotTest(); return; }
         var p = ships.FirstOrDefault(x => x.IsPlayer);
         bool me = what.EndsWith("=me");
         var o = me ? p : ships.Where(x => !x.IsPlayer && !x.Dying).OrderBy(x => p == null ? 0f : Dist(p, x)).FirstOrDefault() ?? p;

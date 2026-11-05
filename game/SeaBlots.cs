@@ -221,4 +221,39 @@ void fragment() {
             }
         }
     }
+
+    /// <summary>Test hook --blot@N: three balls are traced against the wall of the fort nearest to the player (the real BlotsTrace + BlotAdd path) and the ship is put 30 m in front of it.</summary>
+    public void BlotTest()
+    {
+        var p = ships.FirstOrDefault(x => x.IsPlayer);
+        if (p == null || blotSets.Count == 0) { GD.Print("[sea] blot test: no ship or no fort"); return; }
+        var me = new Vector3(p.X, 0f, -p.Z);
+        BlotsRt? best = null; Vector3 bc = default, bn = default; float bd = float.MaxValue;
+        foreach (var bs in blotSets)
+        {
+            if (!BlotsReady(bs) || bs.Faces == null) continue;
+            var f = bs.Faces;
+            for (int i = 0; i + 2 < f.Length; i += 3)
+            {
+                var n = (f[i + 1] - f[i]).Cross(f[i + 2] - f[i]);
+                if (n.LengthSquared() < 1e-6f) continue;
+                n = n.Normalized();
+                var c = (f[i] + f[i + 1] + f[i + 2]) / 3f;
+                if (MathF.Abs(n.Y) > 0.3f || c.Y < 3f || c.Y > 40f) continue;
+                if (n.Dot(me - c) < 0f) n = -n;
+                float d = (c - me).Length();
+                if (d < bd) { bd = d; best = bs; bc = c; bn = n; }
+            }
+        }
+        if (best == null) { GD.Print("[sea] blot test: no wall face"); return; }
+        var side = bn.Cross(Vector3.Up).Normalized();
+        for (int k = -1; k <= 1; k++)
+        {
+            var o = bc + side * (k * 2.5f) + Vector3.Up * (k == 0 ? 0.6f : -0.4f);
+            if (BlotsTrace(o + bn * 6f, o - bn * 3f, out var h, out var d, out var set, out var nn) && set != null) BlotAdd(set, h, d, nn);
+        }
+        var sp = bc + bn * 35f;
+        Teleport(sp.X, -sp.Z, MathF.Atan2(-bn.X, bn.Z));
+        GD.Print($"[sea] blot test: wall at ({bc.X:0.0},{bc.Y:0.0},{-bc.Z:0.0}), ship moved");
+    }
 }
