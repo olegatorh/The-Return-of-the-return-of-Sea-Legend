@@ -9,35 +9,45 @@ namespace SeaDogs;
 /// <summary>Extra ship physics of the sea: wave rocking and heeling, ship-to-ship collisions (the script converts the impact to damage) and the wake.</summary>
 public partial class SeaView
 {
-    float waveClock;
+    float rockDt = 1f / 60f;
+    readonly float[,] rockH = new float[6, 6];
 
-    /// <summary>Roll and pitch from the swell (stronger with the wind), heel in turns and under sail.</summary>
+    /// <summary>
+    /// SHIP::ShipRocking: the sea height under a 6 x 6 grid over the hull box (width x length) gives the height (their mean) and the pitch / roll (the mean
+    /// slope between the front and back rows / the left and right columns, three pairs each); the ship follows them by min(dt / 0.025 x Ship.Rocking.y / .az, 1)
+    /// per frame. The heel in a turn is SHIP::Execute's vAng.z += clamp(rotation speed, ±0.25).
+    /// </summary>
     void ApplyRocking(ShipRt s)
     {
         if (s.Dying) return;
-        waveClock = clock;
-        float wind = 0f;
-        if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) wind = F(wa, "Wind.Speed");
-        // the ship rides the wave field of the sea (SeaWaves, the same function that displaces the water): lifted by the surface under it, pitched and rolled by its slope
-        float sn = MathF.Sin(s.Ay), cs = MathF.Cos(s.Ay);
-        float px = s.X, pz = -s.Z;                                          // Godot world position
-        var fwd = new Vector2(sn, -cs);                                      // bow direction in Godot x,z
-        var right = new Vector2(cs, sn);
-        float lh = s.Length * 0.4f, bh = Math.Max(3f, s.Length * 0.12f);
-        float hC = SeaWaves.Height(px, pz);
-        float hBow = SeaWaves.Height(px + fwd.X * lh, pz + fwd.Y * lh), hStern = SeaWaves.Height(px - fwd.X * lh, pz - fwd.Y * lh);
-        float hR = SeaWaves.Height(px + right.X * bh, pz + right.Y * bh), hL = SeaWaves.Height(px - right.X * bh, pz - right.Y * bh);
-        float size = Math.Clamp(30f / Math.Max(10f, s.Length), 0.5f, 1.3f);        // small ships follow the surface more closely
-        float pitch = MathF.Atan2(hBow - hStern, 2f * lh) * (0.6f + 0.3f * size);
-        float roll = MathF.Atan2(hR - hL, 2f * bh) * (0.6f + 0.3f * size);
-        float heave = hC * 0.9f;
-        // heel: outwards in a turn, and away from the wind under sail (the wind pushes the sails, strongest abeam)
-        float windAng = 0f;
-        if (it.Globals.TryGetValue("Weather", out var w2) && w2.Val.Attr is { } wb) windAng = F(wb, "Wind.Angle");
-        float side = MathF.Sin(windAng - s.Ay);                                   // > 0: the wind blows towards the starboard side
-        float heel = -s.TurnRate * Math.Clamp(s.Speed / 8f, 0f, 1.5f) * 0.6f + s.Sail * Math.Clamp(wind / 18f, 0f, 1f) * 0.11f * side * Math.Clamp(s.Speed / 5f, 0.3f, 1f);
-        s.Node.Rotation = new Vector3(pitch, -s.Ay, roll + heel);
-        s.Node.Position = new Vector3(s.X, heave, -s.Z);
+        var sh = s.Chr.Find("Ship", false);
+        float fDelta = Math.Min(rockDt, 0.1f) / 0.025f, kY = F(sh, "Rocking.y", 1f), kAZ = F(sh, "Rocking.az", 1f);
+        float W = Math.Max(1f, s.Width), L = Math.Max(1f, s.Length);
+        float sn = MathF.Sin(s.Ay), cs = MathF.Cos(s.Ay), sum = 0f;
+        for (int ix = 0; ix < 6; ix++)
+            for (int iz = 0; iz < 6; iz++)
+            {
+                float x = ix * W * 0.2f - 0.5f * W, z = iz * L * 0.2f - 0.5f * L;          // engine local: x right, z forward
+                float wx = s.X + x * cs + z * sn, wz = s.Z - x * sn + z * cs;
+                float h = SeaWaves.Height(wx, -wz);                                         // Godot world position
+                rockH[ix, iz] = h; sum += h;
+            }
+        float bowUp = 0f, rightUp = 0f;
+        for (int k = 0; k < 3; k++)
+        {
+            float back = 0f, front = 0f, left = 0f, right = 0f;
+            for (int j = 0; j < 6; j++) { back += rockH[j, k]; front += rockH[j, 5 - k]; left += rockH[k, j]; right += rockH[5 - k, j]; }
+            bowUp += MathF.Atan((front - back) / 6f / (L - 0.4f * k * L));
+            rightUp += MathF.Atan((right - left) / 6f / (W - 0.4f * k * W));
+        }
+        bowUp /= 3f; rightUp /= 3f;
+        s.RockY += Math.Min(fDelta * kY, 1f) * (sum / 36f - s.RockY);
+        float ka = Math.Min(kAZ * fDelta, 1f);
+        s.RockPitch += ka * (bowUp - s.RockPitch);
+        s.RockRoll += ka * (rightUp - s.RockRoll);
+        float heel = -Math.Clamp(s.TurnRate, -0.25f, 0.25f);                                   // outwards in a turn
+        s.Node.Rotation = new Vector3(s.RockPitch, -s.Ay, s.RockRoll + heel);
+        s.Node.Position = new Vector3(s.X, s.RockY, -s.Z);
         UpdateWake(s);
     }
 
@@ -109,15 +119,47 @@ void fragment() {
                 float ax0 = a.X, az0 = a.Z, bx0 = b.X, bz0 = b.Z;
                 a.X += n.X * -best * 0.5f; a.Z += n.Y * -best * 0.5f; b.X -= n.X * -best * 0.5f; b.Z -= n.Y * -best * 0.5f;
                 KeepOffLand(a, ax0, az0); KeepOffLand(b, bx0, bz0);       // a push must not shove a hull onto the island
-                float rel = MathF.Abs(a.Speed - b.Speed) + 0.5f * MathF.Abs(a.Speed) * 0.2f;
-                a.Speed *= 0.6f; b.Speed *= 0.6f;
+                // TOUCH::IsIntersectShipsReal / Touch: the blow power is the closing speed (knots) along the contact normal, the slide the cosine between the
+                // motion and the hull side; the hit ship takes kW = 0.5 + (wHitter - wHit) / (2 max w) of it, the hitter the rest (Ship type "Weight")
+                float x = (pa.X + pb.X) * 0.5f, z = (pa.Y + pb.Y) * 0.5f;
+                var va = new Vector2(MathF.Sin(a.Ay), MathF.Cos(a.Ay)) * a.Speed + new Vector2(MathF.Cos(a.Ay), -MathF.Sin(a.Ay)) * a.Drift;
+                var vb = new Vector2(MathF.Sin(b.Ay), MathF.Cos(b.Ay)) * b.Speed + new Vector2(MathF.Cos(b.Ay), -MathF.Sin(b.Ay)) * b.Drift;
+                var vr = va - vb;                                                                  // a relative to b; n points from b to a
+                float closing = Math.Max(0f, -vr.Dot(n)), power = closing;
+                float slide = vr.LengthSquared() > 1e-6f ? MathF.Sqrt(Math.Max(0f, 1f - MathF.Pow(vr.Normalized().Dot(n), 2))) : 0f;
+                float wa = Math.Max(1f, TypeF(a.Chr.Find("Ship", false), "Weight", 1f)), wb = Math.Max(1f, TypeF(b.Chr.Find("Ship", false), "Weight", 1f));
+                float kHit = 0.5f + (wa - wb) / (2f * Math.Max(wa, wb));
+                float pB = kHit * power, pA = power - pB;
+                // ProcessImpulse: the hit ship is pushed along the blow, the hitter recoils away from the other hull
+                Impulse(b, x, z, -n.X, -n.Y, pB);
+                Impulse(a, x, z, n.X, n.Y, pA);
                 var key = (a.Index, b.Index);
                 if (collCool.TryGetValue(key, out var until) && clock < until) continue;
                 collCool[key] = clock + 1f;
-                float x = (pa.X + pb.X) * 0.5f, z = (pa.Y + pb.Y) * 0.5f;
-                GD.Print($"[sea] collision {a.Chr.Get("id")?.Value} <-> {b.Chr.Get("id")?.Value}, power {rel:0.0}");
-                it.FireEvent("Shp_Ship2ShipColl", new List<V> { V.Int(a.Index), V.Int(b.Index), V.Float(rel), V.Float(0.4f), V.Int(0), V.Float(x), V.Float(0f), V.Float(z) });
-                it.FireEvent("Shp_Ship2ShipColl", new List<V> { V.Int(b.Index), V.Int(a.Index), V.Float(rel), V.Float(0.4f), V.Int(0), V.Float(x), V.Float(0f), V.Float(z) });
+                GD.Print($"[sea] collision {a.Chr.Get("id")?.Value} <-> {b.Chr.Get("id")?.Value}, power {pA:0.0}/{pB:0.0} slide {slide:0.00}");
+                it.FireEvent("Shp_Ship2ShipColl", new List<V> { V.Int(b.Index), V.Int(a.Index), V.Float(pB), V.Float(slide), V.Int(0), V.Float(x), V.Float(0f), V.Float(z) });
+                it.FireEvent("Shp_Ship2ShipColl", new List<V> { V.Int(a.Index), V.Int(b.Index), V.Float(pA), V.Float(slide), V.Int(0), V.Float(x), V.Float(0f), V.Float(z) });
             }
+    }
+
+    /// <summary>
+    /// TOUCH::ProcessImpulse: a blow of <paramref name="power"/> knots at the world point (px, pz) in the world direction (dx, dz): forward speed gets
+    /// dir.z x power x (1.1 - |x| / half width), sideways speed dir.x x power x (1.1 - |z| / half length), the yaw rate 0.02 x power x (1.1 - |dir . to-centre|).
+    /// </summary>
+    void Impulse(ShipRt s, float px, float pz, float dx, float dz, float power)
+    {
+        if (power <= 0f) return;
+        float c = MathF.Cos(s.Ay), sn = MathF.Sin(s.Ay);
+        float rx = px - s.X, rz = pz - s.Z;
+        float lx = rx * c - rz * sn, lz = rx * sn + rz * c;                                 // contact point in the ship's frame
+        float dlx = dx * c - dz * sn, dlz = dx * sn + dz * c;                               // blow direction in the ship's frame
+        float kZ = Math.Clamp(1.1f - MathF.Abs(lx / (0.5f * Math.Max(1f, s.Width))), 0f, 1f);
+        float kX = Math.Clamp(1.1f - MathF.Abs(lz / (0.5f * Math.Max(1f, s.Length))), 0f, 1f);
+        s.Speed += dlz * power * kZ;
+        s.Drift += dlx * power * kX;
+        float len = MathF.Sqrt(lx * lx + lz * lz);
+        float toC = len > 1e-3f ? (dlx * -lx + dlz * -lz) / len : 0f;
+        float rot = Math.Clamp(1.1f - MathF.Abs(toC), 0f, 1f) * power * 0.02f;
+        s.TurnRate += lx * lz >= 0f ? -rot : rot;
     }
 }

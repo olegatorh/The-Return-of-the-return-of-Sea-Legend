@@ -86,8 +86,9 @@ public partial class SeaView
         if (first)
         {
             GD.Print($"[sea] {s.Chr.Get("id")?.Value} touches the shore at ({nx:0},{nz:0})");
-            // the script turns the impact into hull damage: (ours, other (-1), power, slide, touch point, x, y, z)
-            it.FireEvent("Shp_ShipIslColl", new System.Collections.Generic.List<StormScript.Runtime.V> { StormScript.Runtime.V.Int(s.Index), StormScript.Runtime.V.Int(-1), StormScript.Runtime.V.Float(hitSpeed * 0.5f), StormScript.Runtime.V.Float(0.3f), StormScript.Runtime.V.Int(0), StormScript.Runtime.V.Float(nx), StormScript.Runtime.V.Float(0f), StormScript.Runtime.V.Float(nz) });
+            // the script turns the impact into hull damage: (ours, other (-1), power, slide, touch point, x, y, z). TOUCH::IsIntersectShipsReal against the
+            // island: power = the speed of the hull point that went into the land (knots), slide = 0
+            it.FireEvent("Shp_ShipIslColl", new System.Collections.Generic.List<StormScript.Runtime.V> { StormScript.Runtime.V.Int(s.Index), StormScript.Runtime.V.Int(-1), StormScript.Runtime.V.Float(MathF.Abs(hitSpeed)), StormScript.Runtime.V.Float(0f), StormScript.Runtime.V.Int(0), StormScript.Runtime.V.Float(nx), StormScript.Runtime.V.Float(0f), StormScript.Runtime.V.Float(nz) });
         }
         return true;
     }

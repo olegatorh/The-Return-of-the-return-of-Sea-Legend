@@ -47,6 +47,8 @@ public partial class SeaView : Node3D
         public HashSet<Node3D> YardNodes = new();       // yards that turn to the wind (their ropes are in YardRopes)
         public MeshInstance3D? FixedRopes, YardRopes;
         public float YardYaw, YardSet, RopeYaw, RopeTimer;
+        public float SailSpeed = -1f, RollK = 1f, RollKT;   // MSG_SAIL_GET_SPEED share of MaxSpeedZ, crew rolling speed factor (SeaSails.cs)
+        public float RockY, RockPitch, RockRoll;           // smoothed ShipRocking state (SeaPhysics.cs)
         public List<(string bort, Vector3 pos)> Cannons = new();
         public List<Vector3> FirePlaces = new();          // "fireplace" labels of the hull (engine local coordinates), SeaFires.cs
         public readonly Dictionary<string, float> ReadyAt = new();
@@ -522,12 +524,14 @@ public partial class SeaView : Node3D
         ApplyRocking(s);
     }
 
-    const float MassInertia = 0.1f, KnotsToMs = 0.514444f;       // ship.cpp: fMassInertia, KNOTS2METERS
+    const float MassInertia = 0.1f, KnotsToMs = 1853f / 3600f;   // ship.cpp: fMassInertia, KNOTS2METERS (math_inlines.h: x * 1853 / 3600)
     public float TestTurn;     // test hook (--move): steering without the keyboard
 
     public void Tick(float dt, bool inputEnabled)
     {
         if (!Active) return;
+        dt = Math.Min(dt, 0.1f);                                                        // SHIP::Execute clamps the frame time
+        rockDt = dt;
         foreach (var s in ships.ToList())
         {
             var sh = s.Chr.Find("Ship", false);
@@ -557,23 +561,33 @@ public partial class SeaView : Node3D
             // without one it brakes by dt * 0.1 * v * InertiaBraking. Speed is in knots (MaxSpeedZ = SpeedRate * wind ... from the script), turn rate in rad/s (MaxSpeedY)
             float accZ = TypeF(sh, "InertiaAccelerationZ", 1f), brkZ = TypeF(sh, "InertiaBrakingZ", 1f), accY = TypeF(sh, "InertiaAccelerationY", 1f), brkY = TypeF(sh, "InertiaBrakingY", 1f), brkX = TypeF(sh, "InertiaBrakingX", 1f);
             float fK = dt * MassInertia;
-            float target = maxZ * s.Sail;
+            // Ship.Impulse (AIShip.c: storm yaw, ...): added once to the rotation (and speed) and deleted, as SHIP::Execute does
+            if (sh.Find("Impulse", false) is { } imp)
+            {
+                s.TurnRate += F(imp, "Rotate.y") * dt;
+                s.Speed += F(imp, "Speed.z") * dt; s.Drift += F(imp, "Speed.x") * dt;
+                sh.Remove("Impulse");
+            }
+            // target speed: MaxSpeedZ (the script: ship type, wind power and angle, load, sail damage) x the share the sails give (MSG_SAIL_GET_SPEED, SeaSails.cs)
+            float target = maxZ * (s.SailSpeed >= 0f ? s.SailSpeed : s.Sail);
             if (target > 0.00002f) s.Speed += fK * (target - s.Speed) * accZ; else s.Speed -= fK * s.Speed * brkZ;
             if (MathF.Abs(s.Speed) < 0.001f && target <= 0.00002f) s.Speed = 0f;
             float wantTurn = turnIn * maxY;
             if (MathF.Abs(wantTurn) > 0.00002f) s.TurnRate += fK * (wantTurn - s.TurnRate) * accY; else s.TurnRate -= fK * s.TurnRate * brkY;
             if (MathF.Abs(s.TurnRate) < 0.001f && wantTurn == 0f) s.TurnRate = 0f;
+            // sideways speed (knots): only impulses (collisions, explosions) give it; nothing drives it, so it brakes by InertiaBrakingX (ApplyStrength, x axis)
+            s.Drift += fK * -s.Drift * brkX;
+            if (MathF.Abs(s.Drift) < 0.001f) s.Drift = 0f;
+            // SHIP::Move: the position advances along the current heading (forward and sideways speed in knots), then the heading turns
             float oldAy = s.Ay;
-            s.Ay += s.TurnRate * dt;              // the script already scales MaxSpeedY by speed, sail state, load, crew and skill
-            float vms = s.Speed * KnotsToMs;
-            // in a turn the hull slides outwards: lateral speed grows with speed * turn rate and dies out with the ship's sideways braking (InertiaBrakingX)
-            s.Drift += (-s.TurnRate * vms * 0.5f - s.Drift * Math.Min(8f, fK / dt * 10f * brkX)) * dt;
+            float vms = s.Speed * KnotsToMs, sms = s.Drift * KnotsToMs;
             float sn0 = MathF.Sin(s.Ay), cs0 = MathF.Cos(s.Ay);
-            float nx = s.X + (sn0 * vms + cs0 * s.Drift) * dt, nz = s.Z + (cs0 * vms - sn0 * s.Drift) * dt;
+            float nx = s.X + (sn0 * vms + cs0 * sms) * dt, nz = s.Z + (cs0 * vms - sn0 * sms) * dt;
+            s.Ay += s.TurnRate * dt;              // the script already scales MaxSpeedY by speed, sail state, load, crew and skill
             MoveInWater(s, nx, nz, oldAy);                                  // never onto / into the island (SeaGrounding.cs)
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
-            if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
+            if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} sails={s.SailSpeed:0.00} maxZ={maxZ:0.0} maxY={maxY:0.00}");
             if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); } CheckSeaState(); }
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }

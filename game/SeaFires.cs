@@ -34,8 +34,16 @@ public partial class SeaView
             case 50304:                                                                   // MSG_SHIP_ACTIVATE_FIRE_PLACE "llsslf"
                 if (s != null && d.Length > 5) ActivateFirePlace(s, Conv.ToInt(d[1]), Conv.ToStr(d[2]), Conv.ToStr(d[3]), Conv.ToInt(d[4]), Conv.ToFloat(d[5]));
                 return V.Int(1);
+            case 50308:                                                                   // MSG_SHIP_ADD_MOVE_IMPULSE "llffffff": inertia flag, speed x y z (world), rotate x y z
+                if (s != null && d.Length > 7)
+                {
+                    // ship.cpp: the speed is turned into the ship's frame and added once (a non-inertia STRENGTH), knots like State.vSpeed
+                    float wx = Conv.ToFloat(d[2]), wz = Conv.ToFloat(d[4]), c = MathF.Cos(s.Ay), sn = MathF.Sin(s.Ay);
+                    s.Drift += wx * c - wz * sn; s.Speed += wx * sn + wz * c; s.TurnRate += Conv.ToFloat(d[6]);
+                }
+                return V.Int(1);
         }
-        return V.Int(1);                                                                   // MSG_SHIP_CREATE 50300, ADD_MOVE_IMPULSE 50308 ...: nothing to do
+        return V.Int(1);                                                                   // MSG_SHIP_CREATE 50300 ...: nothing to do
     }
 
     void ActivateFirePlace(ShipRt s, int place, string smoke, string fire, int sound, float seconds)
