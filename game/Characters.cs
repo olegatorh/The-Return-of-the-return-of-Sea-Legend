@@ -70,6 +70,10 @@ public partial class CharacterView : Node3D
         set { if (value && !blocking) blockAge = 0f; blocking = value; }
     }
     float atkDamage = 1f;
+    (CharacterView enemy, Strike kind)? queuedSwing;
+    float queuedUntil;
+    ulong swingStartMs;
+    static readonly bool MeleeLog = System.Environment.GetEnvironmentVariable("SEADOGS_MELEELOG") != null;
     public enum Strike { Normal, Strong, Fast }
     float blockUntil, hitUntil, gunCooldown, shotIn = -1f;
     CharacterView? shotTarget;
@@ -79,7 +83,10 @@ public partial class CharacterView : Node3D
 
     /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock: the script decides whether the blow pierces the block)
     /// or takes the damage (Location_CharacterAttack). NPCs raise the block through their fight AI (<see cref="OnIncomingSwing"/>, <see cref="NpcFight"/>).</summary>
-    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking;
+    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && (!IsPlayer || blockAge >= BlockRaise);
+
+    /// <summary>The sword takes the "Blend time" of the block action (0.2 s in man.ani) to come up: the hero's guard holds only after that; NPCs react through their AI timing.</summary>
+    const float BlockRaise = 0.2f;
 
     // ---- NPC fight AI. The engine's NPCharacter asks the script for its fight behaviour (Loc_ai/LAi_fightparams.c, "NPC parameters"):
     //   NPC_Event_GetAttackActive  - probability of an attack, per second (0.3 + 0.7 * fight level)
@@ -199,6 +206,15 @@ public partial class CharacterView : Node3D
         if (idleRng.NextDouble() >= npcFire * FireRateScale * dt) return;
         if (!AskIsFire()) return;
         if (TryFire(enemy)) StatNpcShots++;
+    }
+
+    public float HpNow => Ent.Root.Find("chr_ai.hp", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 0f;
+    public float HpMax => Ent.Root.Find("chr_ai.hp_max", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 1f;
+
+    /// <summary>Port aid (not in the original interface): after the hero's blow the target shows its health bar for a few seconds and the damage rises as a number.</summary>
+    public void ShowHit(float damage, bool blocked)
+    {
+        HitFx.Show(this, damage, blocked, HpNow, Math.Max(1f, HpMax));
     }
 
     void PlayReaction(bool blocked)
@@ -932,6 +948,12 @@ void fragment() {
     void TickSwing(float dt)
     {
         atkCooldown -= dt;
+        if (queuedSwing is { } q)
+        {
+            queuedUntil -= dt;
+            if (queuedUntil <= 0f || !q.enemy.IsAlive) queuedSwing = null;
+            else if (atkCooldown <= 0f && atkHitIn < 0f) { queuedSwing = null; StartSwing(q.enemy, q.kind); }
+        }
         if (atkHitIn < 0f) return;
         atkHitIn -= dt;
         if (atkHitIn >= 0f) return;
@@ -941,10 +963,13 @@ void fragment() {
             if (atkTarget.IsAlive && IsAlive && d2 < 2.3f * 2.3f)
             {
                 bool blocked = atkTarget.Defends(this);
-                bool parried = blocked && atkTarget.blockAge < 0.3f;                 // a block raised just in time throws the attacker off balance
+                bool parried = blocked && atkTarget.blockAge < (atkTarget.IsPlayer ? BlockRaise + 0.3f : 0.3f);                 // a block raised just in time throws the attacker off balance
                 if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
                 atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
+                float hpBefore = atkTarget.HpNow;
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
+                if (IsPlayer) atkTarget.ShowHit(hpBefore - atkTarget.HpNow, blocked);
+                if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began, {(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
                 atkTarget.PlayReaction(blocked);
                 if (parried) Stagger();
             }
@@ -955,19 +980,30 @@ void fragment() {
     /// <summary>Begins a sword swing at a target in reach (no-op while the previous swing is still running).</summary>
     public bool StartSwing(CharacterView enemy, Strike kind = Strike.Normal)
     {
-        if (atkCooldown > 0f || atkHitIn >= 0f || !IsAlive) return false;
+        if (!IsAlive) return false;
+        if (atkCooldown > 0f || atkHitIn >= 0f)
+        {
+            // the hero may press the next attack a little before the previous one is over: it starts as soon as the animation ends (chained blows)
+            if (IsPlayer && atkCooldown < 0.5f) { queuedSwing = (enemy, kind); queuedUntil = 0.5f; }
+            return false;
+        }
         ay = Angle(enemy.x - x, enemy.z - z);
         atkTarget = enemy;
         string a;
         switch (kind)
         {
-            case Strike.Strong: atkCooldown = 2.0f; atkHitIn = 0.6f; atkDamage = 1.7f; a = "attack_" + (idleRng.Next(4) + 5); break;       // a wind-up: slower, harder
-            case Strike.Fast: atkCooldown = 0.9f; atkHitIn = 0.22f; atkDamage = 0.7f; a = idleRng.Next(2) == 0 ? "attack_right_1" : "attack_left_1"; break;
-            default: atkCooldown = 1.5f; atkHitIn = 0.35f; atkDamage = 1f; a = "attack_" + (idleRng.Next(4) + 1); break;
+            case Strike.Strong: atkDamage = 1.7f; a = "attack_" + (idleRng.Next(4) + 5); break;                                            // heavier blow
+            case Strike.Fast: atkDamage = 0.7f; a = idleRng.Next(2) == 0 ? "attack_right_1" : "attack_left_1"; break;
+            default: atkDamage = 1f; a = "attack_" + (idleRng.Next(4) + 1); break;
         }
+        // the strike moment and the length of the blow come from the animation (man.ani: "Attack_slash" event, frames / (fps * speed)), as in the engine
+        var tm = rig?.SwingTiming(a) ?? rig?.SwingTiming("attack_1") ?? (0.2f, 0.45f);
+        float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f);      // the script's speed factor (agility) speeds the animation up or down
+        atkHitIn = tm.hit / spd; atkCooldown = tm.duration / spd; swingStartMs = Time.GetTicksMsec();
+        if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
         if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
-        if (!IsPlayer) { StatNpcSwings++; atkCooldown -= 0.4f; }         // the NPC's own attack rate (NpcFight) paces it, not only the recovery
+        if (!IsPlayer) { StatNpcSwings++; atkCooldown += 0.4f; }         // the NPC's own attack rate (NpcFight) paces it, plus a short recovery
         enemy.OnIncomingSwing(this);
         return true;
     }

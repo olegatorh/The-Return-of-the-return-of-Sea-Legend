@@ -127,6 +127,7 @@ public partial class Main : Node
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
+            else if (a.StartsWith("--swing@")) swings.Add(int.Parse(a.Substring(8)));       // test hook: the hero strikes the nearest person (a quick click of the left button)
             else if (a.StartsWith("--animals@")) animalsAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
             else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes") || a.StartsWith("--shipfire") || a.StartsWith("--shipboom")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
@@ -571,6 +572,7 @@ public partial class Main : Node
     Action? animalsClear;
     WideScreenView? wideScreen;
     AnimalsView? animalsView;
+    readonly List<int> swings = new();
     int animalsAt = -1;                   // test hook --animals@N: what animals.c sends in fine weather (seagulls over the player, butterflies)
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
     Vector3 camToPos;
@@ -1005,6 +1007,7 @@ public partial class Main : Node
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var (f, what) in rigTests) if (f == frames) sea.RigTest(what);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
+        if (swings.Contains(frames) && characters.Values.FirstOrDefault(c => c.IsPlayer) is { } swp && swp.NearestInFront(2.2f) is { } swe) { if (!swp.FightMode) swp.ToggleFightMode(); GD.Print($"[melee] frame {frames}: attack pressed"); swp.StartSwing(swe, CharacterView.Strike.Normal); }
         if (animalsAt == frames && animalsView != null)
         {
             var pp = characters.Values.FirstOrDefault(c => c.IsPlayer)?.Position ?? Vector3.Zero;

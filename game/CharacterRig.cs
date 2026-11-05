@@ -37,6 +37,17 @@ public partial class CharacterRig : Node3D
            && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : fallback;
     public string ActionName => curName;
 
+    /// <summary>Play time (seconds) of an action and the moment of its strike: the "Attack*" event of the .ani (frame - start) / (file fps * speed). Null if unknown.</summary>
+    public (float hit, float duration)? SwingTiming(string action)
+    {
+        if (!ani.Actions.TryGetValue(action, out var a) || a.End <= a.Start) return null;
+        float rate = an.Fps * Math.Abs(a.Speed <= 0 ? 1f : a.Speed);
+        float dur = (a.End - a.Start) / rate, hit = dur * 0.4f;
+        foreach (var (name, frame, rev) in a.Events)
+            if (!rev && name.StartsWith("Attack", StringComparison.OrdinalIgnoreCase)) { hit = (frame - a.Start) / rate; break; }
+        return (hit, dur);
+    }
+
     static float Fl(string? v, float def) => v != null && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
 
     /// <summary>The engine's <c>UpdateActionMoveData</c>: signed "Walk speed" (0 if absent), "Blend time" (0.2), "Turn speed" (the file's, 2.0 if absent).
