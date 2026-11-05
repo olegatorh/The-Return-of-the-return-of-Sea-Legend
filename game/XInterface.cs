@@ -720,6 +720,7 @@ public partial class XView : Control
         if (sec == null) return root;
         var all = sec.All("string").ToList();
         var places = all.Select(l => Braced(l, "pos", 2)).ToList();
+        bool isSpecialList = all.Any(l => l.StartsWith("Strength,", StringComparison.OrdinalIgnoreCase));
         foreach (var line in all)
         {
             string key = line.Split(',')[0].Trim();
@@ -733,9 +734,19 @@ public partial class XView : Control
             string state = (BracedText(line, "state") ?? "").ToUpperInvariant();
             bool right = state.Contains('R'), centre = !right && state.Contains('C');
             float room = Math.Max(40, Math.Min(628 - pos[0], nextDx == float.MaxValue ? 628 - pos[0] : nextDx - (pos[1] < 0 ? 46f : 6f)));
+            // character screen: the script puts the "-"/"+" buttons of the selected SPECIAL row at x 75..115 (character.c); the names start at x 23, so a long
+            // (Ukrainian) name is fitted into the 52 units before the arrows instead of running under them
+            if (isSpecialList && pos[0] > 15 && pos[0] < 30 && pos[1] > 60 && pos[1] < 235 && !right && !centre) room = 52f;
             if (right) room = Math.Max(60, pos[0] + 30);
             else if (centre) room = Math.Max(60, 2 * Math.Min(pos[0] + 30, 658 - pos[0]));
             int px = Fit(lab, lab.Text, FontPx(BracedText(line, "font") ?? "interface_normal", scale), room);
+            if (isSpecialList && room <= 52f)       // below Fit's floor if the name still does not fit before the arrows
+            {
+                var fnt = lab.GetThemeDefaultFont();
+                px = 13;                                       // one size for the whole list: the largest at which the longest name fits
+                foreach (var l2 in all.Where(l => l.Contains("state:{S}") && Braced(l, "pos", 2)[0] > 15 && Braced(l, "pos", 2)[0] < 30 && Braced(l, "pos", 2)[1] > 60 && Braced(l, "pos", 2)[1] < 235))
+                    while (px > 7 && fnt.GetStringSize(Tr(l2.Split(',')[0].Trim()), HorizontalAlignment.Left, -1, px).X > room - 1) px--;
+            }
             lab.AddThemeFontSizeOverride("font_size", px);
             if (right || centre)
             {
