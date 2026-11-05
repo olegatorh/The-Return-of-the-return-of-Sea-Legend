@@ -32,11 +32,11 @@ public partial class Main : Node
     long profWorld, profAdv, profFrame;
     Image? lastGameFrame;
 
-    Image? GrabFrame()
+    Image? GrabFrame(bool full = false)
     {
         var img = GetViewport().GetTexture()?.GetImage();
         if (img == null) return null;
-        img.Resize(256, 192, Image.Interpolation.Bilinear);
+        if (!full) img.Resize(256, 192, Image.Interpolation.Bilinear);
         return img;
     }
     string? shotPath;
@@ -127,6 +127,7 @@ public partial class Main : Node
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
+            else if (a.StartsWith("--animals@")) animalsAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
             else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes") || a.StartsWith("--shipfire") || a.StartsWith("--shipboom")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
@@ -238,10 +239,11 @@ public partial class Main : Node
             if (fader == null)
             {
                 var ent = e;
-                fader = new FaderView(n => host.It.FireEvent(n, new List<V> { V.Int(0), V.A(ent.Root) }), () => host.It.DeleteEntity(ent.Root));   // event data: (int, fader object)
+                fader = new FaderView((n, fadeIn) => host.It.FireEvent(n, new List<V> { V.Int(fadeIn), V.A(ent.Root) }), () => host.It.DeleteEntity(ent.Root));   // event data: (int, fader object)
                 AddChild(fader);
             }
-            if (msg == 33003 || msg == 33004) fader.Texture = GameAssets.Texture(Conv.ToStr(d[1]));
+            if (msg == 33002) fader.CaptureFrame(GrabFrame(true));            // FADER_STARTFRAME: freeze the current frame under the picture
+            else if (msg == 33003 || msg == 33004) fader.Texture = GameAssets.Texture(Conv.ToStr(d[1]));
             else if (msg == 33000 || msg == 33001) fader.Start(msg == 33001, Conv.ToFloat(d[1]), d.Length > 2 && Conv.ToInt(d[2]) != 0);
             return V.Int(0);
         };
@@ -283,6 +285,8 @@ public partial class Main : Node
                 case 30510: camMode = 1; camInit = false; break;                                       // FOLLOW
                 case 30512: camMode = 2; camToPos = new Vector3(Conv.ToFloat(d[1]), Conv.ToFloat(d[2]), -Conv.ToFloat(d[3])); break;   // TOPOS
                 case 30514: camMode = 3; break;
+                case 30513: camLockPitch = Conv.ToFloat(d[1]); break;                                   // MOVE "lf": lock the vertical angle (boarding decks: lockCamAngle 0.4)
+                case 30520: camSleep = Conv.ToInt(d[1]) != 0; break;                                    // SLEEP "ll": the camera stops (cut scenes, interfaces over a frozen picture)
             }
             return V.Int(1);
         };
@@ -325,6 +329,11 @@ public partial class Main : Node
             }
             return V.Int(1);
         };
+        // "Animals": seagulls over the harbour / round the ship, butterflies in the jungle (animals.c)
+        animalsView = new AnimalsView();
+        AddChild(animalsView);
+        host.It.EntityHandlers["Animals"] = (e, fmt, d) => animalsView.OnMessage(d);
+        animalsClear = animalsView.Clear;
         host.It.EntityHandlers["Flag"] = (e, fmt, d) => LandFlags.OnMessage(d);       // flags of towns, ports and forts (the ship flags are built by SeaView)
         host.It.EntityHandlers["MODELR"] = modelHandler;
         host.It.EntityHandlers["MODEL"] = modelHandler;
@@ -385,14 +394,27 @@ public partial class Main : Node
         sea.Register(host.It);
         worldMap.Register(host.It);
         CharacterView.FindDialog = () => NearestTalkable() is { } nt && nt.Ent.Root.Get("index")?.Value is { } ix ? (int)Conv.ParseFloatPrefix(ix) : -1;
+        CharacterView.GroupLocators = g => CurrentLocation()?.LocatorsOfGroup(g) ?? Enumerable.Empty<StormScript.Formats.GmFile.Label>();
         host.It.EntityHandlers["NPCharacter"] = chr;
         host.It.EntityHandlers["Character"] = chr;
         host.It.EntityHandlers["Player"] = chr;
+        // "WideScreen": the cinema bars of the quest movies appear when the entity is created, a message retracts them
+        host.It.EntityCreated = e =>
+        {
+            if (!e.Class.Equals("WideScreen", StringComparison.OrdinalIgnoreCase)) return;
+            wideScreen?.QueueFree();
+            var ent = e;
+            wideScreen = new WideScreenView(() => host.It.DeleteEntity(ent.Root));
+            AddChild(wideScreen);
+        };
+        host.It.EntityHandlers["WideScreen"] = (e, fmt, d) => { wideScreen?.Retract(); return V.Int(0); };
         host.It.EntityDeleted = e =>
         {
+            if (e.Class.Equals("WideScreen", StringComparison.OrdinalIgnoreCase) && wideScreen != null) { wideScreen.QueueFree(); wideScreen = null; }
             sea.OnEntityDeleted(e);
             worldMap.OnEntityDeleted(e);
             if (view != null && ReferenceEquals(view.Ent, e)) { view.QueueFree(); view = null; }
+            if (e.Class == "Animals") animalsClear?.Invoke();
             if (e.Class == "fader" && fader != null) { fader.QueueFree(); fader = null; }
             if (dialogView != null && ReferenceEquals(dialogView.Ent, e)) { dialogView.QueueFree(); dialogView = null; host.It.TimeScale = 1f; }   // the dialog class restores the game speed when it dies
             if (e.Class == "location") GD.Print($"[main] location entity {e.Id} deleted ({e.Root.Path}), view known: {locations.ContainsKey(e)}");
@@ -403,7 +425,7 @@ public partial class Main : Node
             perkView.OnDeleted(e);
             if (e.Class == "location")      // the location owns the people standing in it
                 foreach (var cls in new[] { "NPCharacter", "Player", "Character" }) host.It.DeleteAllEntities(cls);
-            if (e.Class.Equals("locationcamera", StringComparison.OrdinalIgnoreCase)) { camMode = 1; camInit = false; }
+            if (e.Class.Equals("locationcamera", StringComparison.OrdinalIgnoreCase)) { camMode = 1; camInit = false; camLockPitch = null; camSleep = false; }
             if (locations.Remove(e, out var lv)) lv.QueueFree();
             if (characters.Remove(e, out var cv2)) cv2.QueueFree();
         };
@@ -546,9 +568,24 @@ public partial class Main : Node
     WeatherFx weatherFx = null!;
     SeaView sea = null!;
     WorldMapView worldMap = null!;
+    Action? animalsClear;
+    WideScreenView? wideScreen;
+    AnimalsView? animalsView;
+    int animalsAt = -1;                   // test hook --animals@N: what animals.c sends in fine weather (seagulls over the player, butterflies)
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
     Vector3 camToPos;
+    float? camLockPitch;                  // locationcamera MSG_CAMERA_MOVE
+    bool camSleep;                        // locationcamera MSG_CAMERA_SLEEP
     float camYaw, camPitch = 0.38f, camDist = 3.6f;
+    // test hook: env SEADOGS_LANDCAM="x,y,z,tx,ty,tz" (Godot coordinates) fixes the location camera
+    (Vector3 pos, Vector3 look)? landCamHook = ParseLandCam();
+    static (Vector3, Vector3)? ParseLandCam()
+    {
+        var v = System.Environment.GetEnvironmentVariable("SEADOGS_LANDCAM")?.Split(',');
+        if (v == null || v.Length != 6) return null;
+        float F(int i) => float.Parse(v[i], System.Globalization.CultureInfo.InvariantCulture);
+        return (new Vector3(F(0), F(1), F(2)), new Vector3(F(3), F(4), F(5)));
+    }
     bool camInit, flyMode, rmbDown;
     ulong lmbDownAt;
     string portDirCached = "";
@@ -634,8 +671,8 @@ public partial class Main : Node
                 if (Keys.Down("LandLeft")) mv.X -= 1;
                 if (Keys.Down("LandCamLeft")) camYaw += 1.8f * delta;
                 if (Keys.Down("LandCamRight")) camYaw -= 1.8f * delta;
-                if (Keys.Down("LandCamUp")) camPitch = Math.Clamp(camPitch + 0.9f * delta, 0.05f, 1.3f);
-                if (Keys.Down("LandCamDown")) camPitch = Math.Clamp(camPitch - 0.9f * delta, 0.05f, 1.3f);
+                if (camLockPitch == null && Keys.Down("LandCamUp")) camPitch = Math.Clamp(camPitch + 0.9f * delta, 0.05f, 1.3f);
+                if (camLockPitch == null && Keys.Down("LandCamDown")) camPitch = Math.Clamp(camPitch - 0.9f * delta, 0.05f, 1.3f);
             }
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) mv = dir;     // test hook
             player.Input = mv;
@@ -701,6 +738,11 @@ public partial class Main : Node
         weatherFx.Sync(host.It, cam, delta);
         if (cam == null) return;
         cam.Enabled = flyMode;
+        if (landCamHook is { } lc && !flyMode) { cam.GlobalPosition = lc.pos; cam.LookAt(lc.look); return; }      // test hook SEADOGS_LANDCAM
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_LANDCAM") is "animal" or "rat" or "eagle" && LocAnimals.DebugFocus(System.Environment.GetEnvironmentVariable("SEADOGS_LANDCAM")!) is { } fp && !flyMode)
+        { cam.GlobalPosition = fp + new Vector3(1.2f, 0.9f, 1.8f) * (fp.Y > 10 ? 6f : 1f); cam.LookAt(fp); return; }
+        if (camSleep && !flyMode) return;
+        if (camLockPitch is { } lp) camPitch = Math.Clamp(lp, 0.05f, 1.3f);
         if (camMode == 2 && !flyMode)
         {
             // script-placed camera ("locCameraToPos"): fixed position, looking at the camera target (the main character)
@@ -776,7 +818,7 @@ public partial class Main : Node
             float dx = mm.Relative.X * sx, dy = mm.Relative.Y * sy * (inv ? -1f : 1f);
             if (sea.Active && locations.Count == 0) sea.Look(dx, dy);
             else if (worldMap.Active && locations.Count == 0) worldMap.Look(dx, dy);
-            else { camYaw -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.3f); }
+            else { camYaw -= dx * 0.005f; if (camLockPitch == null) camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.3f); }
         }
     }
 
@@ -949,6 +991,18 @@ public partial class Main : Node
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var (f, what) in rigTests) if (f == frames) sea.RigTest(what);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
+        if (animalsAt == frames && animalsView != null)
+        {
+            var pp = characters.Values.FirstOrDefault(c => c.IsPlayer)?.Position ?? Vector3.Zero;
+            animalsView.OnMessage(new[] { V.Int(77100) });
+            animalsView.OnMessage(new[] { V.Int(77103), V.Float(pp.X), V.Float(pp.Y), V.Float(-pp.Z) });
+            animalsView.OnMessage(new[] { V.Int(77108) });
+            if (CurrentLocation() is { } cl)        // what locations_loader.c does by chance: an eagle over the jungle, rats
+            {
+                cl.OnMessage("ls", new[] { V.Int(30155), V.Str("AddEagle") });
+                cl.OnMessage("lsl", new[] { V.Int(30155), V.Str("AddRats"), V.Int(6) });
+            }
+        }
         SeaTestHooks();
         foreach (var (f, nm) in loadAt) if (f == frames)
         {

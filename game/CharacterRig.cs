@@ -251,6 +251,8 @@ public partial class CharacterRig : Node3D
     /// <summary>Animation events (.ani "event = ...") passed since the owner last drained the list.</summary>
     public readonly List<string> Events = new();
 
+    static Quaternion Unit(Quaternion q) => q.LengthSquared() > 1e-12f ? q.Normalized() : Quaternion.Identity;
+
     void Pose(float frame)
     {
         frame = Math.Clamp(frame, 0, an.NFrames - 1);
@@ -260,8 +262,8 @@ public partial class CharacterRig : Node3D
         for (int j = 0; j < an.NJoints; j++)
         {
             int a = (j * nf + f0) * 4, b = (j * nf + f1) * 4;
-            var q0 = new Quaternion(-an.Quat[a], -an.Quat[a + 1], an.Quat[a + 2], an.Quat[a + 3]);
-            var q1 = new Quaternion(-an.Quat[b], -an.Quat[b + 1], an.Quat[b + 2], an.Quat[b + 3]);
+            var q0 = Unit(new Quaternion(-an.Quat[a], -an.Quat[a + 1], an.Quat[a + 2], an.Quat[a + 3]));       // Rat.an stores quaternions that are not exactly unit length
+            var q1 = Unit(new Quaternion(-an.Quat[b], -an.Quat[b + 1], an.Quat[b + 2], an.Quat[b + 3]));
             skel.SetBonePoseRotation(j, q0.Slerp(q1, k).Normalized());
             if (an.Parents[j] < 0)
             {

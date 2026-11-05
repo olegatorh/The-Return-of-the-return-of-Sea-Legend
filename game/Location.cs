@@ -127,10 +127,36 @@ public partial class LocationView : Node3D
             }
             case 30154: Ent.Root.Remove("chrpos"); return V.Int(1);              // CLRCHRPOSITIONS
             case 30150: case 30151: return V.Int(1);
-            case 30155: return V.Int(0);                                         // EX_MSG ("AddFlys", "AddEagle", ...)
+            case 30155: return V.Int(ExMessage(d));                              // EX_MSG ("AddFlys", "AddEagle", ...)
         }
         Warn($"message {msg} ({fmt})");
         return V.Int(0);
+    }
+
+    LocAnimals? animals;
+    LocAnimals Animals() => animals ??= AddAndReturn(new LocAnimals(Patch, () => CharacterView.All.Values.FirstOrDefault(c => c.IsPlayer && c.Placed)?.Position));
+    LocAnimals AddAndReturn(LocAnimals a) { AddChild(a); return a; }
+
+    /// <summary>MSG_LOCATION_EX_MSG 30155: sub-commands by name (location.cpp). Returns what the script sees (1 = done).</summary>
+    int ExMessage(V[] d)
+    {
+        string cmd = d.Length > 1 ? Conv.ToStr(d[1]) : "";
+        float F(int i) => i < d.Length ? Conv.ToFloat(d[i]) : 0f;
+        switch (cmd.ToLowerInvariant())
+        {
+            case "getpatchmiddlepos":                                             // "lseee": out x, y, z of the middle of the walking patch
+            {
+                var m = LocAnimals.PatchMiddle(Patch);
+                if (d.Length >= 5) { it.WriteRef(d[2], V.Float(m.X)); it.WriteRef(d[3], V.Float(m.Y)); it.WriteRef(d[4], V.Float(m.Z)); }
+                return 1;
+            }
+            case "addrats": Animals().AddRats(d.Length > 2 ? Conv.ToInt(d[2]) : 1); return 1;
+            case "addlizards": Animals().AddLizards(); return 1;
+            case "addeagle": Animals().AddEagle(); return 1;
+            case "addflys": Animals().AddFlys(F(2), F(3), F(4)); return 1;
+            case "delflys": animals?.DelFlys(); return 1;
+        }
+        return 0;
     }
 
     bool AddModel(string name)
@@ -188,6 +214,9 @@ public partial class LocationView : Node3D
         }
         return false;
     }
+
+    public IEnumerable<GmFile.Label> LocatorsOfGroup(string group)
+        => locators.TryGetValue(group, out var g) ? g.Values : Enumerable.Empty<GmFile.Label>();
 
     public GmFile.Label? FindLocator(string group, string name)
         => locators.TryGetValue(group, out var g) && g.TryGetValue(name, out var l) ? l : null;
