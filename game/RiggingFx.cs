@@ -143,6 +143,9 @@ void fragment() {
     static Shader? flagShader;
     static readonly List<ShaderMaterial> flagMats = new();
 
+    /// <summary>Set by SeaView: the flag atlas tile of a nation as the script answers GetRiggingData "GetFlagTexNum".</summary>
+    public static Func<int, int>? FlagTexNum;
+
     public static void UpdateFlags(float time) { foreach (var m in flagMats) m.SetShaderParameter("t", time); }
 
     /// <summary>Flags at the mast tops: the labels f1..f4 of every "flag*" group are the corners of one flag. Each flag hangs on its model part (a falling mast takes it along).</summary>
@@ -150,8 +153,9 @@ void fragment() {
     {
         var tex = GameAssets.Texture("ships\\flagall.tga") ?? GameAssets.Texture("flagall.tga");
         flagShader ??= new Shader { Code = FlagShader };
-        // rigging.ini: tile index per nation (England 1, France 2, Portugal 3, Spain 4, pirate 5, Holland 0)
-        int tileIdx = nation switch { 0 => 1, 1 => 2, 2 => 4, 3 => 5, 4 => 0, 5 => 3, _ => 5 };
+        // the tile of the nation comes from the script: flag.cpp raises "GetRiggingData" ("GetFlagTexNum", triangle, nation) -> BattleInterface.c
+        // procGetRiggingData (England 1, France 2, Spain 4, pirate 5, Holland 0, anything else 0); the table is the fallback without a script
+        int tileIdx = FlagTexNum?.Invoke(nation) ?? nation switch { 0 => 1, 1 => 2, 2 => 4, 3 => 5, _ => 0 };
         const int tiles = 8;
         foreach (var part in parts)
         {

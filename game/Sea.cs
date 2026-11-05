@@ -100,6 +100,7 @@ public partial class SeaView : Node3D
     {
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
         i.EntityHandlers["battle_interface"] = (e, fmt, d) => OnBattleInterface(d);   // BattleInterface.cs
+        RiggingFx.FlagTexNum = nation => RetInt(it.FireEvent("GetRiggingData", new List<V> { V.Str("GetFlagTexNum"), V.Int(0), V.Int(nation) }), 0, 0);
         // the class "particles" itself lives in Particles.cs (ParticleService); BallSplash (MSG_BALLSPLASH_ADD 77200) draws its water column with the
         // original systems "watersplash" + "ball_splash" of particles.ini (BallSplash.dll has its own splash.tga sprite effect that is not reproduced)
         i.EntityHandlers["BallSplash"] = (e, fmt, d) =>
@@ -338,7 +339,8 @@ public partial class SeaView : Node3D
         float sp = F(chr, "Ship.Speed.z");
         rt.Sail = sp >= 0.75f ? 1f : sp >= 0.25f ? 0.5f : 0f;
         rt.Speed = 0f;
-        foreach (var sl in rt.Sails) sl.Roll = rt.Sail >= 0.99f ? 0f : rt.Sail >= 0.49f ? (sl.ForeAft ? 0f : 0.5f) : 1f;
+        foreach (var sl in rt.Sails) sl.Roll = rt.Sail < 0.3f || (rt.Sail <= 0.7f && sl.RollFast) ? 1f : 0f;      // SeaSails.cs TickSails
+        ApplySailTextures(rt);
         ApplyRiggingState(rt);
         ships.Add(rt);
         Publish(rt);

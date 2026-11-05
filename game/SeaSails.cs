@@ -456,6 +456,31 @@ void fragment() {
         }
     }
 
+    /// <summary>
+    /// SAIL::SetSailTextures: the script answers "GetSailTextureData" (character index) with an object: normalTex = the cloth of every sail, and one attribute
+    /// per yard node listed in the ship type's GeraldSails = the nation's emblem sail (BattleInterface.c procGetSailTextureData). The model build gave every
+    /// square sail the nation texture; here each sail gets what the script says.
+    /// </summary>
+    void ApplySailTextures(ShipRt s)
+    {
+        if (s.Sails.Count == 0) return;
+        var v = it.FireEvent("GetSailTextureData", new List<V> { V.Int(s.Index) });
+        var a = v.Attr ?? v.Slot?.Val.Attr;
+        if (a == null) return;
+        string normal = a.Get("normalTex")?.Value ?? "";
+        var normalTex = normal.Length > 0 ? GameAssets.Texture(normal) : null;
+        int emblems = 0;
+        foreach (var sl in s.Sails)
+        {
+            string? special = a.Get(sl.Node)?.Value;
+            var tex = special is { Length: > 0 } ? GameAssets.Texture(special) : null;
+            if (tex != null) emblems++;
+            tex ??= normalTex;
+            if (tex != null) sl.Mat.SetShaderParameter("tex", tex);
+        }
+        GD.Print($"[sail] {s.Chr.Get("id")?.Value}: cloth {normal}, {emblems} emblem sails");
+    }
+
     // ------------------------------------------------------------------ per frame
     static float MoveTo(float v, float target, float step) => v < target ? Math.Min(target, v + step) : Math.Max(target, v - step);
 
