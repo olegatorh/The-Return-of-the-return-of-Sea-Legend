@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-05 23:24",
+ "generated": "2026-11-05 23:31",
  "inputs": {
   "program": "E:\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\port\\addon\\merged\\PROGRAM",
   "reference": true,
@@ -131,7 +131,7 @@
    "implemented": 0,
    "missing": 0,
    "mismatched": 0,
-   "info": 47
+   "info": 48
   },
   "Ресурси": {
    "implemented": 0,
@@ -1719,12 +1719,34 @@
   },
   {
    "contract": "Події: runtime",
+   "item": "Location_CharacterFire",
+   "sites": [
+    "Loc_ai/LAi_init.c:39"
+   ],
+   "status": "жодного разу в регресійних прогонах",
+   "evidence": "порт: game/Characters.cs:275; [events] топ-40 у 32 логах",
+   "score": 18,
+   "kind": "info"
+  },
+  {
+   "contract": "Події: runtime",
    "item": "Location_CharacterFollowGo",
    "sites": [
     "Loc_ai/LAi_init.c:33"
    ],
    "status": "жодного разу в регресійних прогонах",
    "evidence": "порт: game/Characters.cs:943; [events] топ-40 у 32 логах",
+   "score": 18,
+   "kind": "info"
+  },
+  {
+   "contract": "Події: runtime",
+   "item": "Location_CharacterIsFire",
+   "sites": [
+    "Loc_ai/LAi_init.c:40"
+   ],
+   "status": "жодного разу в регресійних прогонах",
+   "evidence": "порт: game/Characters.cs:170; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1802,17 +1824,6 @@
    ],
    "status": "жодного разу в регресійних прогонах",
    "evidence": "порт: game/SeaAI.cs:112; [events] топ-40 у 32 логах",
-   "score": 18,
-   "kind": "info"
-  },
-  {
-   "contract": "Події: runtime",
-   "item": "ShpGetBortFireDelta",
-   "sites": [
-    "SEA_AI/AIShip.c:106"
-   ],
-   "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCombat.cs:139; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -6978,7 +6989,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:94"
    ],
    "status": "підіймається: game/BattleInterface.cs:97",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/ships_list.cpp:313); у логах: 57×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/ships_list.cpp:313); у логах: 42×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7036,7 +7047,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:89"
    ],
    "status": "підіймається: game/BattleInterface.cs:75",
-   "evidence": "оригінал: core.Event \"ll\" (src/libs/battle_interface/src/sea/ships_list.cpp:212); у логах: 56×",
+   "evidence": "оригінал: core.Event \"ll\" (src/libs/battle_interface/src/sea/ships_list.cpp:212); у логах: 42×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7096,7 +7107,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:88"
    ],
    "status": "підіймається: game/BattleInterface.cs:175",
-   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 11902×",
+   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 12103×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7156,7 +7167,7 @@
     "SEA_AI/AIBalls.c:48"
    ],
    "status": "підіймається: game/SeaCombat.cs:275 (+1)",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 167×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 155×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7184,7 +7195,7 @@
     "SEA_AI/AIBalls.c:45"
    ],
    "status": "підіймається: game/SeaCombat.cs:289",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 574×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 571×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7226,7 +7237,7 @@
     "seadogs.c:69"
    ],
    "status": "підіймається: game/Main.cs:916",
-   "evidence": "оригінал: core.Event \"ffffff\" (src/libs/renderer/src/s_device.cpp:2078); у логах: 6860×",
+   "evidence": "оригінал: core.Event \"ffffff\" (src/libs/renderer/src/s_device.cpp:2078); у логах: 34815×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7254,7 +7265,7 @@
     "SEA_AI/AICannon.c:18"
    ],
    "status": "підіймається: game/SeaCombat.cs:205",
-   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 900×",
+   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 898×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7282,7 +7293,7 @@
     "SEA_AI/AICannon.c:16"
    ],
    "status": "підіймається: game/SeaCombat.cs:151 (+2)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:182); у логах: 381×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:182); у логах: 383×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7296,7 +7307,7 @@
     "SEA_AI/AICannon.c:15"
    ],
    "status": "підіймається: game/SeaAI.cs:86 (+2)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 468×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 466×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7310,7 +7321,7 @@
     "SEA_AI/AICannon.c:20"
    ],
    "status": "підіймається: game/SeaCombat.cs:148 (+1)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:203); у логах: 901×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:203); у логах: 903×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7384,7 +7395,7 @@
     "Loc_ai/LAi_groups.c:468"
    ],
    "status": "підіймається: game/Groups.cs:64",
-   "evidence": "оригінал: core.Event \"fl\" (src/libs/location/src/characters_groups.cpp:202); у логах: 4247×",
+   "evidence": "оригінал: core.Event \"fl\" (src/libs/location/src/characters_groups.cpp:202); у логах: 14857×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7398,7 +7409,7 @@
     "Loc_ai/LAi_init.c:28"
    ],
    "status": "підіймається: game/Main.cs:766",
-   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 84601×",
+   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 84775×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7428,7 +7439,7 @@
     "Loc_ai/LAi_init.c:29"
    ],
    "status": "підіймається: game/Main.cs:764",
-   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 21836×",
+   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 21841×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7626,7 +7637,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:47"
    ],
    "status": "підіймається: game/SeaSails.cs:405",
-   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 55×",
+   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 41×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7686,7 +7697,7 @@
     "Loc_ai/LAi_sounds.c:51"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"is\" (src/libs/location/src/character.cpp:4328); у логах: 3×",
+   "evidence": "оригінал: core.Event \"is\" (src/libs/location/src/character.cpp:4328); у логах: 2×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7728,7 +7739,7 @@
     "Loc_ai/LAi_sounds.c:75"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 3×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 5×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7854,7 +7865,7 @@
     "INTERFACE/interface.c:20"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:273); у логах: 25×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:273); у логах: 24×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7942,7 +7953,7 @@
     "SEA_AI/AIFort.c:26"
    ],
    "status": "підіймається: game/SeaForts.cs:62",
-   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 167×",
+   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 155×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7970,7 +7981,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:86"
    ],
    "status": "підіймається: game/Sea.cs:689",
-   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420); у логах: 13078×",
+   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420); у логах: 13278×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8362,7 +8373,7 @@
     "Loc_ai/LAi_init.c:37"
    ],
    "status": "підіймається: game/Characters.cs:1005",
-   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 2×",
+   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 5×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8404,7 +8415,7 @@
     "Loc_ai/LAi_init.c:43"
    ],
    "status": "підіймається: game/Characters.cs:685",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 105×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 110×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8418,7 +8429,7 @@
     "Loc_ai/LAi_init.c:30"
    ],
    "status": "підіймається: game/Characters.cs:701",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 12×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 11×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8433,7 +8444,7 @@
     "Characters/characters_events.c:17"
    ],
    "status": "підіймається: game/Characters.cs:760",
-   "evidence": "оригінал: core.Event \"iissf\" (src/libs/location/src/character.cpp:245); у логах: 96×",
+   "evidence": "оригінал: core.Event \"iissf\" (src/libs/location/src/character.cpp:245); у логах: 97×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8478,7 +8489,7 @@
     "Loc_ai/LAi_init.c:35"
    ],
    "status": "підіймається: game/Characters.cs:148",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 36×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 29×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8506,7 +8517,7 @@
     "Loc_ai/LAi_init.c:39"
    ],
    "status": "підіймається: game/Characters.cs:275",
-   "evidence": "оригінал: core.Event \"iifl\" (src/libs/location/src/character.cpp:2919); у логах: 1×",
+   "evidence": "оригінал: core.Event \"iifl\" (src/libs/location/src/character.cpp:2919); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8548,7 +8559,7 @@
     "Loc_ai/LAi_init.c:41"
    ],
    "status": "підіймається: game/Characters.cs:163",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 39×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 32×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8562,7 +8573,7 @@
     "Loc_ai/LAi_init.c:40"
    ],
    "status": "підіймається: game/Characters.cs:170",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1842); у логах: 1×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1842); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9226,7 +9237,7 @@
     "SEA_AI/AIShip.c:95"
    ],
    "status": "підіймається: game/SeaFires.cs:117",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 158×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 214×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9254,7 +9265,7 @@
     "SEA_AI/AIShip.c:106"
    ],
    "status": "підіймається: game/SeaCombat.cs:139",
-   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); 0× у [events] 32 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); у логах: 8×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9282,7 +9293,7 @@
     "SEA_AI/AIShip.c:94"
    ],
    "status": "підіймається: game/SeaSails.cs:404",
-   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 55×",
+   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 41×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9310,7 +9321,7 @@
     "SEA_AI/AIShip.c:91"
    ],
    "status": "підіймається: game/SeaCombat.cs:172",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13078×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13278×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9324,7 +9335,7 @@
     "SEA_AI/AIShip.c:103"
    ],
    "status": "підіймається: game/SeaCombat.cs:266",
-   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 126×",
+   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 141×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9338,7 +9349,7 @@
     "SEA_AI/AIShip.c:90"
    ],
    "status": "підіймається: game/SeaCombat.cs:174",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13078×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13278×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9352,7 +9363,7 @@
     "SEA_AI/AIShip.c:93"
    ],
    "status": "підіймається: game/SeaPhysics.cs:140 (+1)",
-   "evidence": "оригінал: core.Event \"llfflfff\" (src/libs/touch/src/touch.cpp:521); у логах: 86×",
+   "evidence": "оригінал: core.Event \"llfflfff\" (src/libs/touch/src/touch.cpp:521); у логах: 98×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9380,7 +9391,7 @@
     "SEA_AI/AIShip.c:100"
    ],
    "status": "підіймається: game/Sea.cs:281 (+6)",
-   "evidence": "оригінал: core.Event \"lf\" (src/libs/ship/src/ship.cpp:605); скрипти теж підіймають (SEA_AI/AISea.c:162); у логах: 809×",
+   "evidence": "оригінал: core.Event \"lf\" (src/libs/ship/src/ship.cpp:605); скрипти теж підіймають (SEA_AI/AISea.c:162); у логах: 811×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9542,7 +9553,7 @@
     "WorldMap/worldmap.c:63"
    ],
    "status": "підіймається: game/WorldMap.cs:237",
-   "evidence": "оригінал: core.Event \"ffff\" (src/libs/worldmap/src/world_map.cpp:499); у логах: 20×",
+   "evidence": "оригінал: core.Event \"ffff\" (src/libs/worldmap/src/world_map.cpp:499); у логах: 12×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9626,7 +9637,7 @@
     "WorldMap/worldmap.c:73"
    ],
    "status": "підіймається: game/WorldMap.cs:334",
-   "evidence": "оригінал: core.Event \"f\" (src/libs/worldmap/src/world_map.cpp:429); у логах: 44×",
+   "evidence": "оригінал: core.Event \"f\" (src/libs/worldmap/src/world_map.cpp:429); у логах: 36×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9836,7 +9847,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:100"
    ],
    "status": "підіймається: game/SeaSails.cs:557",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/rigging/src/sail.cpp:386); у логах: 332×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/rigging/src/sail.cpp:386); у логах: 334×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9884,7 +9895,7 @@
     "INTERFACE/interface.c:18"
    ],
    "status": "підіймається: game/Main.cs:1102",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 24×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 23×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10180,7 +10191,7 @@
     "INTERFACE/interface.c:17"
    ],
    "status": "підіймається: game/XInterface.cs:1258",
-   "evidence": "оригінал: core.Event \"lll\" (src/libs/xinterface/src/xinterface.cpp:3158); у логах: 32×",
+   "evidence": "оригінал: core.Event \"lll\" (src/libs/xinterface/src/xinterface.cpp:3158); у логах: 31×",
    "score": 0,
    "kind": "ok",
    "handlers": [

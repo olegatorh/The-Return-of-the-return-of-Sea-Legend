@@ -1,6 +1,6 @@
 # Контракти рушія: скрипти ↔ порт (автоматичний аудит)
 
-_Згенеровано `python tools/contract_audit.py` 2026-11-05 23:24. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
+_Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
 
 Джерела: скрипти `addon/merged/PROGRAM` (1139 файлів, 1154 #define, 4137 функцій), порт `StormScript/Runtime` + `game/*.cs` (89 файлів), reference `reference/storm-engine` (95 класів, 219 подій, 159 native), логи: 78 (`game/smoke_*.log`, `reports/*/log_tail.txt`).
 
@@ -24,7 +24,7 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:24. Не 
 | Події | 201 | 23 | 2 | 24 |
 | Параметри подій: формат | 110 | 0 | 0 | 6 |
 | Параметри подій | 236 | 0 | 0 | 2 |
-| Події: runtime | 0 | 0 | 0 | 47 |
+| Події: runtime | 0 | 0 | 0 | 48 |
 | Ресурси | 0 | 12 | 0 | 0 |
 | Ресурси: ini | 83 | 6 | 1 | 6 |
 
@@ -223,7 +223,9 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:24. Не 
 | Події: runtime | FortCreate | SEA_AI/AIFort.c:27 | жодного разу в регресійних прогонах | порт: game/SeaForts.cs:43; [events] топ-40 у 32 логах |
 | Події: runtime | Location_CharacterBusyPos | Loc_ai/LAi_init.c:32 | жодного разу в регресійних прогонах | порт: game/Characters.cs:895; [events] топ-40 у 32 логах |
 | Події: runtime | Location_CharacterEscapeSlide | Loc_ai/LAi_init.c:42 | жодного разу в регресійних прогонах | порт: game/Characters.cs:918; [events] топ-40 у 32 логах |
+| Події: runtime | Location_CharacterFire | Loc_ai/LAi_init.c:39 | жодного разу в регресійних прогонах | порт: game/Characters.cs:275; [events] топ-40 у 32 логах |
 | Події: runtime | Location_CharacterFollowGo | Loc_ai/LAi_init.c:33 | жодного разу в регресійних прогонах | порт: game/Characters.cs:943; [events] топ-40 у 32 логах |
+| Події: runtime | Location_CharacterIsFire | Loc_ai/LAi_init.c:40 | жодного разу в регресійних прогонах | порт: game/Characters.cs:170; [events] топ-40 у 32 логах |
 | Події: runtime | Location_CharacterTaskFailure | Loc_ai/LAi_init.c:31 | жодного разу в регресійних прогонах | порт: game/Characters.cs:157; [events] топ-40 у 32 логах |
 | Події: runtime | Location_Character_EndAction | Loc_ai/LAi_init.c:44 | жодного разу в регресійних прогонах | порт: game/Characters.cs:448; [events] топ-40 у 32 логах |
 | Події: runtime | Shp2Strand | SEA_AI/AIShip.c:97 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:102; [events] топ-40 у 32 логах |
@@ -231,7 +233,6 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:24. Не 
 | Події: runtime | ShpDelete | BATTLE_INTERFACE/BattleInterface.c:79 | жодного разу в регресійних прогонах | порт: game/Sea.cs:543; [events] топ-40 у 32 логах |
 | Події: runtime | ShpEatSwimGood | SEA_AI/AISeaGoods.c:18 | жодного разу в регресійних прогонах | порт: game/SeaFx.cs:498; [events] топ-40 у 32 логах |
 | Події: runtime | ShpFireAction | SEA_AI/AIShip.c:105 | жодного разу в регресійних прогонах | порт: game/SeaAI.cs:112; [events] топ-40 у 32 логах |
-| Події: runtime | ShpGetBortFireDelta | SEA_AI/AIShip.c:106 | жодного разу в регресійних прогонах | порт: game/SeaCombat.cs:139; [events] топ-40 у 32 логах |
 | Події: runtime | Shp_ShipIslColl | SEA_AI/AIShip.c:92 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:91; [events] топ-40 у 32 логах |
 | Події: runtime | WorldMap_DeleteShipEncounter | WorldMap/worldmap.c:72 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:135; [events] топ-40 у 32 логах |
 | Події: runtime | WorldMap_EventWindowChangeSelectoin | WorldMap/worldmap.c:68 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:360; [events] топ-40 у 32 логах |
