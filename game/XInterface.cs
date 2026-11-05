@@ -131,6 +131,9 @@ public partial class XView : Control
             case 45034:                                                    // SET_SCROLLER: node, position 0..1
                 if (nodes.TryGetValue(S(1), out var scn) && scn is ScrollerView scv) scv.SetPos(d.Length > 2 ? Conv.ToFloat(d[2]) : 0);
                 return V.Int(0);
+            case 45020:                                                    // FOURIMAGE_CHANGE "lsl": the script changed the pictures of a FOURIMAGES node (officer faces, ships)
+                if (nodes.TryGetValue(S(1), out var f4n) && f4n is FourImagesView f4v) f4v.Refresh();
+                return V.Int(0);
             case 45018:                                                    // SCROLL_CHANGE: the script changed the lists of a scroll image
                 if (nodes.TryGetValue(S(1), out var sn) && sn is ScrollImageView ssv) ssv.Refresh();
                 return V.Int(0);
@@ -387,8 +390,10 @@ public partial class XView : Control
                 "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
                 "TEXTBUTTON" => MakeButton(name, P, pos),
                 "SCROLLBAR" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("leftPicture") ?? "small left arrow", P("rightPicture") ?? "small right arrow", P("centerPicture") ?? "scrollbar", (n, c) => Run(n, c, 0)),
-                "LRCHANGER" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("lpicture") ?? "left arrow", P("rpicture") ?? "right arrow", "", (n, c) => Run(n, c, 0)),
-                "SCROLLER" => new ScrollerView(pos[0], pos[1], pos[2], pos[3], P("baseTexture") ?? "", P("rollerTexture") ?? "", Floats(P("scrollTexPos"), 4), Floats(P("rollTexPos"), 4), Floats(P("rollerHeight"), 1)[0]),
+                "LRCHANGER" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("lpicture") ?? "left arrow", P("rpicture") ?? "right arrow", "", (n, c) => Run(n, c, 0),
+                    (n, btn) => it.FireEvent("IEvnt_MouseClick", new List<V> { V.Str(n), V.Int(btn) })),
+                "SCROLLER" => new ScrollerView(pos[0], pos[1], pos[2], pos[3], P("baseTexture") ?? "", P("rollerTexture") ?? "", Floats(P("scrollTexPos"), 4), Floats(P("rollTexPos"), 4), Floats(P("rollerHeight"), 1)[0],
+                    name, (n, p) => it.FireEvent("ScrollPosChange", new List<V> { V.Float(p), V.Str(n) }), d => it.FireEvent("ScrollTopChange", new List<V> { V.Int(d) })),
                 "BUTTON" => MakeIconButton(name, P, pos),
                 "RECTANGLE" => MakeRectangle(P, pos),
                 "BOUNDER" => MakeBounder(P, pos),
@@ -984,6 +989,13 @@ public partial class XView : Control
             else if (cmd.Equals("speeddown", StringComparison.OrdinalIgnoreCase)) flv.Move(4);
             else if (cmd.Equals("activate", StringComparison.OrdinalIgnoreCase)) flv.Activate();
         }
+        if (questTitleNode != null && nodes.TryGetValue(node, out var qtn) && ReferenceEquals(qtn, questTitleNode))
+        {
+            // xi_quest_titles.cpp CommandExecute: the script moves the list with QuestTopChange (the engine only reports where the list was pushed)
+            int rows = Math.Max(1, (int)(questTitleNode.Size.Y / questLine));
+            int d = cmd.ToLowerInvariant() switch { "upstep" => -1, "downstep" => 1, "speedup" => -rows, "speeddown" => rows, _ => 0 };
+            if (d != 0) it.FireEvent("QuestTopChange", new List<V> { V.Int(d) });
+        }
         if (nodes.TryGetValue(node, out var fn4) && fn4 is FourImagesView fv)
         {
             if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) fv.Move(-1, 0);
@@ -1116,6 +1128,14 @@ public partial class XView : Control
 
     public override void _Input(InputEvent e)
     {
+        // the mouse wheel over the quest titles scrolls the list through the script (QuestTopChange)
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown, Pressed: true } wh && questTitleNode != null && questTitleNode.IsVisibleInTree()
+            && questTitleNode.GetGlobalRect().HasPoint(wh.GlobalPosition))
+        {
+            it.FireEvent("QuestTopChange", new List<V> { V.Int(wh.ButtonIndex == MouseButton.WheelUp ? -1 : 1) });
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         if (e is not InputEventKey { Pressed: true } k || GetChildCount() == 0) return;
         var target = TextTarget();
         if (target == null) return;
@@ -1210,8 +1230,26 @@ public partial class XView : Control
         else if (k.Keycode == Key.Escape) { it.FireEvent("InterfaceBreak"); }
     }
 
+    double gameTimeAcc;
+
+    /// <summary>xinterface.cpp IncrementGameTime: while screens are shown the play time counts in seconds; every second the event ievent_SetGameTime (hour, min, sec) tells the script
+    /// (InterfaceStates.GameTime, which the engine reads back when it starts).</summary>
+    void TickGameTime(double delta)
+    {
+        if (GetChildCount() == 0) return;
+        gameTimeAcc += delta;
+        if (gameTimeAcc < 1.0) return;
+        gameTimeAcc -= 1.0;
+        if (!it.Globals.TryGetValue("InterfaceStates", out var st) || st.Val.Attr is not { } root) return;
+        int H = (int)Conv.ParseFloatPrefix(root.Find("GameTime.hour", false)?.Value), M = (int)Conv.ParseFloatPrefix(root.Find("GameTime.min", false)?.Value), S = (int)Conv.ParseFloatPrefix(root.Find("GameTime.sec", false)?.Value) + 1;
+        if (S >= 60) { M++; S -= 60; }
+        if (M >= 60) { H++; M -= 60; }
+        it.FireEvent("ievent_SetGameTime", new List<V> { V.Int(H), V.Int(M), V.Int(S) });
+    }
+
     public override void _Process(double delta)
     {
+        TickGameTime(delta);
         Position = new Vector2(40, 30) + UiLayout.Extra(this);
         ApplySnaps();
         foreach (var (c, speed) in spinners) c.Rotation += speed * (float)delta;

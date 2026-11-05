@@ -15,6 +15,7 @@ public partial class LogHud : Control
     readonly Label action;
     double clock;
     bool visibleLog = true, visibleAction = true;
+    bool allVisible = true, showLogStrings = true, showActiveCommand = true;      // LI_SET_VISIBLE; LOG_AND_ACTIONS_INIT / CHANGE (options: log strings, action hint)
     string actionName = "Nothing";
     public Func<string, string> Translate = s => s;
     bool actionSuppressed;
@@ -56,7 +57,12 @@ public partial class LogHud : Control
         {
             case 45020: AddLine(d.Length > 2 ? Conv.ToStr(d[2]) : ""); break;                     // LOG_ADD_STRING (flag, text)
             case 45021: actionName = d.Length > 1 ? Conv.ToStr(d[1]) : "Nothing"; Refresh(); break;   // LOG_SET_ACTIVE_ACTION
-            case 45027: visibleLog = visibleAction = d.Length > 1 && Conv.ToInt(d[1]) != 0; Refresh(); break;
+            case 45022: case 45026:                                                              // LOG_AND_ACTIONS_INIT / _CHANGE "lll": show the active action hint, show the log strings
+                showActiveCommand = d.Length > 1 && Conv.ToInt(d[1]) != 0; showLogStrings = d.Length > 2 && Conv.ToInt(d[2]) != 0;
+                visibleLog = allVisible && showLogStrings; visibleAction = allVisible && showActiveCommand; Refresh(); break;
+            case 45027:
+                allVisible = d.Length > 1 && Conv.ToInt(d[1]) != 0;
+                visibleLog = allVisible && showLogStrings; visibleAction = allVisible && showActiveCommand; Refresh(); break;
             case 45028: foreach (var (l, _) in lines) l.QueueFree(); lines.Clear(); break;        // LI_CLEAR_STRINGS
         }
         return V.Int(0);

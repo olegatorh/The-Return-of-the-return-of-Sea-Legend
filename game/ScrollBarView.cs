@@ -5,18 +5,20 @@ namespace SeaDogs;
 
 /// <summary>
 /// SCROLLBAR: "[<] ===== [>]" quantity control of the trade screens. It holds no value itself: the arrows (and the Left/Right keys while it is focused)
-/// run the ini commands leftstep / rightstep (events decreaseTrade / increaseTrade); holding an arrow repeats them.
+/// run the ini commands leftstep / rightstep (events decreaseTrade / increaseTrade); holding an arrow repeats them. As LRCHANGER (goods / crew transfer) a mouse click
+/// on an arrow raises the event IEvnt_MouseClick (node, 0 = left / 1 = right) instead (xi_lr_changer.cpp), the keys still run the commands.
 /// </summary>
 public partial class ScrollBarView : Control
 {
     readonly Action<string, string> run;
     readonly string node;
+    readonly Action<string, int>? mouseClick;
     string? holding;
     double held, next;
 
-    public ScrollBarView(string name, float x1, float y1, float x2, float y2, string group, string left, string right, string center, Action<string, string> run)
+    public ScrollBarView(string name, float x1, float y1, float x2, float y2, string group, string left, string right, string center, Action<string, string> run, Action<string, int>? mouseClick = null)
     {
-        node = name; this.run = run; Name = name;
+        node = name; this.run = run; this.mouseClick = mouseClick; Name = name;
         Position = new Vector2(x1, y1); Size = new Vector2(x2 - x1, y2 - y1);
         FocusMode = FocusModeEnum.All;
         var lt = Atlas.Get(group, left); var rt = Atlas.Get(group, right); var ct = center == "" ? null : Atlas.Get(group, center);
@@ -29,16 +31,21 @@ public partial class ScrollBarView : Control
     TextureButton Arrow(Texture2D? t, Vector2 pos, Vector2 size, string cmd)
     {
         var b = new TextureButton { TextureNormal = t, Position = pos, Size = size, IgnoreTextureSize = true, StretchMode = TextureButton.StretchModeEnum.Scale, FocusMode = FocusModeEnum.None };
-        b.ButtonDown += () => { holding = cmd; held = 0; next = 0.35; run(node, cmd); };
+        b.ButtonDown += () => { holding = cmd; held = 0; next = 0.35; Fire(cmd); };
         b.ButtonUp += () => holding = null;
         return b;
+    }
+
+    void Fire(string cmd)
+    {
+        if (mouseClick != null) mouseClick(node, cmd == "leftstep" ? 0 : 1); else run(node, cmd);
     }
 
     public override void _Process(double delta)
     {
         if (holding == null) return;
         held += delta;
-        if (held >= next) { run(node, holding); next += 0.08; }
+        if (held >= next) { Fire(holding); next += 0.08; }
     }
 
     public override void _GuiInput(InputEvent e)
