@@ -330,6 +330,7 @@ public partial class SeaView : Node3D
             rt.X = gp.x - MathF.Sin(gp.ay) * 90f * n; rt.Z = gp.z - MathF.Cos(gp.ay) * 90f * n; rt.Ay = gp.ay;
         }
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
+        if (rt.IsPlayer && float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_PLAYERHP"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var testHp)) SetF(chr, "Ship.HP", testHp);   // test knob: the squadron hits as the original does
         string name = type.Get("Name")?.Value ?? "";
         rt.TypeName = name;
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));

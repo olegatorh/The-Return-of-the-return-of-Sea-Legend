@@ -148,7 +148,7 @@ public partial class SeaView
             if (!Conv.ToBool(it.FireEvent("CannLoad", new List<V> { V.A(s.Chr) }))) continue;      // no ball / powder
             var cp = BallStart(s, c.pos);
             float cdir = MathF.Atan2(target.X - cp.X, target.Z - cp.Z);
-            float delay = Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) })));
+            float delay = noSpreadOnce ? 0f : Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) })));
             shots.Add((clock + delay, c.pos, cdir, HeightFireAngle(v0, cp, target)));
             fired++;
         }

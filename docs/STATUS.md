@@ -17,17 +17,17 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 31 subsystems below): **72 %**
+* Overall (mean of the 31 subsystems below): **74 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **16759** lines of C# (`StormScript/` library + `game/`)
+* Port code: **17245** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
-| PORT | 16 | 78 % |
-| APPROX | 12 | 60 % |
+| PORT | 19 | 77 % |
+| APPROX | 9 | 62 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -42,7 +42,7 @@ Layers (where the behaviour comes from):
 | Language | Ukrainian translation layer | PORT | ███████░░░ 70 % | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality) |
 | Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 88 % | V | compared with screenshots (day/night town, tavern); day/night model sets + baked .col; point lights (ADD_LIGHT, lights.ini types, flicker, coronas) shade the characters; blob shadow under every character; MODEL_SET_ROT / SET_UVS (stage-0 texture slide of waterfalls/rivers); second texture stage and reflections not drawn |
 | Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | ████████░░ 80 % | V | walk/run/follow/fight tasks work; ragdoll and many animations missing |
-| Land | Melee combat (swings, damage by script, death) | APPROX | ██████░░░░ 65 % | T | NPC fight AI driven by the script (test melee): rates from NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire, FightGo/FightStay/TaskFailure "Fight", Location_CharacterIsFight (also before the hero draws) / IsFire; damage by Location_CharacterAttack/Block/Fire; block, parry, recoil, hit reactions, NPC pistol shots, engine recharge of chr_ai.charge; how the rates turn into actions and all timings are mine (C++ not available); PotC has no fast/force/round/break attack kinds or energy |
+| Land | Melee combat (swings, damage by script, death) | APPROX | ██████░░░░ 65 % | T | NPC fight AI driven by the script (test melee): rates from NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire, FightGo/FightStay/TaskFailure "Fight", Location_CharacterIsFight (also before the hero draws) / IsFire; damage by Location_CharacterAttack/Block/Fire; block, parry, recoil, hit reactions, NPC pistol shots, engine recharge of chr_ai.charge; fight distances from np_character.cpp (stay 2.0 / go 2.4 / run 4 / walk 2.5 m); the reference NPC AI is a later energy-based one (0.2 s ticks, attack/defence weights), PotC scripts give per-second rates, so how the rates turn into actions and the block times stay mine; PotC has no fast/force/round/break attack kinds or energy |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
 | Land | Items on the ground, chests | PORT | ████████░░ 80 % | V | box locators -> OpenBox hint -> original itemsbox screen, items moved both ways (test chest); random/quest items shown (MODELR), picked with fade (MSG_MODEL_BLEND) |
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images, text input) | PORT | ████████░░ 83 % | T | most screens render; ship rename on the ship screen works end to end (-Sea 'rename': KEYCHOOSER + key_hook.c, Ukrainian letters from the system layout, Backspace/Enter/Esc); EDITBOX is a typed text field (NodeOk/NodeCancel) instead of the original on-screen alphabet grid; LOCK_NODE makes windows modal; SET_BLIND pulses pictures; DELETE_PICTURE/STRING, DEL_SCROLLIMAGE, REFRESH_SCROLL; XBOX, GLOWS, CONTEXTHELP (its chelp_* texts are not in the game data), VIDEO missing |
@@ -52,16 +52,16 @@ Layers (where the behaviour comes from):
 | Interface | Land HUD (battle_land_interface) and command menu | PORT | ███████░░░ 75 % | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██████░░░░ 60 % | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ████████░░ 80 % | V | hull, masts, yards, square/gaff/triangular sails, ropes, shrouds and flags from the model labels; sails roll/fold by the sail state, bulge and flap with the wind, yards brace to the wind (game/SeaSails.cs) |
-| Sea | Ship movement physics | APPROX | █████░░░░░ 50 % | V | speeds from the script; acceleration, turning, heel are inertia of the ship type (Ships_init.c) for speed, turning and sideways slide; heel from turn and wind; constants are mine, no wave coupling |
+| Sea | Ship movement physics | PORT | ████████░░ 80 % | V | ship.cpp verified (docs/VERIFIED.md): ApplyStrength inertia (fMassInertia 0.1, InertiaAcceleration/Braking of the type), target speed = MaxSpeedZ x the sails' share (MSG_SAIL_GET_SPEED), KNOTS2METERS 1853/3600, SHIP::Move order, sideways speed only from impulses (Ship.Impulse, MSG_SHIP_ADD_MOVE_IMPULSE), ShipRocking 6x6 wave grid with Rocking.y/az, heel = clamped yaw rate |
 | Sea | Wind, weather, sky, fog | PORT | ██████░░░░ 60 % | V | script drives them, port renders; rain (shader streaks) and lightning (bolt sprite + flash) from the script weather; no tornado, no thunder sound |
-| Sea | Island, collisions, mooring | APPROX | ██████░░░░ 60 % | V | collision by raycast of visible geometry; grounding events approximate |
+| Sea | Island, collisions, mooring | APPROX | ██████░░░░ 65 % | V | island by raycast of the visible geometry (no contour iterations of touch.cpp: a move onto land is refused and the ship stops); ship-island power = hull speed, slide 0; ship-ship blows by touch.cpp (closing speed, slide, weight split, ProcessImpulse) on 3 circles per hull |
 | Sea | Ship AI | APPROX | ██████░░░░ 65 % | T | decisions are the script's: the engine raises Shp_ChkSituation (MinEnemyDistance) per AI ship every second, GrpChkTsk per group every 3 s and ShpFireAction for ships in the player's broadside sector; relation table refreshed by UpdateRelations (test neutral: a neutral ship fired at turns hostile, its marker red, it attacks); move/attack (chase)/follow (formation slots)/defend/defend group/flee/ram approach, steering around land; pursuit groups placed near the chased group; enemy boarding is the script's (test board) |
-| Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
-| Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
+| Sea | Cannons, balls, damage, sinking | PORT | ███████░░░ 75 % | T | AIShipCannonController / AICannon / AIBalls verified: ShpGetBortFireDelta spread, per-cannon CannGFTime delay, CalcHeightFireAngle, CalcMaxFireDistance, AI lead + CannGFHeight, ball time x AIBalls.SpeedMultiply, Shp_NotEnoughBalls "l" every frame; reload per bort (original: per cannon) |
+| Sea | Forts | PORT | ██████░░░░ 65 % | V | ai_fort.cpp: 1 s fire timer, range CalcMaxFireDistance(h, v0, 0.35), CannGFTime delay, height angle, full CannGRTime reload; damage by script |
 | Sea | Boarding | SCRIPT | ███████░░░ 70 % | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
 | Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██████░░░░ 60 % | V | telescope (Ctrl): from the mast top (ship camera) or the eye (deck camera), zoom and eyepiece of the equipped spyglass (MSG_TELESCOPE_SET_TYPE, multiplied over the picture); the ship in the middle raises SetTelescopeInfo and the ispyglass strip shows what the spyglass type allows; deck camera (Tab, Sea_CameraSwitch): first person, mouse look, RMB/MMB or Up/Down walk on the ship's path model; cabin and deck work as locations; sailors on deck walk the script walk graphs (my behaviour rules) |
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified |
-| Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
+| Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; speeds relative to the player's ship rate (the reference worldmap is a later version with other messages; not verified) |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ████████░░ 80 % | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder |
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
@@ -73,8 +73,8 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 27 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 16 | `shadow` (60%), `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (60%), `battle_interface` (20%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%), `TELESCOPE` (65%) |
+| PORT | 28 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `battle_interface` (70%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| APPROX | 15 | `shadow` (60%), `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (60%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%), `TELESCOPE` (65%) |
 | STUB | 19 | `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 7 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `Sharks`, `Seafoam` |
 
