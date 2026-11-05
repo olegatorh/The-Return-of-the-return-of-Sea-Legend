@@ -156,6 +156,19 @@ public partial class WorldMapView : Node3D
         HookWindows();
         HookStormAttrs();          // a new map has no storms yet (the attributes outlive the entity)
         if (land != null && land.IsLand(shipX, shipZ)) { var (sx, sz) = land.NearestSea(shipX, shipZ); shipX = sx; shipZ = sz; }       // a spawn point on a coast cell: back into the water
+        if (land != null && land.LandAhead(shipX, shipZ, shipAy, 12f))          // leaving an island the bow may point at the coast: turn it to the nearest open water
+        {
+            float best = shipAy, bestDiff = float.MaxValue;
+            for (int k = 0; k < 36; k++)
+            {
+                float a = k * MathF.Tau / 36f;
+                if (land.LandAhead(shipX, shipZ, a, 12f) || land.LandAhead(shipX, shipZ, a, 30f)) continue;
+                float d = MathF.Abs(Mathf.AngleDifference(shipAy, a));
+                if (d < bestDiff) { bestDiff = d; best = a; }
+            }
+            shipAy = best;
+        }
+        PublishShip(true);
         GD.Print($"[map] world map built: {isls?.Count} islands, {placed} markers; ship at ({shipX:0},{shipZ:0}) ay={shipAy:0.00}, from island '{curIsland}', date {F(root, "date.day"):0}.{F(root, "date.month"):0}.{F(root, "date.year"):0}");
     }
 
