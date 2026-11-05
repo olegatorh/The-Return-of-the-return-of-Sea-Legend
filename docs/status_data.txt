@@ -31,24 +31,24 @@ Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | 70 |
 Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | 80 | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder
 Engine | Controls and mouse look | APPROX | 60 | E | sensitivity and invert from the options
 Engine | Colour correction, screen effects | APPROX | 60 | V | gamma, contrast, brightness shader
-Entity class | fader | PORT | 90 | E |
+Entity class | fader | PORT | 92 | E | StartFade/EndFade/StartFadeIn/EndFadeIn, FADER_STARTFRAME freezes the frame
 Entity class | Ship | PORT | 75 | V | fire places ("fireplace" labels): MSG_SHIP_GET_NUM_FIRE_PLACES / ACTIVATE_FIRE_PLACE burn ship_smoke + ship_fire on the moving ship for the script's time, then stop the sound; the nearest place goes to Shp_HullHit (bInflame); GET_CHARACTER_INDEX; ADD_MOVE_IMPULSE 50308 and Ship.Impulse applied (ship.cpp)
 Entity class | MODELR | PORT | 85 | E |
 Entity class | Lights (lights.ini) | PORT | 75 | V | per-character lighting (game/LocationLights.cs): weather Sun.Color/Ambient/angles + the 4 strongest lights with Att = 1/(att0+d*att1+d*d*att2), fast + slow flicker, corona billboards; geometry keeps its baked light (as the original); flicker law, ini defaults and corona fade verified against lights.cpp; indoor ambient is my reading
 Entity class | shadow | APPROX | 60 | V | soft blob under every character (shader quad pulled 0.1 m to the camera); the original projected the character silhouette
 Entity class | MODEL | PORT | 85 | E |
-Entity class | location | PORT | 88 | V | + ADD_LIGHT 30128, MODEL_SET_ROT/UVS 30111/30112; MODEL_LAMPS/REFLECTION 30113/30114 accepted without effect; GET_MODEL 30101 -> 0 (no flags on location models)
+Entity class | location | PORT | 88 | V | + ADD_LIGHT 30128, MODEL_SET_ROT/UVS 30111/30112; MODEL_LAMPS/REFLECTION 30113/30114 accepted without effect; GET_MODEL 30101 gives the model object (flags); EX_MSG AddRats/AddLizards/AddEagle/AddFlys/GetPatchMiddlePos
 Entity class | Sound | PORT | 70 | E |
 Entity class | Island | PORT | 70 | E |
 Entity class | ActivePerkShower | APPROX | 70 | V | ActivePerks.cs: icons of PerkList.list from the script's Textures (cells horz x vert) in the InitActivePerkShower rectangle; showWindow is not filled by this engine, so the rectangle is computed for 800x600 and pushed below the sea navigator
 Entity class | blast | APPROX | 50 | V | LM_SETPOINT/ANGLES: 6-11 wooden debris pieces (MODELS/particles/palka01-05) thrown out ballistically; the original's exact debris behaviour is unknown
 Entity class | dialog | PORT | 90 | E |
-Entity class | scrshoter | STUB | 0 | E |
+Entity class | scrshoter | PORT | 70 | V | MAKE/READ/RELEASE: thumbnails are PNGs next to the saves; GetEntity/GetEntityNext/GetEntityName find it through the layer registry
 Entity class | CAviPlayer | STUB | 0 | E |
 Entity class | WMVideoPlay | STUB | 0 | E |
 Entity class | HELPCHOOSER | STUB | 0 | E |
 Entity class | InfoHandler | STUB | 0 | E |
-Entity class | Animals | STUB | 0 | E |
+Entity class | Animals | PORT | 65 | V | seagulls (locators / round the ship), butterflies; location EX_MSG AddRats/AddLizards/AddEagle/AddFlys (LocAnimals.cs); fish schools not drawn
 Entity class | battle_land_interface | PORT | 75 | V | LandHud.cs: portraits of hero+officers with HP/reload bars, pistol charges, message icons, alarm/poison blink; command menu (Enter) with the script's Commands/UserIcons (talk, fast travel, door, potions, chest ...); exact draw order/blending of the C++ class unknown
 Entity class | ispyglass | APPROX | 75 | V | SeaHud.cs SpyPanel: MSG_ISG_UPDATE / VISIBLE, layout of FillISpyGlassParameters (panel.tga, spyglasses_icons.tga, all_nations.tga), 0.5 s fade; fonts are Godot's
 Entity class | CharacterAnimationKipper | STUB | 0 | E |
@@ -63,9 +63,9 @@ Entity class | Tornado | MISSING | 0 | E |
 Entity class | Sail | PORT | 75 | V | rigging.ini [SAILS] roll/form/wind parameters; furled/half/full roll animation, wind bulge, yard turning (MAXTURNANGL), holes per DoSailHole/RandomHole2Sail/DeleteOneSailHole/funcGetSailSpeed and MSG_SAIL_SCRIPT_PROCESSING RandomSailsDmg (evntRandomSailDmg), parus_hole.tga; sail.cpp verified: ROLLTYPE_FAST sails (rey_a*, mast1) furled at half sail, rolling speed x evntGetSRollSpeed, speed share by sail type and yard-frame wind, TURNSTEPANGL yard turning, cloth/emblem textures from GetSailTextureData, flag tile from GetRiggingData; no sail-to-sail wind shadow, no tearing of whole sails
 Entity class | MAST | PORT | 70 | V | ball vs mast segment test -> ShpMastDamage (Ship.Masts.mastN), at 1: EventMastFall, DoSailHole with the mast name, mast with yards/sails/flags tips into the sea at the mast.ini rate (away from the nearest ship, with the ship's drift) and sinks at fDeepStep, its ropes removed, deck mast points closed (77500); masts broken in a save are not built; no mast collision with ships/island
 Entity class | Rope | MISSING | 0 | E |
-Entity class | Flag | MISSING | 0 | E |
+Entity class | Flag | PORT | 75 | V | ship flags in SeaView, flags of towns/ports/forts by MSG_FLAG_INIT (LandFlags.cs, the same shader)
 Entity class | Vant | MISSING | 0 | E |
-Entity class | WideScreen | STUB | 0 | E |
+Entity class | WideScreen | PORT | 85 | E | cinema bars of the quest movies
 Entity class | AIBalls | APPROX | 65 | E | every shot raises CannFire (Ball_AddBall: script dispersion, cannon smoke cancloud, shot sound)
 Entity class | artifact | STUB | 0 | E |
 Entity class | AIFort | APPROX | 55 | E |

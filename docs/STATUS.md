@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 31 subsystems below): **74 %**
 * Unit tests: **34** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **20147** lines of C# (`StormScript/` library + `game/`)
+* Port code: **20279** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -73,12 +73,12 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 33 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `AISeaGoods` (85%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `battle_interface` (70%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `SINKEFFECT` (70%), `Seafoam` (70%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%), `Sharks` (60%), `blots` (60%) |
+| PORT | 37 | `fader` (92%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `scrshoter` (70%), `Animals` (65%), `battle_land_interface` (75%), `AISeaGoods` (85%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `Flag` (75%), `WideScreen` (85%), `sea` (60%), `SEA_CAMERAS` (60%), `battle_interface` (70%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `SINKEFFECT` (70%), `Seafoam` (70%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%), `Sharks` (60%), `blots` (60%) |
 | APPROX | 15 | `shadow` (60%), `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (60%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%), `TELESCOPE` (65%) |
-| STUB | 17 | `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `CharacterAnimationKipper`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `touch`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
-| MISSING | 6 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `Sharks` |
+| STUB | 14 | `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `CharacterAnimationKipper`, `SunGlow`, `artifact`, `blots`, `touch`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| MISSING | 5 | `Tornado`, `Rope`, `Vant`, `FREE_CAMERA`, `Sharks` |
 
-Classes with real behaviour: **48 of 72** (67 %); stubs: 17, missing: 6.
+Classes with real behaviour: **52 of 72** (72 %); stubs: 14, missing: 5.
 
 ## How accuracy is checked (and what is still unchecked)
 

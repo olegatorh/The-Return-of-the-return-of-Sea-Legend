@@ -110,7 +110,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 |---|---|---|---|---|
 | Земля | локації, освітлення, патчі, перезавантаження | ✅ | `smoke_door.log`, STATUS 85 % | — |
 | Земля | анімовані пропси, ліхтарі, нічне світло, тіні | ✅ | `review/lt_night.png`, `lt_day.png`, `lt_tavern.png` | тінь — пляма, не силует |
-| Земля | тварини, птахи, щури, ящірки, метелики | ❌ | `[nohandler] Animals`, `EX_MSG`→0 | — |
+| Земля | тварини, птахи, щури, ящірки, метелики | ✅ чайки, метелики, щури, ящірки, орел, світляки біля ліхтарів (`Animals.cs`, `LocAnimals.cs`); косяки риб не малюються | `review`/логи `[animals]` | — |
 | Земля | рукопашний бій | ✅/🟡 ШІ бою NPC за скриптом (тест `melee`): частоти атаки/захисту/пострілу, агресивність і дозвіл стріляти з `NPC_Event_Get*`/`EnableFire`; події `Location_CharacterFightGo/FightStay`, `TaskFailure "Fight"`, `IsFight` (і перед тим, як герой дістає шаблю), `IsFire`; шкода — `Location_CharacterAttack/Block/Fire`; як частоти перетворюються на дії та таймінги — мої (C++ немає); у PotC немає видів атак fast/force/round/break і енергії | `Characters.cs`, `smoke_melee.log` | `Location_CharacterEndAction` |
 | Земля | діалоги | ✅ текст; ❌ голова, голосові привітання | `Dialog.cs` | Greetings |
 | Земля | предмети на землі, скрині | 🟡 скриня відкривається (`review/chest.png`, `bx*.png`), підбір ❓ | `Main.cs:238` | сценарій тесту |
