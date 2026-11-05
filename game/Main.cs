@@ -642,13 +642,27 @@ public partial class Main : Node
     }
 
     /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
+    /// <summary>Character::FindDialogCharacter (character.cpp): within 3 m and 2 m of height, inside the 30 degree cone in front of the hero (half angle 15), the best by
+    /// distance / cosine; nobody while the hero or the other one has the sword out or is dead.</summary>
     CharacterView? NearestTalkable()
     {
         var player = characters.Values.FirstOrDefault(c => c.IsPlayer);
-        if (player == null || !player.Placed) return null;
-        var near = characters.Values.Where(c => !c.IsPlayer && c.Placed && c.Visible && c.IsAlive && c.Ent.Root.Find("Dialog.Filename", false)?.Value is { Length: > 0 })
-            .OrderBy(c => c.Position.DistanceTo(player.Position)).FirstOrDefault();
-        return near != null && near.Position.DistanceTo(player.Position) < 3.2f ? near : null;
+        if (player == null || !player.Placed || player.FightMode || !player.IsAlive) return null;
+        float testAng = MathF.Cos(0.5f * 30f * MathF.PI / 180f), ay = player.Heading;
+        CharacterView? best = null;
+        float bestD = float.MaxValue;
+        foreach (var c in characters.Values)
+        {
+            if (c.IsPlayer || !c.Placed || !c.Visible || !c.IsAlive || c.FightMode || c.Ent.Root.Find("Dialog.Filename", false)?.Value is not { Length: > 0 }) continue;
+            float dx = c.Position.X - player.Position.X, dz = player.Position.Z - c.Position.Z, dy = c.Position.Y - player.Position.Y;   // Direct3D: z is mirrored
+            float d2 = dx * dx + dz * dz;
+            if (MathF.Abs(dy) > 2f || d2 > 9f) continue;
+            float d = MathF.Sqrt(d2), cs = d2 > 0f ? (dx * MathF.Sin(ay) + dz * MathF.Cos(ay)) / d : -1f;
+            if (cs < testAng) continue;
+            d /= cs;
+            if (d < bestD) { bestD = d; best = c; }
+        }
+        return best;
     }
 
     void UpdateWorld(float delta)
