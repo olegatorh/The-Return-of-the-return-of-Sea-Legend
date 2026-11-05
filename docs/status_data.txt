@@ -52,7 +52,7 @@ Entity class | Animals | STUB | 0 | E |
 Entity class | battle_land_interface | PORT | 75 | V | LandHud.cs: portraits of hero+officers with HP/reload bars, pistol charges, message icons, alarm/poison blink; command menu (Enter) with the script's Commands/UserIcons (talk, fast travel, door, potions, chest ...); exact draw order/blending of the C++ class unknown
 Entity class | ispyglass | APPROX | 75 | V | SeaHud.cs SpyPanel: MSG_ISG_UPDATE / VISIBLE, layout of FillISpyGlassParameters (panel.tga, spyglasses_icons.tga, all_nations.tga), 0.5 s fade; fonts are Godot's
 Entity class | CharacterAnimationKipper | STUB | 0 | E |
-Entity class | AISeaGoods | STUB | 0 | E |
+Entity class | AISeaGoods | PORT | 85 | V | script AddGood -> Add attribute hook; goods bob on the waves, sink after Time, ShpEatSwimGood once a second within box length x DistanceMultiply (test: sunk ship, Load 100 -> 531); no ShpEat for dying ships
 Entity class | CharactersGroups | APPROX | 70 | E | targets: look radius, remembered attackers, mates within the say radius pass on what they see
 Entity class | SunGlow | STUB | 0 | E |
 Entity class | obj_strservice | PORT | 80 | E |
@@ -86,12 +86,12 @@ Entity class | Weather | PORT | 60 | E |
 Entity class | sea_ai | APPROX | 70 | T | all AI_MESSAGE_* the scripts send: + CANNON_FIRE/RELOAD 51002/51003, SHIP_CHANGE_GROUP 51012, UPDATE_RELATIONS 51016, GROUP_SET_LOCATION_OTHER_GROUP 51019, GROUP_SET_TYPE 51020, SET_COMPANION_ENEMY 51028, SWAP_SHIPS 51014, SET_OFFICER_2_SHIP 51013, CHARACTER_DEAD 51026 (game/SeaAI.cs)
 Entity class | touch | STUB | 0 | E |
 Entity class | BallSplash | APPROX | 55 | V | water column from the particles.ini systems watersplash + ball_splash; BallSplash.dll's own splash.tga sprite effect not reproduced
-Entity class | SINKEFFECT | STUB | 0 | E |
+Entity class | SINKEFFECT | PORT | 70 | V | 25 foam grids (explos.tga, HeightF formula in a shader) + 25 palka wreckage pieces for 122 s at the sunk ship; constants of sink_effect
 Entity class | PEOPLE_ON_SHIP | APPROX | 50 | V | walk graphs from AI_MESSAGE_ADD_SHIP, crew size, POS.Mode, isNight; mast fall (77500) closes the mast points and the men there run off; climbing not done (game/SeaSailors.cs)
 Entity class | SeaLocatorShow | STUB | 0 | E |
 Entity class | TELESCOPE | APPROX | 65 | V | SeaTelescope.cs: SET_TYPE, TelescopeActive, SetTelescopeInfo / ReleaseTelescopeInfo with the activation / update times; target = ship or fort nearest the view axis within its size, 4 km
 Entity class | Sharks | MISSING | 0 | E |
-Entity class | Seafoam | MISSING | 0 | E |
+Entity class | Seafoam | PORT | 70 | V | hull foam strips (TCarcass, seafoam_2.tga, waterline profile from the hull mesh) + bow particles seafoam/seafoam2 (+seafoam_front in a storm); MSG_SHIP_DELETE stops a ship; no ship_bow sound
 Entity class | TMPTELEPORT | STUB | 0 | E |
 Entity class | FINDFILESINTODIRECTORY | PORT | 80 | E |
 Entity class | FINDDIALOGNODES | PORT | 80 | E |
@@ -100,3 +100,7 @@ Entity class | env | STUB | 0 | E |
 Entity class | xinterface | PORT | 82 | E |
 Entity class | locator | PORT | 70 | E |
 Entity class | scriptscreen | STUB | 0 | E |
+
+Entity class | Sharks | PORT | 60 | E | 3-6 sharks with the original steering (Shark.gm + Shark.an), surface wedge track; no periscope; island repulsion by LandHeight probes
+Entity class | blots | PORT | 60 | E | marks on fort walls: ball traced against the fort model (Ball_FortHit), decals blot.tga, ship.blots.bNNN attributes, fade 120 s; not seen in a screenshot yet
+Entity class | SunGlow | PARTIAL | 20 | E | WeatherSun.cs glow + flares, disabled unless SEADOGS_SUNFX=1: flares render as white squares (unsolved)

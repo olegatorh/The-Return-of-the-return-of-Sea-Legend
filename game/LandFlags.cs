@@ -21,6 +21,13 @@ public static class LandFlags
 
     public static void Forget(Entity e) => hosts.Remove(e);
 
+    /// <summary>The node of a registered model entity (the fort model for the sea's blots).</summary>
+    public static bool TryGet(Entity e, out Node3D node)
+    {
+        if (hosts.TryGetValue(e, out var h) && GodotObject.IsInstanceValid(h.node)) { node = h.node; return true; }
+        node = null!; return false;
+    }
+
     /// <summary>The Flag entity must exist on land too: the scripts create it with the sea rigging only, but the location loader sends MSG_FLAG_INIT to it.</summary>
     public static void EnsureEntity(Interp it)
     {

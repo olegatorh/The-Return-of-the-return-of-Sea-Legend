@@ -121,6 +121,7 @@ public partial class SeaView : Node3D
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => OnSeaCameras(d);              // ship / deck camera switch (SeaDeckCamera.cs)
         RegisterTelescope(i);                                                             // TELESCOPE, ispyglass, shippointer (SeaTelescope.cs)
         i.EntityHandlers["PEOPLE_ON_SHIP"] = (e, fmt, d) => OnPeopleOnShip(e, d);      // sailors on deck (SeaSailors.cs)
+        RegisterFx(i);                                                                    // Seafoam, SINKEFFECT, AISeaGoods (SeaFx.cs)
         RegisterSails(i);                                                                 // Sail entity and the sail natives (SeaSails.cs)
         i.EntityHandlers["locator"] = (e, fmt, d) => d.Length > 1 && Conv.ToInt(d[0]) == 1504 && d[1].Attr is { } isl ? LocateIsland(isl) : V.Int(0);
     }
@@ -192,7 +193,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); ClearFx(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         deckCam = false; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; pointerChr = -1; lastSelectedShip = -2;
@@ -602,6 +603,7 @@ public partial class SeaView : Node3D
         TickForts(dt);
         TickSailors(dt);
         TickSails(dt);
+        TickFx(dt);
         RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0));
         UpdateCamera(dt, inputEnabled);
         UpdateHud();

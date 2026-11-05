@@ -77,6 +77,7 @@ void fragment() {
     public void Sync(Interp it, Camera3D? cam, float dt)
     {
         time += dt;
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_SUNFX") != null) SyncSunGlow(it, cam, dt);
         Entity? rainEnt = null, lightEnt = null;
         foreach (var e in it.Entities)
         {

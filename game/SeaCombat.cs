@@ -266,6 +266,15 @@ public partial class SeaView
                 it.FireEvent("Shp_HullHit", new List<V> { V.A(o.Chr), V.Int(b.Owner), V.Int(o.Index), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z), V.Int(fpi), V.Float(fpd) });
                 done = true; break;
             }
+            // AIFort::Cannon_Trace: a ball that flies through the model of a fort hits it (BALL_FORT_HIT) and leaves a mark (blots)
+            if (!done && blotSets.Count > 0 && BlotsTrace(new Vector3(from.X, from.Y, -from.Z), new Vector3(b.P.X, b.P.Y, -b.P.Z), out var bh, out var bd, out var bset, out var bn) && bset != null)
+            {
+                SetBallType(b);
+                b.P = new Vector3(bh.X, bh.Y, -bh.Z);
+                BlotAdd(bset, bh, bd, bn);
+                it.FireEvent("Ball_FortHit", new List<V> { V.Int(b.Owner), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z) });
+                done = true;
+            }
             if (!done && island != null && b.P.Y < LandHeight(b.P.X, b.P.Z) && b.P.Y > -5f)
             {
                 SetBallType(b);

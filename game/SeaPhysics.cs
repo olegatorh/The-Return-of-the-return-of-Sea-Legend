@@ -88,7 +88,7 @@ void fragment() {
             s.Node.AddChild(m);
             wakes[s] = m;
         }
-        m.Visible = s.Speed > 0.8f && !s.Dying;
+        m.Visible = s.Speed > 0.8f && !s.Dying && !foams.ContainsKey(s);          // the Seafoam entity's hull foam (SeaFx.cs) replaces the wedge
         m.Scale = new Vector3(1f, 1f, Math.Clamp(s.Speed / 8f, 0.25f, 1.4f));
     }
 

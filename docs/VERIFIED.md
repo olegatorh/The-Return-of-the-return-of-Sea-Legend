@@ -75,3 +75,12 @@ the PotC scripts expect, the PotC contract was kept. Status: **matches** (the po
 ## Test-suite notes
 Ships now fire as the original (spread, delays, ball speed x3), so the -Sea scenarios fight / neutral / board give the player's ship 9000 HP through
 `SEADOGS_PLAYERHP` (Sea.cs `AddShip`), and the `--fire` hook aims without the bort spread and delay.
+
+## Sea effects (SeaFx.cs, SeaSharks.cs, SeaBlots.cs)
+| Item | How verified |
+|---|---|
+| Seafoam hull foam + bow spray | run with a sailing ship, close side camera: white strip along the waterline, spray at the bow |
+| SINKEFFECT | `--call=ShipDead(706,1,0)` on the duel ship: log `[sea] sink effect`, white foam puffs round the sinking ship |
+| AISeaGoods | same run, player moved onto the wreck: `[sea] swim good ...` lines, Characters[0].Ship.Cargo.Load 100 -> 531 |
+| Sharks | log `[sea] sharks: N`; no screenshot of a fin yet |
+| blots / SunGlow | not verified visually (SunGlow behind SEADOGS_SUNFX) |
