@@ -17,11 +17,17 @@ namespace SeaDogs;
 public partial class WorldMapView : Node3D
 {
     readonly Interp it;
-    public readonly Camera3D Cam = new() { Far = 20000f, Near = 1f, Fov = 55f, Name = "MapCamera" };
+    // SetPerspective((1.57 + 1.0) / 2) of world_map.cpp is the horizontal field of view (1.285 rad = 73.6 deg)
+    public readonly Camera3D Cam = new() { Far = 20000f, Near = 1f, Fov = 73.6f, KeepAspect = Camera3D.KeepAspectEnum.Width, Name = "MapCamera" };
     Entity? ent;
     Node3D? scene, shipNode;
     bool built;
-    float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camPitch = 0.95f, camDist = 190f;
+    float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camElasticAy, shipVel, shipTurn, mapTime;
+    bool camInit;
+    // wdm_camera.cpp: the pitch (ang.x) is fixed at 1.0 rad, the height runs WDM_CAMERA_HEIGHT_MIN..MAX = 50..300 (the script's wdmCameraY = 750 is clamped to 300),
+    // the distance to the point looked at is height / sin(pitch)
+    const float CamPitch = 1.0f, CamHeightMin = 50f, CamHeightMax = 300f;
+    float camDist = CamHeightMax / MathF.Sin(CamPitch);
     string inside = "";
     public bool IsBuilt => built;
     public string Inside => inside;
@@ -202,20 +208,17 @@ public partial class WorldMapView : Node3D
             if (Keys.Down("SeaRight")) turn += 1f;
             if (Keys.Down("SeaCamLeft")) camYawOff += 1.2f * dt;
             if (Keys.Down("SeaCamRight")) camYawOff -= 1.2f * dt;
-            if (Keys.Down("SeaCamUp")) camPitch = Math.Clamp(camPitch + 0.7f * dt, 0.25f, 1.45f);
-            if (Keys.Down("SeaCamDown")) camPitch = Math.Clamp(camPitch - 0.7f * dt, 0.25f, 1.45f);
-            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(60f, camDist - 120f * dt);
-            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(900f, camDist + 120f * dt);
+            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(CamHeightMin / MathF.Sin(CamPitch), camDist - 120f * dt);
+            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(CamHeightMax / MathF.Sin(CamPitch), camDist + 120f * dt);
         }
         // an open interface screen or the map's own window freezes the map (the original freezes the execute layers: EngineLayersOffOn)
         bool run = input && !ui.IsOpen;
-        if (run && SeaSpeedRate() is var rate && dt > 0f)
+        if (run && dt > 0f)
         {
-            shipAy += turn * 0.55f * dt;
-            float speed = rate * 0.7f * sail;
-            float nx = shipX + MathF.Sin(shipAy) * speed * dt, nz = shipZ + MathF.Cos(shipAy) * speed * dt;
-            // islands are solid for the ship (it can still sail out of a bay: only a move that ends on land is refused)
-            if (land == null || !land.IsLand(nx, nz)) { shipX = nx; shipZ = nz; }
+            mapTime += dt;
+            MovePlayerShip(Math.Min(dt, 0.1f), turn);
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_MAPLOG") != null && (int)(mapTime * 0.5f) != (int)((mapTime - dt) * 0.5f))
+                GD.Print($"[maplog] t={mapTime:0.0} ship ({shipX:0.0},{shipZ:0.0}) ay={shipAy:0.00} vel={shipVel:0.0} turn={shipTurn:0.00} sail={sail} windK={WindSpeedFactor(shipX, shipZ, shipAy):0.00} enc={encs.Count}");
         }
         PublishShip();
         if (run)
@@ -236,9 +239,15 @@ public partial class WorldMapView : Node3D
         }
 
         // camera: behind and above the ship
-        float yaw = shipAy + camYawOff;
+        // WdmCamera::Move: the camera heading follows the ship's with k = 2 dt (the shortest way round)
+        float ck = Math.Min(Math.Min(dt, 0.1f) * 2f, 1f);
+        float dAng = shipAy - camElasticAy;
+        if (dAng > MathF.PI) camElasticAy += MathF.Tau; else if (dAng < -MathF.PI) camElasticAy -= MathF.Tau;
+        camElasticAy += (shipAy - camElasticAy) * ck;
+        if (!camInit) { camElasticAy = shipAy; camInit = true; }
+        float yaw = camElasticAy + camYawOff;
         var target = new Vector3(shipX, 0f, -shipZ);
-        var off = new Vector3(-MathF.Sin(yaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(yaw) * MathF.Cos(camPitch)) * camDist;
+        var off = new Vector3(-MathF.Sin(yaw) * MathF.Cos(CamPitch), MathF.Sin(CamPitch), MathF.Cos(yaw) * MathF.Cos(CamPitch)) * camDist;
         Cam.GlobalPosition = target + off;
         Cam.LookAt(target);
         Cam.Current = true;
@@ -251,8 +260,50 @@ public partial class WorldMapView : Node3D
         return pc.Attr != null ? Math.Max(4f, Conv.ToFloat(it.CallTop("GetCharacterShipSpeedRate", pc))) : 12f;
     }
 
-    public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.25f, 1.45f); }
-    public void Zoom(int dir) { camDist = Math.Clamp(camDist + dir * 25f, 60f, 900f); }
+    public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; }          // the pitch of the original camera never changes
+    public void Zoom(int dir) { camDist = Math.Clamp(camDist + dir * 25f, CamHeightMin / MathF.Sin(CamPitch), CamHeightMax / MathF.Sin(CamPitch)); }
+
+    // ------------------------------------------------------------------ the player's ship (wdm_player_ship.cpp / wdm_ship.cpp)
+    const float ShipMaxSpeed = 20f, ShipTurnSpeed = 1f, ShipIner = 2.5f, ShipBrake = 1.25f, ShipMaxTurn = 0.65f;
+    const float SpeedOppositeWind = 0.8f, SpeedOverWind = 1.2f;
+
+    /// <summary>The wind at a map point: direction (unit) and strength 0..1. The original (wdm_objects_wind.h) is a random smoothed field; this is a smooth deterministic stand-in.</summary>
+    public float GetWind(float x, float z, out float dirX, out float dirZ)
+    {
+        float t = mapTime;
+        float a = 1.7f * MathF.Sin(x * 0.004f + t * 0.05f) + 1.5f * MathF.Cos(z * 0.003f - t * 0.04f) + 1.2f * MathF.Sin((x + z) * 0.002f + 1.3f);
+        dirX = MathF.Sin(a); dirZ = MathF.Cos(a);
+        return Math.Clamp(0.6f + 0.4f * MathF.Sin(x * 0.0025f - z * 0.002f + t * 0.07f), 0f, 1f);
+    }
+
+    /// <summary>WdmShip::ShipUpdate speed factor: shipSpeedOppositeWind + (shipSpeedOverWind - shipSpeedOppositeWind) x wind x (cos of the angle to the wind)/2+1/2.</summary>
+    public float WindSpeedFactor(float x, float z, float ay)
+    {
+        float k = GetWind(x, z, out float wx, out float wz);
+        k *= (MathF.Sin(ay) * wx + MathF.Cos(ay) * wz) * 0.5f + 0.5f;
+        float lo = Root != null && Root.Find("shipSpeedOppositeWind", false) != null ? F(Root, "shipSpeedOppositeWind") : SpeedOppositeWind;
+        float hi = Root != null && Root.Find("shipSpeedOverWind", false) != null ? F(Root, "shipSpeedOverWind") : SpeedOverWind;
+        return lo + (hi - lo) * k;
+    }
+
+    /// <summary>WdmPlayerShip::Move + WdmShip::ShipUpdate: sail up accelerates by INER_ST x MAX_SPEED / 2 (limit MAX_SPEED x the sail share), turning by INER_ST x TSPEED
+    /// (limit MAX_TURNSPD), both braked by INER_BR; the ship moves along its old heading by speed x wind factor, then turns.</summary>
+    void MovePlayerShip(float dt, float turn)
+    {
+        if (sail > 0f) shipVel += ShipIner * ShipMaxSpeed * dt * 0.5f;
+        shipTurn += ShipIner * ShipTurnSpeed * dt * turn;
+        float limit = ShipMaxSpeed * Math.Max(sail, 0f);
+        if (shipVel > limit) shipVel = limit;
+        shipTurn = Math.Clamp(shipTurn, -ShipMaxTurn, ShipMaxTurn);
+        float move = shipVel * WindSpeedFactor(shipX, shipZ, shipAy) * dt;
+        float nx = shipX + MathF.Sin(shipAy) * move, nz = shipZ + MathF.Cos(shipAy) * move;
+        shipAy += shipTurn * dt;
+        float k = Math.Min(ShipBrake * dt, 1f);
+        shipTurn -= shipTurn * k; shipVel -= shipVel * k;
+        // islands are solid for the ship (it can still sail out of a bay: only a move that ends on land is refused)
+        if (land == null || !land.IsLand(nx, nz)) { shipX = nx; shipZ = nz; }
+        else shipVel = 0f;
+    }
 
     public void SailKey(int dir) => sail = Math.Clamp(sail + 0.5f * dir, 0f, 1f);
 
@@ -396,7 +447,7 @@ public partial class WorldHud : CanvasLayer
         help.AddThemeFontSizeOverride("font_size", 14);
         help.AddThemeColorOverride("font_color", new Color(1, 1, 1, 0.8f));
         help.Position = new Vector2(12, 0); help.AnchorTop = 1f; help.AnchorBottom = 1f; help.OffsetTop = -34; help.OffsetBottom = -8;
-        help.Text = "A/D — поворот   W/S — вітрила   ←→↑↓ PgUp/PgDn — камера   Enter — зайти на острів / в море   T — чекати";
+        help.Text = "A/D — поворот   W/S — вітрила   ←→ PgUp/PgDn — камера   Enter — зайти на острів / в море   T — чекати";
         AddChild(help);
         Visible = false;
     }

@@ -21,7 +21,8 @@ public partial class WorldMapView
     {
         public int Type;                 // slot in the script's MapEncounters
         public EncKind Kind;
-        public float X, Z, Ay, Speed, Life = -1f;
+        public float X, Z, Ay, Speed, Life = -1f;       // Speed = the script's kSpeed (WdmShip::kMaxSpeed)
+        public float Vel, TurnSpd;                       // the current speed and turn rate (map units/s, rad/s)
         public Enc? Partner;
         public bool Attacker, Selected, Reported;
         public float DestX, DestZ;
@@ -72,7 +73,8 @@ public partial class WorldMapView
         e.GetOrCreate("attack").Value = c.Partner != null && c.Attacker ? encs.IndexOf(c.Partner).ToString() : "-1";
     }
 
-    float PlayerMapSpeed() => SeaSpeedRate() * 0.7f;
+    /// <summary>The script's speed factor of the ship (CreateMerchantShip / CreateFollowShip: not below 0.1).</summary>
+    static float KSpeed(float k) => Math.Max(k, 0.1f);
 
     Enc Make(EncKind kind, int type, string model, float x, float z, float speed, float life)
     {
@@ -106,7 +108,7 @@ public partial class WorldMapView
     {
         var rnd = Rng;
         if (!BirthPoint(out float x, out float z)) return false;
-        var e = Make(kind, type, model, x, z, PlayerMapSpeed() * kSpeed, life);
+        var e = Make(kind, type, model, x, z, KSpeed(kSpeed), life);
         if (kind == EncKind.Merchant)
         {
             // sail to the named island, or to a random one
@@ -149,32 +151,48 @@ public partial class WorldMapView
         foreach (var e in encs.ToList())
         {
             if (e.Life >= 0f) { e.Life -= dt; if (e.Life <= 0f) { RemoveEnc(e); continue; } }
+            // where the ship wants to sail (WdmMerchantShip::FindMoveForce: the goal; WdmFollowShip: the player); the war pair stands still
+            float want = e.Ay; bool steer = false;
             switch (e.Kind)
             {
                 case EncKind.Merchant:
-                    e.Ay = MathF.Atan2(e.DestX - e.X, e.DestZ - e.Z);
+                    want = MathF.Atan2(e.DestX - e.X, e.DestZ - e.Z); steer = true;
                     if (MathF.Abs(e.DestX - e.X) + MathF.Abs(e.DestZ - e.Z) < 20f) { RemoveEnc(e); continue; }
                     break;
                 case EncKind.Follow:
-                {
-                    float want = MathF.Atan2(shipX - e.X, shipZ - e.Z), diff = want - e.Ay;
-                    while (diff > MathF.PI) diff -= MathF.Tau;
-                    while (diff < -MathF.PI) diff += MathF.Tau;
-                    e.Ay += Math.Clamp(diff, -0.6f * dt, 0.6f * dt);
+                    want = MathF.Atan2(shipX - e.X, shipZ - e.Z); steer = true;
                     break;
-                }
             }
             // the other ships keep off the islands too: when land is ahead they turn to the free side
-            if (land != null && land.LandAhead(e.X, e.Z, e.Ay, 40f))
+            if (steer && land != null && land.LandAhead(e.X, e.Z, e.Ay, 40f))
             {
                 float turn = 0f;
                 foreach (float off in new[] { 0.5f, -0.5f, 1.0f, -1.0f, 1.6f, -1.6f })
                     if (!land.LandAhead(e.X, e.Z, e.Ay + off, 40f)) { turn = off; break; }
-                e.Ay += (turn == 0f ? 1f : Math.Sign(turn) * Math.Min(MathF.Abs(turn), 1.2f * dt * 3f)) * (turn == 0f ? dt * 1.5f : 1f);
+                want = e.Ay + (turn == 0f ? 1.5f : turn);
             }
-            float nx = e.X + MathF.Sin(e.Ay) * e.Speed * dt, nz = e.Z + MathF.Cos(e.Ay) * e.Speed * dt;
-            if (land == null || !land.IsLand(nx, nz)) { e.X = nx; e.Z = nz; }          // a move that would end on land is refused (the turn above finds the free side)
-            else e.Ay += 1.5f * dt;
+            float nx = e.X, nz = e.Z;
+            if (steer)
+            {
+                // WdmEnemyShip::Move: the sine of the angle between the heading and the wanted direction turns the ship (2 x TSPEED), a goal behind makes a full turn;
+                // speed += kMaxSpeed x INER_ST x WDM_SHIP_SPEED x dt while the goal is ahead, braking to 0.1 otherwise
+                float vx = MathF.Sin(e.Ay), vz = MathF.Cos(e.Ay), dx = MathF.Sin(want), dz = MathF.Cos(want);
+                float sn = vz * dx - vx * dz, cs = vx * dx + vz * dz;
+                if (cs < 0f) sn = sn < 0f ? -1f : 1f;
+                float step = Math.Min(dt, 0.1f);
+                e.TurnSpd += 2f * 1f * sn * step;
+                if (cs >= 0f) e.Vel += e.Speed * 2.5f * 7.5f * step;
+                else if (e.Vel > 0.1f) e.Vel = Math.Max(0.1f, e.Vel - e.Speed * 2.5f * 7.5f * step);
+                // WdmShip::ShipUpdate: limits, the move along the old heading x the wind factor, the turn, the braking
+                e.Vel = Math.Clamp(e.Vel, -0.4f * 20f * e.Speed, 20f * e.Speed); e.TurnSpd = Math.Clamp(e.TurnSpd, -0.65f, 0.65f);
+                float move = e.Vel * WindSpeedFactor(e.X, e.Z, e.Ay) * step;
+                nx = e.X + MathF.Sin(e.Ay) * move; nz = e.Z + MathF.Cos(e.Ay) * move;
+                e.Ay += e.TurnSpd * step;
+                float k = Math.Min(1.25f * step, 1f);
+                e.TurnSpd -= e.TurnSpd * k; e.Vel -= e.Vel * k;
+                if (land == null || !land.IsLand(nx, nz)) { e.X = nx; e.Z = nz; }          // a move that would end on land is refused (the turn above finds the free side)
+                else { e.Vel *= 0.5f; e.Ay += 1.5f * dt; }
+            }
             e.Node.Position = new Vector3(e.X, 0.5f, -e.Z); e.Node.Rotation = new Vector3(0, -e.Ay, 0);
             float d = MathF.Sqrt((e.X - shipX) * (e.X - shipX) + (e.Z - shipZ) * (e.Z - shipZ));
             if (d > kill * 1.2f) { RemoveEnc(e); continue; }
