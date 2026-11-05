@@ -85,6 +85,7 @@ public partial class SeaView
         {
             scopeActiveSent = on;
             it.FireEvent("TelescopeActive", new List<V> { V.Int(on ? 1 : 0) });
+            it.FireEvent("BI_VISIBLE", new List<V> { V.Int(on ? 0 : 1) });            // spyglass.cpp: the battle interface hides under the eyepiece
         }
         if (!on)
         {

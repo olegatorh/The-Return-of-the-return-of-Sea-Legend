@@ -205,11 +205,13 @@ public partial class SeaView
         if ((mode & ModeCharge) != 0)
         {
             menuLevel = MenuLevel.Charge; menuTitle = label; menuSel = 0; menuItems.Clear();
-            string[] names = { "Ядра", "Картеч", "Книпелі", "Бомби" }, goods = { "Balls", "Grapes", "Knippels", "Bombs" };
-            var sh = ships.FirstOrDefault(s => s.Index == menuChar)?.Chr.Find("Ship", false);
-            for (int c = 0; c < 4; c++)
+            string[] names = { "Ядра", "Картеч", "Книпелі", "Бомби" };
+            // BIShipCommandList::ChargeAdding: the quantities come from the script (BI_GetChargeQuantity: int[] = count, balls, grapes, knippels, bombs)
+            var q = it.FireEvent("BI_GetChargeQuantity", new List<V> { V.Int(menuChar) });
+            int kinds = Math.Min(4, RetInt(q, 0, 4));
+            for (int c = 0; c < kinds; c++)
             {
-                int have = (int)F(sh, "Cargo.Goods." + goods[c]);
+                int have = RetInt(q, c + 1, 0);
                 menuItems.Add(new HudMenuItem { Icon = ChargeIcon(c, false), IconSelected = ChargeIcon(c, true), Label = $"{names[c]} ({have})", Enabled = have > 0, Target = c + 1 });
             }
             return;
@@ -230,6 +232,7 @@ public partial class SeaView
         if ((mode & ModeAbility) != 0)
         {
             menuLevel = MenuLevel.Ability; menuTitle = label; menuSel = 0; menuItems.Clear();
+            it.FireEvent("evntSetUsingAbility", new List<V> { V.Int(menuChar) });          // BIShipCommandList::AbilityAdding: the script enables the abilities
             var ab = BI?.Find("AbilityIcons", false);
             for (int c = 0; ab != null && c < ab.Count; c++)
             {
@@ -250,7 +253,8 @@ public partial class SeaView
                 bool mine = Companions(p).Contains(s);
                 int rel = s.IsPlayer ? 0 : Relation(p.Index, s.Index);
                 bool ok = (mine && (mode & ModeMyShip) != 0) || (!mine && ((rel == 2 && (mode & ModeEnemyShip) != 0) || (rel == 0 && (mode & ModeFriendShip) != 0) || (rel == 1 && (mode & ModeNeutralShip) != 0)));
-                if (ok) cand.Add(s);
+                // BIShipCommandList::ShipAdding: the script may still refuse a ship (evntCheckEnableShip "sl", e.g. BI_InstantBoarding)
+                if (ok && RetInt(it.FireEvent("evntCheckEnableShip", new List<V> { V.Str(ev), V.Int(s.Index) }), 0, 1) != 0) cand.Add(s);
             }
         // places of the island (ports, bays: Islands[].reload.l<N>.{label, name, pic}) when the command accepts a locator, e.g. sail to the port
         var places = new List<HudMenuItem>();
@@ -263,8 +267,12 @@ public partial class SeaView
                 var l = rel.ChildAt(c)!;
                 string lab = l.Get("label")?.Value ?? "", nm = l.Get("name")?.Value ?? "";
                 if (lab.Length == 0 || nm.Length == 0 || l.Get("x") == null) continue;
+                // ISLAND_DESCRIBER: evntCheckEnableLocator decides whether the command may use this place; the icon is what evntGetLandData returned
+                if (RetInt(it.FireEvent("evntCheckEnableLocator", new List<V> { V.Str(ev), V.A(l) }), 0, 1) == 0) continue;
+                var bl = biLocators.FirstOrDefault(x => ReferenceEquals(x.A, l));
+                Texture2D? ic = bl != null ? BiIcon(bl.Tex, bl.Pic, false) : null, ics = bl != null ? BiIcon(bl.Tex, bl.SelPic, true) : null;
                 int pic = (int)F(l, "pic", 0);
-                places.Add(new HudMenuItem { Icon = CmdIcon(13, pic, false), IconSelected = CmdIcon(13, pic, true), Label = lab, Id = "place", Loc = nm });
+                places.Add(new HudMenuItem { Icon = ic ?? CmdIcon(13, pic, false), IconSelected = ics ?? ic ?? CmdIcon(13, pic, true), Label = lab, Id = "place", Loc = nm });
             }
         }
         if (cand.Count == 0 && places.Count == 0) { menuNote = "Немає підходящих цілей"; ShowCommands(menuChar); return; }

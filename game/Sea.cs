@@ -97,6 +97,7 @@ public partial class SeaView : Node3D
     public void Register(Interp i)
     {
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
+        i.EntityHandlers["battle_interface"] = (e, fmt, d) => OnBattleInterface(d);   // BattleInterface.cs
         // the class "particles" itself lives in Particles.cs (ParticleService); BallSplash (MSG_BALLSPLASH_ADD 77200) draws its water column with the
         // original systems "watersplash" + "ball_splash" of particles.ini (BallSplash.dll has its own splash.tga sprite effect that is not reproduced)
         i.EntityHandlers["BallSplash"] = (e, fmt, d) =>
@@ -177,6 +178,7 @@ public partial class SeaView : Node3D
 
     public void OnEntityDeleted(Entity e)
     {
+        if (e.Class.Equals("battle_interface", StringComparison.OrdinalIgnoreCase)) ResetBattleInterface();
         if (e.Class.Equals("sea_ai", StringComparison.OrdinalIgnoreCase) || e.Class.Equals("Island", StringComparison.OrdinalIgnoreCase))
         {
             if (e.Class.Equals("Island", StringComparison.OrdinalIgnoreCase)) { island?.QueueFree(); island = null; }
@@ -572,7 +574,7 @@ public partial class SeaView : Node3D
             Publish(s);
             // the script recalculates MaxSpeedZ/MaxSpeedY (wind, load, damage) when the engine reports the ship parameters
             if (++logCounter % 300 == 0) GD.Print($"[sea] {s.Chr.Get("id")?.Value} pos=({s.X:0.0},{s.Z:0.0}) ay={s.Ay:0.00} speed={s.Speed:0.0} turn={turnIn} in={inputEnabled} sail={s.Sail} maxZ={maxZ:0.0} maxY={maxY:0.00}");
-            if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); ReportSeaState(); } }
+            if (s.IsPlayer) { situationTimer += dt; if (situationTimer >= 1f) { situationTimer = 0f; UpdateSituation(s); } CheckSeaState(); }
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
@@ -671,6 +673,7 @@ public partial class SeaView : Node3D
             foreach (var m in d.Markers) if (m.Name == d.Target.Name && Math.Abs(m.Distance - d.Target.Distance) < 0.5f) m.Target = true;
         }
         d.Menu = BuildMenu();
+        d.BiVisible = biVisible; d.NotEnoughBalls = biNotEnoughBalls;
         ReportSelectedShip();
         UpdatePointer();
         hud.Update(d);
@@ -703,27 +706,6 @@ public partial class SeaView : Node3D
     public void Teleport(float x, float z, float ay)
     {
         if (ships.FirstOrDefault(s => s.IsPlayer) is { } p) { p.X = x; p.Z = z; p.Ay = ay; p.Speed = 0f; Publish(p); }
-    }
-
-    /// <summary>
-    /// What the engine's battle interface reports to the script every second (BI_SetSeaState): sail-to possible, ?, map exit possible, attack / defend orders,
-    /// reload (cargo transfer) possible, its target. The map can be entered anywhere but in a port's mooring zone (the script also forbids it near enemies and in storms).
-    /// </summary>
-    void ReportSeaState()
-    {
-        var pl = ships.FirstOrDefault(x => x.IsPlayer);
-        bool canMoor = it.Globals.TryGetValue("bCanEnterToLand", out var g) && Conv.ToInt(g.Val) != 0;
-        // what the command menu may offer: sail to a place of the island, attack an enemy / defend a friend that is near
-        bool sailTo = island != null, attack = false, defend = false;
-        if (pl != null)
-            foreach (var o in ships)
-            {
-                if (o.IsPlayer || o.Dying) continue;
-                int rel = Relation(pl.Index, o.Index);
-                if (rel == 2 && Dist(pl, o) < 2500f) attack = true;
-                if (rel == 0 && Dist(pl, o) < 2500f) defend = true;
-            }
-        it.FireEvent("BI_SetSeaState", new List<V> { V.Int(sailTo ? 1 : 0), V.Int(0), V.Int(canMoor ? 0 : 1), V.Int(attack ? 1 : 0), V.Int(defend ? 1 : 0), V.Int(0), V.Int(-1) });
     }
 
     /// <summary>

@@ -49,6 +49,7 @@ public sealed class HudData
     public List<HudMarker> Markers = new();
     public string Info = "";
     public HudMenu? Menu;
+    public bool BiVisible = true, NotEnoughBalls;     // battle_interface BI_SET_VISIBLE / BI_MSG_NOT_ENOUGH_BALLS_FLAG (BattleInterface.cs)
 }
 
 /// <summary>
@@ -428,6 +429,15 @@ public partial class SeaHud : CanvasLayer
         actionText.Text = "";            // the hint with the key comes from the script (ILogAndActions)
         BuildMenuUi(d.Menu);
         commands.Visible = (d.Menu == null || !d.Menu.Open) && spyAlpha <= 0.01f;     // the spyglass strip takes the bottom of the screen
+        // BI_SET_VISIBLE (the script's BI_CommandVisible, e.g. under the spyglass): the battle interface parts disappear, the eyepiece / spyglass strip stay
+        nav.Visible = squad.Visible = markers.Visible = menuBox.Visible = d.BiVisible;
+        if (!d.BiVisible) { targetPanel.Visible = false; commands.Visible = false; }
+        // BI_MSG_NOT_ENOUGH_BALLS_FLAG: the navigator's charge picture blinks red when a broadside cannot be loaded (BattleNavigator::SetEnoughBalls)
+        if (d.NotEnoughBalls && d.Charge >= 0 && d.Charge < 4)
+        {
+            float blink = (float)(Time.GetTicksMsec() % 1000) / 1000f;
+            chargeIcon[d.Charge].Modulate = blink < 0.5f ? new Color(1f, 0.3f, 0.3f) : new Color(1f, 1f, 1f, 0.5f);
+        }
         // markers over ships
         foreach (var c in markers.GetChildren()) c.QueueFree();
         foreach (var m in d.Markers)
