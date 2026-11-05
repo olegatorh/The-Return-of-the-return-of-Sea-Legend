@@ -14,6 +14,14 @@ public sealed class HudShip
     public bool Own;
 }
 
+/// <summary>What the spyglass shows of a ship (MSG_ISG_UPDATE); -1 / "" = the spyglass type does not show it.</summary>
+public sealed class SpyGlassInfo
+{
+    public string Name = "", Type = "";
+    public int Hull = -1, Sail = -1, Crew = -1, Cannons = -1, Charge = -1, Nation = -1;
+    public float Speed = -1f;
+}
+
 /// <summary>A marker above a ship in the 3D view (friend / neutral / enemy).</summary>
 public sealed class HudMarker
 {
@@ -82,10 +90,17 @@ public partial class SeaHud : CanvasLayer
         root.AddChild(markers);
         scopeRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         scopeRect.Visible = false;
+        // the eyepiece textures (telescope.tga, eye_*Tub.tga) are white inside and dark at the rim: the original multiplies them over the picture
+        scopeRect.Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Mul };
         root.AddChild(scopeRect);
         root.AddChild(scopeBarL);
         root.AddChild(scopeBarR);
         scopeBarL.Visible = scopeBarR.Visible = false;
+        spyPanel.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        spyPanel.Hud = this;
+        root.AddChild(spyPanel);
+        pointer.Visible = false;
+        root.AddChild(pointer);
         menuBox.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
         menuBox.OffsetLeft = 24; menuBox.OffsetTop = -190; menuBox.OffsetRight = 24 + 560; menuBox.OffsetBottom = -82;
         root.AddChild(menuBox);
@@ -265,7 +280,7 @@ public partial class SeaHud : CanvasLayer
     {
         set
         {
-            scopeAmount = value; scopeRect.Visible = value > 0.05f; scopeRect.Modulate = new Color(1, 1, 1, value);
+            scopeAmount = value; scopeRect.Visible = value > 0.05f;
             scopeBarL.Visible = scopeBarR.Visible = scopeRect.Visible;
             scopeBarL.Modulate = scopeBarR.Modulate = scopeRect.Modulate;
             var sz = root.GetViewportRect().Size;                       // the round eyepiece keeps its proportions; black bars fill the sides of a wide window
@@ -275,9 +290,89 @@ public partial class SeaHud : CanvasLayer
         }
     }
 
+    // ---- spyglass information panel (class "ispyglass", BATTLE_INTERFACE\ispyglass.c)
+    readonly SpyPanel spyPanel = new() { Name = "SpyGlass", MouseFilter = Control.MouseFilterEnum.Ignore };
+    public SpyGlassInfo? Spy;
+    public bool SpyVisible;
+    float spyAlpha;
+
+    /// <summary>
+    /// The layout of FillISpyGlassParameters (a 640 x 480 screen, bottomOffset 24): a strip 50 high above the bottom edge with the nation flag at the left,
+    /// the ship type beside it and the name above the strip; icons 40 x 40 for hull (x 163), sails (255), crew (351), speed (436), cannons (520) with their
+    /// numbers 42 to the right, and the charge at the right edge. The original fades it in / out in FadeTime = 0.5 s.
+    /// </summary>
+    sealed partial class SpyPanel : Control
+    {
+        public SeaHud Hud = null!;
+        static readonly Rect2[] Nations = { new(0.1640625f, 0, 0.1640625f, 0.65625f), new(0.328125f, 0, 0.1640625f, 0.65625f), new(0.4921875f, 0, 0.1640625f, 0.65625f), new(0.65625f, 0, 0.1640625f, 0.65625f), new(0.8203125f, 0, 0.1640625f, 0.65625f) };
+        static readonly Rect2 IcHull = new(0, 0, 0.3125f, 0.3125f), IcSail = new(0.3125f, 0, 0.3125f, 0.3125f), IcCrew = new(0.625f, 0, 0.3125f, 0.3125f),
+            IcSpeed = new(0, 0.3125f, 0.3125f, 0.3125f), IcCannons = new(0.3125f, 0.3125f, 0.3125f, 0.3125f);
+        static readonly Rect2[] IcCharge = { new(0.625f, 0.625f, 0.3125f, 0.3125f), new(0.625f, 0.3125f, 0.3125f, 0.3125f), new(0.3125f, 0.625f, 0.3125f, 0.3125f), new(0, 0.625f, 0.3125f, 0.3125f) };
+
+        public override void _Draw()
+        {
+            var info = Hud.Spy;
+            float a = Hud.spyAlpha;
+            if (info == null || a <= 0.01f) return;
+            var sz = Size;
+            float sx = sz.X / 640f, s = sz.Y / 480f;
+            var mod = new Color(1, 1, 1, a);
+            var font = ThemeDB.FallbackFont;
+            void Img(string file, Rect2 uv, float x, float y, float w, float h)
+            {
+                var t = GameAssets.Texture(Dir + file);
+                if (t == null) return;
+                var ts = t.GetSize();
+                DrawTextureRectRegion(t, new Rect2(x, y, w, h), new Rect2(uv.Position * ts, uv.Size * ts), mod);
+            }
+            void Text(string txt, float x, float y, int size, Color c)
+            {
+                if (txt.Length == 0) return;
+                var pos = new Vector2(x, y + size);
+                DrawStringOutline(font, pos, txt, HorizontalAlignment.Left, -1, size, 5, new Color(0, 0, 0, a));
+                DrawString(font, pos, txt, HorizontalAlignment.Left, -1, size, new Color(c.R, c.G, c.B, a));
+            }
+            Img("panel.tga", new Rect2(0, 0, 1, 1), 0, sz.Y - 74 * s, sz.X, 50 * s);
+            float icon = 40 * s, iy = sz.Y - 69 * s, ty = sz.Y - 58 * s;
+            int fsz = Math.Max(12, (int)(15 * s)), nsz = Math.Max(12, (int)(16 * s));
+            var gold = new Color(1f, 0.92f, 0.65f);
+            if (info.Nation is >= 0 and < 5) Img("all_nations.tga", Nations[info.Nation], 10 * sx, iy, icon, icon);
+            Text(info.Type, 52 * sx, sz.Y - 60 * s, fsz, gold);
+            Text(info.Name, 52 * sx, sz.Y - 104 * s, nsz, gold);
+            void Field(int left, Rect2 uv, string val)
+            {
+                if (val.Length == 0) return;
+                Img("spyglasses_icons.tga", uv, left * sx - 42 * s, iy, icon, icon);
+                Text(val, left * sx, ty, fsz, Colors.White);
+            }
+            Field(205, IcHull, info.Hull >= 0 ? info.Hull + "%" : "");
+            Field(297, IcSail, info.Sail >= 0 ? info.Sail + "%" : "");
+            Field(393, IcCrew, info.Crew >= 0 ? info.Crew.ToString() : "");
+            Field(478, IcSpeed, info.Speed >= 0f ? info.Speed.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) : "");
+            Field(562, IcCannons, info.Cannons >= 0 ? info.Cannons.ToString() : "");
+            if (info.Charge is >= 0 and < 4) Img("spyglasses_icons.tga", IcCharge[info.Charge], sz.X - 42 * s, iy, icon, icon);
+        }
+    }
+
+    // ---- ship pointer (class "shippointer"): the arrow over the ship chosen in the command menu
+    readonly TextureRect pointer = new() { MouseFilter = Control.MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered };
+
+    /// <param name="screen">the middle of the lower edge</param><param name="size">pixels</param>
+    public void SetPointer(Vector2? screen, bool friend, Vector2 size)
+    {
+        pointer.Visible = screen != null;
+        if (screen is not { } at) return;
+        pointer.Texture = GameAssets.Texture(Dir + (friend ? "Frendly.tga" : "Enemy.tga"));
+        pointer.StretchMode = TextureRect.StretchModeEnum.Scale;
+        pointer.Size = size;
+        pointer.Position = at - new Vector2(size.X / 2f, size.Y);
+    }
+
     public void Update(HudData d)
     {
         lastOn = d.On;
+        spyAlpha = Math.Clamp(spyAlpha + (SpyVisible && scopeAmount > 0.5f ? 1f : -1f) * (float)GetProcessDeltaTime() / 0.5f, 0f, 1f);
+        spyPanel.QueueRedraw();
         Visible = d.On && !suspended;
         if (!d.On || suspended) return;
         // navigator
@@ -332,7 +427,7 @@ public partial class SeaHud : CanvasLayer
         }
         actionText.Text = "";            // the hint with the key comes from the script (ILogAndActions)
         BuildMenuUi(d.Menu);
-        commands.Visible = d.Menu == null || !d.Menu.Open;
+        commands.Visible = (d.Menu == null || !d.Menu.Open) && spyAlpha <= 0.01f;     // the spyglass strip takes the bottom of the screen
         // markers over ships
         foreach (var c in markers.GetChildren()) c.QueueFree();
         foreach (var m in d.Markers)

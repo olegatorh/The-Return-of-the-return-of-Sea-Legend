@@ -350,6 +350,9 @@ public partial class Main : Node
             }
             return cv.OnMessage(fmt, d);
         };
+        // "ActivePerkShower": icons of the abilities in use (BATTLE_INTERFACE\ActivePerksShow.c), land and sea
+        AddChild(perkView);
+        host.It.EntityHandlers["ActivePerkShower"] = (e, fmt, d) => perkView.OnMessage(host.It, e, d);
         var particles = new ParticleService();
         AddChild(particles);
         particles.Register(host.It);
@@ -371,6 +374,7 @@ public partial class Main : Node
             if (boardingStatus != null && ReferenceEquals(boardingStatus.Ent, e)) { boardingStatus.QueueFree(); boardingStatus = null; }
             if (e.Class == "ILogAndActions" && logHud != null) { logHud.QueueFree(); logHud = null; }
             landHud?.OnDeleted(e);
+            perkView.OnDeleted(e);
             if (e.Class == "location")      // the location owns the people standing in it
                 foreach (var cls in new[] { "NPCharacter", "Player", "Character" }) host.It.DeleteAllEntities(cls);
             if (e.Class.Equals("locationcamera", StringComparison.OrdinalIgnoreCase)) { camMode = 1; camInit = false; }
@@ -481,7 +485,8 @@ public partial class Main : Node
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
-            string? ctl = Keys.Is(sk2, "SeaMap") ? "BI_MapEnter" : Keys.Is(sk2, "SeaBalls") ? "BI_ChargeCannonballs" : Keys.Is(sk2, "SeaGrapes") ? "BI_ChargeGrapes" : Keys.Is(sk2, "SeaKnippels") ? "BI_ChargeKnippels" : Keys.Is(sk2, "SeaBombs") ? "BI_ChargeBombs" : null;
+            string? ctl = Keys.Is(sk2, "SeaMap") ? "BI_MapEnter" : Keys.Is(sk2, "SeaBalls") ? "BI_ChargeCannonballs" : Keys.Is(sk2, "SeaGrapes") ? "BI_ChargeGrapes" : Keys.Is(sk2, "SeaKnippels") ? "BI_ChargeKnippels" : Keys.Is(sk2, "SeaBombs") ? "BI_ChargeBombs"
+                : Keys.Is(sk2, "SeaCameraSwitch") ? "Sea_CameraSwitch" : null;
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
         }
@@ -719,6 +724,20 @@ public partial class Main : Node
             ulong held = Time.GetTicksMsec() - lmbDownAt; lmbDownAt = 0;
             if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { var en = pl2.NearestInFront(2.2f); if (en != null) pl2.StartSwing(en, held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
         }
+        // the deck camera: the right button walks forward, the middle one back (DeckCamera_Forward / _Backward), the mouse looks round without a button
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right or MouseButton.Middle } db && sea.DeckCamera)
+        {
+            sea.DeckWalkMouse = db.Pressed && locations.Count == 0 && !UiOpen && dialogView == null ? (db.ButtonIndex == MouseButton.Right ? 1 : -1) : 0;
+            if (db.ButtonIndex == MouseButton.Right) rmbDown = false;
+            return;
+        }
+        if (e is InputEventMouseMotion dm && sea.DeckCamera && locations.Count == 0 && !UiOpen && dialogView == null && !sea.CommandsOpen && !flyMode)
+        {
+            float sx0 = RealSens("mouse.x_sens"), sy0 = RealSens("mouse.y_sens");
+            bool inv0 = host.It.Globals.TryGetValue("InterfaceStates", out var ist0) && ist0.Val.Attr?.Get("InvertCameras")?.Value == "1";
+            sea.Look(dm.Relative.X * sx0, dm.Relative.Y * sy0 * (inv0 ? -1f : 1f));
+            return;
+        }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right } mb) rmbDown = mb.Pressed;
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelUp, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(-1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(-1); else camDist = Math.Max(1.5f, camDist - 0.3f); }
         else if (e is InputEventMouseButton { ButtonIndex: MouseButton.WheelDown, Pressed: true }) { if (sea.Active && locations.Count == 0) sea.Zoom(1); else if (worldMap.Active && locations.Count == 0) worldMap.Zoom(1); else camDist = Math.Min(9f, camDist + 0.3f); }
@@ -818,6 +837,8 @@ public partial class Main : Node
 
     /// <summary>An interface screen is on display (the xinterface entity also exists, empty, while the sea HUD talks to it).</summary>
     bool UiOpen => view != null && view.GetChildCount() > 0;
+    bool mouseCaptured;
+    readonly ActivePerkView perkView = new() { Name = "ActivePerkShower" };
 
     void NewView(Entity e)
     {
@@ -847,6 +868,10 @@ public partial class Main : Node
         if (logHud != null) logHud.Visible = dialogView == null && !UiOpen;        // no log/action hint over dialogs and interface screens
         if (landHud != null) landHud.Suppressed = dialogView != null || UiOpen || locations.Count == 0;
         if (logHud != null) logHud.ActionSuppressed = landHud?.MenuOpen == true;
+        perkView.Visible = dialogView == null && !UiOpen && !worldMap.Active;
+        // the deck camera hides the cursor and turns with the mouse (not in scripted test runs, not while a menu or a screen needs the pointer)
+        bool wantCapture = sea.DeckCamera && locations.Count == 0 && !UiOpen && dialogView == null && !sea.CommandsOpen && !worldMap.Active && shotPath == null;
+        if (wantCapture != mouseCaptured) { mouseCaptured = wantCapture; Input.MouseMode = wantCapture ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible; }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         UpdateWorld((float)delta);
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();

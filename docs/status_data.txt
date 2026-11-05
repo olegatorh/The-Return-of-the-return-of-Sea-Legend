@@ -24,7 +24,7 @@ Sea | Ship AI | APPROX | 65 | T | decisions are the script's: the engine raises 
 Sea | Cannons, balls, damage, sinking | APPROX | 65 | V | real ballistics and script damage; sound and smoke exactness missing
 Sea | Forts | APPROX | 55 | V | cannons from locators, shooting, damage by script
 Sea | Boarding | SCRIPT | 70 | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand
-Sea | Telescope, cabin, deck cameras, people on deck | APPROX | 35 | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera
+Sea | Telescope, cabin, deck cameras, people on deck | APPROX | 60 | V | telescope (Ctrl): from the mast top (ship camera) or the eye (deck camera), zoom and eyepiece of the equipped spyglass (MSG_TELESCOPE_SET_TYPE, multiplied over the picture); the ship in the middle raises SetTelescopeInfo and the ispyglass strip shows what the spyglass type allows; deck camera (Tab, Sea_CameraSwitch): first person, mouse look, RMB/MMB or Up/Down walk on the ship's path model; cabin and deck work as locations; sailors on deck walk the script walk graphs (my behaviour rules)
 Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | 75 | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified
 Map | Map encounters (merchant, follow, war) | APPROX | 55 | V | spawn, move, contact; storms missing
 Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | 70 | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast
@@ -40,7 +40,7 @@ Entity class | MODEL | PORT | 85 | E |
 Entity class | location | PORT | 88 | V | + ADD_LIGHT 30128, MODEL_SET_ROT/UVS 30111/30112; MODEL_LAMPS/REFLECTION 30113/30114 accepted without effect; GET_MODEL 30101 -> 0 (no flags on location models)
 Entity class | Sound | PORT | 70 | E |
 Entity class | Island | PORT | 70 | E |
-Entity class | ActivePerkShower | STUB | 0 | E |
+Entity class | ActivePerkShower | APPROX | 70 | V | ActivePerks.cs: icons of PerkList.list from the script's Textures (cells horz x vert) in the InitActivePerkShower rectangle; showWindow is not filled by this engine, so the rectangle is computed for 800x600 and pushed below the sea navigator
 Entity class | blast | APPROX | 50 | V | LM_SETPOINT/ANGLES: 6-11 wooden debris pieces (MODELS/particles/palka01-05) thrown out ballistically; the original's exact debris behaviour is unknown
 Entity class | dialog | PORT | 90 | E |
 Entity class | scrshoter | STUB | 0 | E |
@@ -50,7 +50,7 @@ Entity class | HELPCHOOSER | STUB | 0 | E |
 Entity class | InfoHandler | STUB | 0 | E |
 Entity class | Animals | STUB | 0 | E |
 Entity class | battle_land_interface | PORT | 75 | V | LandHud.cs: portraits of hero+officers with HP/reload bars, pistol charges, message icons, alarm/poison blink; command menu (Enter) with the script's Commands/UserIcons (talk, fast travel, door, potions, chest ...); exact draw order/blending of the C++ class unknown
-Entity class | ispyglass | STUB | 0 | E |
+Entity class | ispyglass | APPROX | 75 | V | SeaHud.cs SpyPanel: MSG_ISG_UPDATE / VISIBLE, layout of FillISpyGlassParameters (panel.tga, spyglasses_icons.tga, all_nations.tga), 0.5 s fade; fonts are Godot's
 Entity class | CharacterAnimationKipper | STUB | 0 | E |
 Entity class | AISeaGoods | STUB | 0 | E |
 Entity class | CharactersGroups | APPROX | 70 | E | targets: look radius, remembered attackers, mates within the say radius pass on what they see
@@ -74,9 +74,9 @@ Entity class | sea | PORT | 60 | E |
 Entity class | SEA_CAMERAS | PORT | 60 | E |
 Entity class | FREE_CAMERA | MISSING | 0 | E |
 Entity class | SHIP_CAMERA | APPROX | 60 | E |
-Entity class | DECK_CAMERA | MISSING | 0 | E |
+Entity class | DECK_CAMERA | APPROX | 60 | V | SeaDeckCamera.cs after deck_camera.cpp: start at the hull's camera label, walk on the <type>_path.gm floor (StepUp, SensivityDistance m/ms), sensitivities x3, pitch limits, RockingZ roll; edge sliding simplified (x/z retry); walk-graph fallback
 Entity class | battle_interface | APPROX | 20 | E |
-Entity class | shippointer | STUB | 0 | E |
+Entity class | shippointer | APPROX | 70 | V | SeaTelescope.cs: evntBISelectShip from the command menu selection -> MSG_SP_CHANGESHIP; Frendly/Enemy.tga billboard of side perspective*0.05*distance, fTop + box height + bob above the ship (ship_pointer.cpp)
 Entity class | locationcamera | PORT | 80 | E |
 Entity class | particles | PORT | 75 | V | PS_CREATE/CREATEX/_RIC/CREATEXX, PS_DELETE, PS_CLEARALL, PS_PAUSEALL, PS_SETVECTORS; windpower/winddirection attributes; CPU simulation + one MultiMesh per system
 Entity class | ILogAndActions | PORT | 70 | E |
@@ -89,7 +89,7 @@ Entity class | BallSplash | APPROX | 55 | V | water column from the particles.in
 Entity class | SINKEFFECT | STUB | 0 | E |
 Entity class | PEOPLE_ON_SHIP | APPROX | 50 | V | walk graphs from AI_MESSAGE_ADD_SHIP, crew size, POS.Mode, isNight; mast fall (77500) closes the mast points and the men there run off; climbing not done (game/SeaSailors.cs)
 Entity class | SeaLocatorShow | STUB | 0 | E |
-Entity class | TELESCOPE | MISSING | 0 | E |
+Entity class | TELESCOPE | APPROX | 65 | V | SeaTelescope.cs: SET_TYPE, TelescopeActive, SetTelescopeInfo / ReleaseTelescopeInfo with the activation / update times; target = ship or fort nearest the view axis within its size, 4 km
 Entity class | Sharks | MISSING | 0 | E |
 Entity class | Seafoam | MISSING | 0 | E |
 Entity class | TMPTELEPORT | STUB | 0 | E |

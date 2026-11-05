@@ -37,6 +37,7 @@ public partial class SeaView : Node3D
         public Attr? TaskTarget;
         public string? TaskGroup;              // AITASK_DEFEND_GROUP: the group to protect
         public float TaskX, TaskZ;
+        public string TypeName = "";          // the model folder of the ship type (MODELS\Ships\<name>)
         public string Group = "";             // the sea AI group of the ship (SeaAI.Group.Name at login, AI_MESSAGE_SHIP_CHANGE_GROUP / SET_COMPANION_ENEMY later)
         public float CheckT;                  // countdown to the next SHIP_CHECK_SITUATION event (SeaAI.cs)
         public float Length = 30f, Height = 12f, Width = 8f;
@@ -113,7 +114,8 @@ public partial class SeaView : Node3D
         // AIBalls: MSG_MODEL_RELEASE 20504 when boarding starts (Abordage_ReloadStartFade) - the balls in flight are dropped; the ballistics live in SeaCombat.cs
         i.EntityHandlers["AIBalls"] = (e, fmt, d) => { if (d.Length > 0 && Conv.ToInt(d[0]) == 20504) ClearCombat(); return V.Int(1); };
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
-        i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
+        i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => OnSeaCameras(d);              // ship / deck camera switch (SeaDeckCamera.cs)
+        RegisterTelescope(i);                                                             // TELESCOPE, ispyglass, shippointer (SeaTelescope.cs)
         i.EntityHandlers["PEOPLE_ON_SHIP"] = (e, fmt, d) => OnPeopleOnShip(e, d);      // sailors on deck (SeaSailors.cs)
         RegisterSails(i);                                                                 // Sail entity and the sail natives (SeaSails.cs)
         i.EntityHandlers["locator"] = (e, fmt, d) => d.Length > 1 && Conv.ToInt(d[0]) == 1504 && d[1].Attr is { } isl ? LocateIsland(isl) : V.Int(0);
@@ -188,6 +190,7 @@ public partial class SeaView : Node3D
         ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
+        deckCam = false; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; pointerChr = -1; lastSelectedShip = -2;
         Cam.Current = false;
         hud.Update(new HudData());
     }
@@ -323,6 +326,7 @@ public partial class SeaView : Node3D
         }
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
+        rt.TypeName = name;
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
         rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons; rt.FirePlaces = model.FirePlaces; rt.Ropes = model.Ropes; rt.YardNodes = model.YardNodes; rt.FixedRopes = model.FixedRopes; rt.YardRopes = model.YardRopes;
         AddChild(rt.Node);
@@ -667,6 +671,8 @@ public partial class SeaView : Node3D
             foreach (var m in d.Markers) if (m.Name == d.Target.Name && Math.Abs(m.Distance - d.Target.Distance) < 0.5f) m.Target = true;
         }
         d.Menu = BuildMenu();
+        ReportSelectedShip();
+        UpdatePointer();
         hud.Update(d);
     }
 
@@ -809,7 +815,7 @@ public partial class SeaView : Node3D
         if (p == null || o == null) { if (!quiet) GD.Print("[sea] duel: no opponent " + string.Join(",", ships.Select(x => x.Index + (x.IsPlayer ? "P" : "")))); return false; }
         o.X = p.X + MathF.Cos(p.Ay) * DuelDist; o.Z = p.Z - MathF.Sin(p.Ay) * DuelDist; o.Task = -1; o.Speed = 0f; o.Ay = p.Ay;
         foreach (var x in ships) if (!x.IsPlayer && x != o) { x.X = p.X + 3000f; x.Z = p.Z + 3000f; x.Task = -1; x.Speed = 0f; }       // the rest of the squadron out of the way
-        GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} placed at ({o.X:0},{o.Z:0})");
+        GD.Print($"[sea] duel: {o.Chr.Get("id")?.Value} (character {o.Index}) placed at ({o.X:0},{o.Z:0})");
         return true;
     }
 
@@ -825,8 +831,12 @@ public partial class SeaView : Node3D
         return total * 20f * (1f - dist / Math.Max(1f, range) * 0.5f);
     }
 
-    public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.4f); }
-    public void Zoom(int dir) { camDist = Math.Clamp((camDist < 0 ? 40f : camDist) + dir * 4f, 12f, 120f); }
+    public void Look(float dx, float dy)
+    {
+        if (DeckCamera) { DeckLook(dx, dy); return; }
+        camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.4f);
+    }
+    public void Zoom(int dir) { if (!DeckCamera) camDist = Math.Clamp((camDist < 0 ? 40f : camDist) + dir * 4f, 12f, 120f); }
 
     public void SailKey(int dir)
     {
@@ -843,6 +853,7 @@ public partial class SeaView : Node3D
 
     void LoadScopeType(ShipRt p)
     {
+        if (scopeFromScript) return;                     // MSG_TELESCOPE_SET_TYPE from the script (the equipped item's scope.*) wins
         string id = p.Chr.Find("equip.spyglass", false)?.Value ?? "";
         int n = 0;
         foreach (char ch in id) if (char.IsDigit(ch)) n = n * 10 + (ch - '0');
@@ -863,6 +874,23 @@ public partial class SeaView : Node3D
         var camEnt = it.Entities.FirstOrDefault(e => !e.Deleted && e.Class.Equals("SHIP_CAMERA", StringComparison.OrdinalIgnoreCase));
         float dMin = F(camEnt?.Root, "MinDistance", 25f), dMax = F(camEnt?.Root, "MaxDistance", 70f);
         if (camDist < 0f) camDist = Math.Clamp(p.Length * 1.5f, dMin, dMax);
+        // the telescope: from the mast top in the ship camera, from the eye in the deck camera
+        // test hook: env SEADOGS_SCOPE=1 holds the telescope up all the time, SEADOGS_SCOPE=N (> 1) from process frame N on
+        bool forced = System.Environment.GetEnvironmentVariable("SEADOGS_SCOPE") is { } fs && (!int.TryParse(fs, out var fromFrame) || fromFrame <= 1 || (long)Engine.GetProcessFrames() >= fromFrame);
+        bool scope = inputEnabled && (Keys.Down("SeaTelescope") || forced) && !CommandsOpen;
+        float prev = scopeT;
+        // the zoom grows during the spyglass's activation time (ISPYGLASS::UpdateCamera) and drops back at once when the key is released
+        scopeT = scope ? Math.Clamp(scopeT + dt / Math.Max(0.1f, scopeActivateMs / 1000f), 0f, 1f) : 0f;
+        if (scopeT > 0f && prev <= 0f) LoadScopeType(p);
+        hud.ScopeTexture = scopeT > 0f ? scopeTex : "";
+        hud.ScopeAmount = scopeT;
+        if (DeckCamera)
+        {
+            UpdateDeckCamera(p, dt, inputEnabled);
+            UpdateTelescopeInfo(p, dt);
+            return;
+        }
+        Cam.Near = 0.5f;
         if (inputEnabled)
         {
             if (Keys.Down("SeaCamLeft")) camYawOff += 1.4f * dt;
@@ -882,12 +910,6 @@ public partial class SeaView : Node3D
         float yaw = p.Ay + camYawOff;
         var target = new Vector3(p.X, p.Height * 0.55f, -p.Z);
         var behind = new Vector3(-MathF.Sin(yaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(yaw) * MathF.Cos(camPitch));   // godot: forward = (sin, 0, -cos)
-        bool scope = inputEnabled && (Keys.Down("SeaTelescope") || System.Environment.GetEnvironmentVariable("SEADOGS_SCOPE") != null) && !CommandsOpen;
-        float prev = scopeT;
-        scopeT = Math.Clamp(scopeT + (scope ? 1f : -1f) * dt * 4f, 0f, 1f);
-        if (scopeT > 0f && prev <= 0f) LoadScopeType(p);
-        hud.ScopeTexture = scopeT > 0f ? scopeTex : "";
-        hud.ScopeAmount = scopeT;
         if (scopeT > 0f)
         {
             // from the top of the mast along the camera's heading; the zoom narrows the field of view
@@ -914,5 +936,6 @@ public partial class SeaView : Node3D
             Cam.Fov = 62f;
         }
         Cam.Current = true;
+        UpdateTelescopeInfo(p, dt);
     }
 }

@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 31 subsystems below): **71 %**
+* Overall (mean of the 31 subsystems below): **72 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **16120** lines of C# (`StormScript/` library + `game/`)
+* Port code: **16759** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
 | PORT | 16 | 78 % |
-| APPROX | 12 | 58 % |
+| APPROX | 12 | 60 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -59,7 +59,7 @@ Layers (where the behaviour comes from):
 | Sea | Cannons, balls, damage, sinking | APPROX | ██████░░░░ 65 % | V | real ballistics and script damage; sound and smoke exactness missing |
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███████░░░ 70 % | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
-| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ███░░░░░░░ 35 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera |
+| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██████░░░░ 60 % | V | telescope (Ctrl): from the mast top (ship camera) or the eye (deck camera), zoom and eyepiece of the equipped spyglass (MSG_TELESCOPE_SET_TYPE, multiplied over the picture); the ship in the middle raises SetTelescopeInfo and the ispyglass strip shows what the spyglass type allows; deck camera (Tab, Sea_CameraSwitch): first person, mouse look, RMB/MMB or Up/Down walk on the ship's path model; cabin and deck work as locations; sailors on deck walk the script walk graphs (my behaviour rules) |
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
@@ -74,11 +74,11 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 | Layer | Count | Classes |
 |---|---|---|
 | PORT | 27 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 11 | `shadow` (60%), `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
-| STUB | 22 | `ActivePerkShower`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
-| MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
+| APPROX | 16 | `shadow` (60%), `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (60%), `battle_interface` (20%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%), `TELESCOPE` (65%) |
+| STUB | 19 | `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| MISSING | 7 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **38 of 69** (55 %); stubs: 22, missing: 9.
+Classes with real behaviour: **43 of 69** (62 %); stubs: 19, missing: 7.
 
 ## How accuracy is checked (and what is still unchecked)
 
