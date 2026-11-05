@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-05 20:20",
+ "generated": "2026-11-05 20:35",
  "inputs": {
   "program": "E:\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\Sea Dogs 2 - Pirates Of The Caribbean.v 1.03\\port\\addon\\merged\\PROGRAM",
   "reference": true,
@@ -36,6 +36,30 @@
    "game/smoke_rename.log.err",
    "game/smoke_sailto.log",
    "game/smoke_sailto.log.err",
+   "game/smoke_screen_boalmap.log",
+   "game/smoke_screen_boalmap.log.err",
+   "game/smoke_screen_cards.log",
+   "game/smoke_screen_cards.log.err",
+   "game/smoke_screen_citycapture.log",
+   "game/smoke_screen_citycapture.log.err",
+   "game/smoke_screen_colcapture.log",
+   "game/smoke_screen_colcapture.log.err",
+   "game/smoke_screen_dice.log",
+   "game/smoke_screen_dice.log.err",
+   "game/smoke_screen_fortcapture.log",
+   "game/smoke_screen_fortcapture.log.err",
+   "game/smoke_screen_materials.log",
+   "game/smoke_screen_materials.log.err",
+   "game/smoke_screen_passengers.log",
+   "game/smoke_screen_passengers.log.err",
+   "game/smoke_screen_price.log",
+   "game/smoke_screen_price.log.err",
+   "game/smoke_screen_ransackcrew.log",
+   "game/smoke_screen_ransackcrew.log.err",
+   "game/smoke_screen_statistic.log",
+   "game/smoke_screen_statistic.log.err",
+   "game/smoke_screen_transferchars.log",
+   "game/smoke_screen_transferchars.log.err",
    "game/smoke_sea.log",
    "game/smoke_sea.log.err",
    "game/smoke_storm.log",
@@ -107,11 +131,11 @@
    "implemented": 0,
    "missing": 0,
    "mismatched": 0,
-   "info": 44
+   "info": 45
   },
   "Ресурси": {
    "implemented": 0,
-   "missing": 10,
+   "missing": 12,
    "mismatched": 0,
    "info": 0
   },
@@ -884,16 +908,7 @@
    "item": "atlas picture:  (group )",
    "sites": [],
    "status": "не завантажується портом",
-   "evidence": "15× у game/smoke_door.log, game/smoke_trade.log, reports/2026-11-04_21-06-24/log_tail.txt",
-   "score": 40,
-   "kind": "missing"
-  },
-  {
-   "contract": "Ресурси",
-   "item": "texture: ships\\flagall.tga",
-   "sites": [],
-   "status": "не завантажується портом",
-   "evidence": "25× у game/smoke_board.log.err, game/smoke_chase.log.err, game/smoke_chest.log.err",
+   "evidence": "17× у game/smoke_door.log, game/smoke_screen_cards.log, game/smoke_screen_dice.log",
    "score": 40,
    "kind": "missing"
   },
@@ -902,8 +917,17 @@
    "item": "atlas picture:  (group ICONS)",
    "sites": [],
    "status": "не завантажується портом",
-   "evidence": "14× у game/smoke_door.log, game/smoke_hold.log, game/smoke_rename.log",
-   "score": 39,
+   "evidence": "17× у game/smoke_door.log, game/smoke_hold.log, game/smoke_rename.log",
+   "score": 40,
+   "kind": "missing"
+  },
+  {
+   "contract": "Ресурси",
+   "item": "texture: ships\\flagall.tga",
+   "sites": [],
+   "status": "не завантажується портом",
+   "evidence": "37× у game/smoke_board.log.err, game/smoke_chase.log.err, game/smoke_chest.log.err",
+   "score": 40,
    "kind": "missing"
   },
   {
@@ -1112,6 +1136,15 @@
    ]
   },
   {
+   "contract": "Ресурси",
+   "item": "atlas picture:  (group GOODS)",
+   "sites": [],
+   "status": "не завантажується портом",
+   "evidence": "4× у game/smoke_screen_price.log, reports/2026-11-05_08-49-52/log_tail.txt, reports/2026-11-05_08-49-54/log_tail.txt",
+   "score": 29,
+   "kind": "missing"
+  },
+  {
    "contract": "Функції рушія",
    "item": "MapControl() ×1",
    "sites": [
@@ -1124,15 +1157,6 @@
    "args_used": [
     2
    ]
-  },
-  {
-   "contract": "Ресурси",
-   "item": "atlas picture:  (group GOODS)",
-   "sites": [],
-   "status": "не завантажується портом",
-   "evidence": "3× у reports/2026-11-05_08-49-52/log_tail.txt, reports/2026-11-05_08-49-54/log_tail.txt, reports/2026-11-05_08-51-31/log_tail.txt",
-   "score": 28,
-   "kind": "missing"
   },
   {
    "contract": "Ресурси",
@@ -1260,6 +1284,15 @@
    "cls": "touch"
   },
   {
+   "contract": "Ресурси",
+   "item": "atlas picture:  (group CARDS)",
+   "sites": [],
+   "status": "не завантажується портом",
+   "evidence": "2× у game/smoke_screen_cards.log, game/smoke_screen_dice.log",
+   "score": 27,
+   "kind": "missing"
+  },
+  {
    "contract": "Функції рушія",
    "item": "GetAttributeName() ×116",
    "sites": [
@@ -1310,6 +1343,15 @@
    "args_used": [
     2
    ]
+  },
+  {
+   "contract": "Ресурси",
+   "item": "atlas picture:  (group DICE)",
+   "sites": [],
+   "status": "не завантажується портом",
+   "evidence": "1× у game/smoke_screen_dice.log",
+   "score": 26,
+   "kind": "missing"
   },
   {
    "contract": "Ресурси",
@@ -1670,7 +1712,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:84"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCommands.cs:210; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaCommands.cs:210; [events] топ-40 у 32 логах",
    "score": 19,
    "kind": "info"
   },
@@ -1681,7 +1723,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:92"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/BattleInterface.cs:99; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/BattleInterface.cs:99; [events] топ-40 у 32 логах",
    "score": 19,
    "kind": "info"
   },
@@ -1692,7 +1734,7 @@
     "BATTLE_INTERFACE/ispyglass.c:17"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaTelescope.cs:88; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaTelescope.cs:88; [events] топ-40 у 32 логах",
    "score": 19,
    "kind": "info"
   },
@@ -1704,7 +1746,7 @@
     "BATTLE_INTERFACE/LogInterface.c:25"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaTelescope.cs:88; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaTelescope.cs:88; [events] топ-40 у 32 логах",
    "score": 19,
    "kind": "info"
   },
@@ -1715,7 +1757,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:97"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCommands.cs:235; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaCommands.cs:235; [events] топ-40 у 32 логах",
    "score": 19,
    "kind": "info"
   },
@@ -1726,7 +1768,7 @@
     "SEA_AI/AICannon.c:17"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCombat.cs:240; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaCombat.cs:240; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1737,7 +1779,7 @@
     "SEA_AI/AIFort.c:27"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaForts.cs:43; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaForts.cs:43; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1748,7 +1790,7 @@
     "Loc_ai/LAi_init.c:32"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:860; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:860; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1759,7 +1801,7 @@
     "Loc_ai/LAi_init.c:42"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:883; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:883; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1770,7 +1812,7 @@
     "Loc_ai/LAi_init.c:39"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:273; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:273; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1781,7 +1823,7 @@
     "Loc_ai/LAi_init.c:33"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:908; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:908; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1792,7 +1834,7 @@
     "Loc_ai/LAi_init.c:40"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:169; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:169; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1803,7 +1845,7 @@
     "Loc_ai/LAi_init.c:31"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Characters.cs:156; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Characters.cs:156; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1814,7 +1856,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:79"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Sea.cs:549; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Sea.cs:549; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1825,7 +1867,7 @@
     "SEA_AI/AISeaGoods.c:18"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaFx.cs:485; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaFx.cs:485; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1836,7 +1878,18 @@
     "SEA_AI/AIShip.c:105"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaAI.cs:112; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaAI.cs:112; [events] топ-40 у 32 логах",
+   "score": 18,
+   "kind": "info"
+  },
+  {
+   "contract": "Події: runtime",
+   "item": "ShpGetBortFireDelta",
+   "sites": [
+    "SEA_AI/AIShip.c:106"
+   ],
+   "status": "жодного разу в регресійних прогонах",
+   "evidence": "порт: game/SeaCombat.cs:139; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1847,7 +1900,7 @@
     "SEA_AI/AIShip.c:92"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaGrounding.cs:91; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaGrounding.cs:91; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1858,7 +1911,7 @@
     "WorldMap/worldmap.c:72"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldEncounters.cs:135; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldEncounters.cs:135; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1869,7 +1922,7 @@
     "WorldMap/worldmap.c:68"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:360; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:360; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1880,7 +1933,7 @@
     "WorldMap/worldmap.c:69"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:359; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:359; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1891,7 +1944,7 @@
     "WorldMap/worldmap_events.c:178"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldEncounters.cs:204; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldEncounters.cs:204; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1902,7 +1955,7 @@
     "WorldMap/worldmap.c:66"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldStorms.cs:241; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldStorms.cs:241; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1913,7 +1966,7 @@
     "WorldMap/worldmap.c:67"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldEncounters.cs:221; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldEncounters.cs:221; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1924,7 +1977,7 @@
     "WorldMap/worldmap.c:70"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:375; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:375; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1935,7 +1988,7 @@
     "WorldMap/worldmap.c:71"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:371; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:371; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1946,7 +1999,7 @@
     "WorldMap/worldmap.c:65"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:403; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:403; [events] топ-40 у 32 логах",
    "score": 18,
    "kind": "info"
   },
@@ -1955,7 +2008,7 @@
    "item": "<no entity> | ls | 30350",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 24812× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "evidence": "[nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
    "score": 15,
    "kind": "info"
   },
@@ -1964,7 +2017,7 @@
    "item": "<no entity> | lsl | 30373 LockFightMode",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 24812× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "evidence": "[nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
    "score": 15,
    "kind": "info"
   },
@@ -1973,7 +2026,7 @@
    "item": "<no entity> | lsl | 30373 SetFightWOWeapon",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 24812× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "evidence": "[nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
    "score": 15,
    "kind": "info"
   },
@@ -1982,7 +2035,7 @@
    "item": "<no entity> | sis | MoveChr",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 44677× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "evidence": "[nohandler] 70201× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
    "score": 15,
    "kind": "info"
   },
@@ -1993,7 +2046,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:52"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaSails.cs:426; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaSails.cs:426; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2004,7 +2057,7 @@
     "WorldMap/worldmap.c:74"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:412; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:412; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2019,7 +2072,7 @@
     "INTERFACE/perks.c:41"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:934; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:934; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2031,7 +2084,7 @@
     "INTERFACE/transfer_goods.c:76"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:394; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:394; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2045,7 +2098,7 @@
     "WorldMap/worldmap_events.c:142"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WorldMap.cs:335; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WorldMap.cs:335; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2057,7 +2110,7 @@
     "INTERFACE/QuestBook.c:27"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:879; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:879; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2069,7 +2122,7 @@
     "INTERFACE/QuestBook.c:25"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:1008; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:1008; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2080,7 +2133,7 @@
     "BATTLE_INTERFACE/ispyglass.c:16"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaTelescope.cs:92; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaTelescope.cs:92; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2097,7 +2150,7 @@
     "INTERFACE/QuestBook.c:30"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:396; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:396; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2113,7 +2166,7 @@
     "INTERFACE/QuestBook.c:31"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:396; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:396; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2130,7 +2183,7 @@
     "INTERFACE/QuestBook.c:29"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:935; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:935; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2141,7 +2194,7 @@
     "BATTLE_INTERFACE/ispyglass.c:15"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaTelescope.cs:108; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaTelescope.cs:108; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2152,7 +2205,7 @@
     "SEA_AI/AICameras.c:82"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaTelescope.cs:87; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaTelescope.cs:87; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2163,7 +2216,7 @@
     "SEA_AI/AIShip.c:110"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/WeatherFx.cs:131; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/WeatherFx.cs:131; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2174,7 +2227,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:98"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCommands.cs:271; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaCommands.cs:271; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2185,7 +2238,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:99"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/SeaCommands.cs:257; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/SeaCommands.cs:257; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2197,7 +2250,7 @@
     "INTERFACE/save_load.c:846"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/Main.cs:1033; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/Main.cs:1033; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2211,7 +2264,7 @@
     "INTERFACE/perks.c:44"
    ],
    "status": "жодного разу в регресійних прогонах",
-   "evidence": "порт: game/XInterface.cs:933; [events] топ-40 у 20 логах",
+   "evidence": "порт: game/XInterface.cs:933; [events] топ-40 у 32 логах",
    "score": 15,
    "kind": "info"
   },
@@ -2471,6 +2524,42 @@
    "kind": "info"
   },
   {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | ssf | SetGroupHear",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 70× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 9.3,
+   "kind": "info"
+  },
+  {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | ssf | SetGroupLook",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 70× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 9.3,
+   "kind": "info"
+  },
+  {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | ssf | SetGroupSay",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 70× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 9.3,
+   "kind": "info"
+  },
+  {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | ss | RegistryGroup",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 66× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 9.1,
+   "kind": "info"
+  },
+  {
    "contract": "Функції рушія",
    "item": "GetNPCInformation() ×4",
    "sites": [
@@ -2503,38 +2592,20 @@
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ssf | SetGroupHear",
+   "item": "<no entity> | l | 10006",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 44× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 8.3,
+   "evidence": "[nohandler] 33× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 7.7,
    "kind": "info"
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ssf | SetGroupLook",
+   "item": "<no entity> | l | 51025",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 44× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 8.3,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ssf | SetGroupSay",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 44× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 8.3,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ss | RegistryGroup",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 42× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 8.2,
+   "evidence": "[nohandler] 33× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 7.7,
    "kind": "info"
   },
   {
@@ -2544,6 +2615,15 @@
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
    "evidence": "[nohandler] 33× у game/smoke_intro.log",
    "score": 7.7,
+   "kind": "info"
+  },
+  {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | lll | 77004",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 30× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
+   "score": 7.5,
    "kind": "info"
   },
   {
@@ -2626,33 +2706,6 @@
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | l | 10006",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 21× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 6.7,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | l | 51025",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 21× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 6.7,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | lll | 77004",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 19× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log",
-   "score": 6.5,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
    "item": "<no entity> | ss | LightPath",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
@@ -2713,20 +2766,29 @@
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "TELESCOPE | lsflll | 77302 eye_BadTub.tga",
+   "item": "<no entity> | ssss | SetRelation",
    "sites": [],
-   "status": "застарілий лог: обробник класу вже є (game/SeaTelescope.cs:41)",
-   "evidence": "[nohandler] 6× у game/smoke_chase.log, game/smoke_neutralA.log, game/smoke_neutralB.log",
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 10× у game/smoke_neutral.log, game/smoke_neutralB.log",
+   "score": 5.2,
+   "kind": "info"
+  },
+  {
+   "contract": "Повідомлення (runtime)",
+   "item": "<no entity> | sssss | SetAlarmReaction",
+   "sites": [],
+   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
+   "evidence": "[nohandler] 6× у game/smoke_neutral.log, game/smoke_neutralB.log",
    "score": 4.2,
    "kind": "info"
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ssss | SetRelation",
+   "item": "TELESCOPE | lsflll | 77302 eye_BadTub.tga",
    "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 5× у game/smoke_neutralB.log",
-   "score": 3.9,
+   "status": "застарілий лог: обробник класу вже є (game/SeaTelescope.cs:41)",
+   "evidence": "[nohandler] 6× у game/smoke_chase.log, game/smoke_neutralA.log, game/smoke_neutralB.log",
+   "score": 4.2,
    "kind": "info"
   },
   {
@@ -2740,11 +2802,11 @@
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | sssss | SetAlarmReaction",
+   "item": "<no entity> | ssl | SetGroupPriority",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 3× у game/smoke_neutralB.log",
-   "score": 3.0,
+   "evidence": "[nohandler] 4× у game/smoke_neutral.log, game/smoke_neutralB.log",
+   "score": 3.5,
    "kind": "info"
   },
   {
@@ -2758,10 +2820,10 @@
   },
   {
    "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | ssl | SetGroupPriority",
+   "item": "<no entity> | s | ClearAllTargets",
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 2× у game/smoke_neutralB.log",
+   "evidence": "[nohandler] 2× у game/smoke_neutral.log, game/smoke_neutralB.log",
    "score": 2.4,
    "kind": "info"
   },
@@ -2901,15 +2963,6 @@
    "sites": [],
    "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
    "evidence": "[nohandler] 1× у game/smoke_intro.log",
-   "score": 1.5,
-   "kind": "info"
-  },
-  {
-   "contract": "Повідомлення (runtime)",
-   "item": "<no entity> | s | ClearAllTargets",
-   "sites": [],
-   "status": "ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано)",
-   "evidence": "[nohandler] 1× у game/smoke_neutralB.log",
    "score": 1.5,
    "kind": "info"
   },
@@ -6973,7 +7026,7 @@
     "INTERFACE/ransack_join.c:44"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_join.ini:49, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -6987,7 +7040,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:94"
    ],
    "status": "підіймається: game/BattleInterface.cs:97",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/ships_list.cpp:313); у логах: 56×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/ships_list.cpp:313); у логах: 60×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7031,7 +7084,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:84"
    ],
    "status": "підіймається: game/SeaCommands.cs:210",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:350); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:350); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7045,7 +7098,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:89"
    ],
    "status": "підіймається: game/BattleInterface.cs:75",
-   "evidence": "оригінал: core.Event \"ll\" (src/libs/battle_interface/src/sea/ships_list.cpp:212); у логах: 55×",
+   "evidence": "оригінал: core.Event \"ll\" (src/libs/battle_interface/src/sea/ships_list.cpp:212); у логах: 46×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7059,7 +7112,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:92"
    ],
    "status": "підіймається: game/BattleInterface.cs:99",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/battle_interface/src/sea/island_descr.cpp:244); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/battle_interface/src/sea/island_descr.cpp:244); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7105,7 +7158,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:88"
    ],
    "status": "підіймається: game/BattleInterface.cs:175",
-   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 11842×",
+   "evidence": "оригінал: core.Event \"lllllll\" (src/libs/battle_interface/src/sea/i_battle.cpp:393); у логах: 11853×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7119,7 +7172,7 @@
     "BATTLE_INTERFACE/ispyglass.c:17"
    ],
    "status": "підіймається: game/SeaTelescope.cs:88",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:362); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:362); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7134,7 +7187,7 @@
     "BATTLE_INTERFACE/LogInterface.c:25"
    ],
    "status": "підіймається: game/SeaTelescope.cs:88",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:362); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:362); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7150,7 +7203,7 @@
     "INTERFACE/QuestBook.c:26"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/QuestBook.ini:69, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7165,7 +7218,7 @@
     "SEA_AI/AIBalls.c:48"
    ],
    "status": "підіймається: game/SeaCombat.cs:275 (+1)",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 183×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea_ai/src/ai_fort.cpp:447); у логах: 162×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7193,7 +7246,7 @@
     "SEA_AI/AIBalls.c:45"
    ],
    "status": "підіймається: game/SeaCombat.cs:289",
-   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 562×",
+   "evidence": "оригінал: core.Event \"lfff\" (src/libs/sea/src/sea.cpp:1792); у логах: 575×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7207,7 +7260,7 @@
     "INTERFACE/mainmenu.c:49"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:65, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7235,7 +7288,7 @@
     "INTERFACE/store.c:61"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/store.ini:164, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7249,7 +7302,7 @@
     "SEA_AI/AICannon.c:18"
    ],
    "status": "підіймається: game/SeaCombat.cs:205",
-   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 901×",
+   "evidence": "оригінал: core.Event \"afffffffff\" (src/libs/sea_ai/src/ai_cannon.cpp:149); у логах: 900×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7263,7 +7316,7 @@
     "SEA_AI/AICannon.c:17"
    ],
    "status": "підіймається: game/SeaCombat.cs:240",
-   "evidence": "оригінал: core.Event \"aa\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:101); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"aa\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:101); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7277,7 +7330,7 @@
     "SEA_AI/AICannon.c:16"
    ],
    "status": "підіймається: game/SeaCombat.cs:151 (+2)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:182); у логах: 386×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:182); у логах: 383×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7291,7 +7344,7 @@
     "SEA_AI/AICannon.c:15"
    ],
    "status": "підіймається: game/SeaAI.cs:86 (+2)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 469×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:220); у логах: 468×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7305,7 +7358,7 @@
     "SEA_AI/AICannon.c:20"
    ],
    "status": "підіймається: game/SeaCombat.cs:148 (+1)",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:203); у логах: 906×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_cannon.cpp:203); у логах: 903×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7319,7 +7372,7 @@
     "INTERFACE/ransack_captain.c:39"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_captain.ini:58, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7334,7 +7387,7 @@
     "INTERFACE/transfer_goods.c:74"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_crew.ini:75, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7350,7 +7403,7 @@
     "INTERFACE/transfer_goods.c:75"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_crew.ini:76, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7365,7 +7418,7 @@
     "Loc_ai/LAi_init.c:28"
    ],
    "status": "підіймається: game/Main.cs:721",
-   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 73900×",
+   "evidence": "оригінал: core.Event \"if\" (src/libs/location/src/supervisor.cpp:245); у логах: 84649×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7380,7 +7433,7 @@
     "INTERFACE/transfer_main.c:76"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:89, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7395,7 +7448,7 @@
     "Loc_ai/LAi_init.c:29"
    ],
    "status": "підіймається: game/Main.cs:719",
-   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 17908×",
+   "evidence": "оригінал: core.Event \"f\" (src/libs/location/src/supervisor.cpp:211); у логах: 21727×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7409,7 +7462,7 @@
     "INTERFACE/mainmenu.c:78"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:252, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7423,7 +7476,7 @@
     "INTERFACE/mainmenu.c:79"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:254, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7438,7 +7491,7 @@
     "INTERFACE/ransack_main.c:90"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:145, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7454,7 +7507,7 @@
     "INTERFACE/ransack_main.c:89"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:143, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7479,7 +7532,7 @@
     "test.c:2"
    ],
    "status": "підіймається: game/Main.cs:524 (+3)",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (BATTLE_INTERFACE/LandInterface.c:304); у логах: 77×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (BATTLE_INTERFACE/LandInterface.c:304); у логах: 89×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7505,7 +7558,7 @@
     "INTERFACE/transfer_main.c:77"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_crew.ini:68, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7521,7 +7574,7 @@
     "INTERFACE/hirecrew.c:66"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:94, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7535,7 +7588,7 @@
     "INTERFACE/save_load.c:74"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/save_load.ini:129, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7549,7 +7602,7 @@
     "INTERFACE/save_load.c:73"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/save_load.ini:94, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7563,7 +7616,7 @@
     "INTERFACE/save_load.c:75"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/save_load.ini:127, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7593,7 +7646,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:47"
    ],
    "status": "підіймається: game/SeaSails.cs:405",
-   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 47×",
+   "evidence": "оригінал: core.Event \"llssllllf\" (src/libs/rigging/src/sail.cpp:1730); у логах: 70×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7607,7 +7660,7 @@
     "INTERFACE/selectCharacter.c:10"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/selectCharacter.ini:22, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7623,7 +7676,7 @@
     "INTERFACE/transfer_main.c:80"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:83, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7639,7 +7692,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:52"
    ],
    "status": "підіймається: game/SeaSails.cs:426",
-   "evidence": "оригінал: core.Event \"lsl\" (src/libs/mast/src/mast.cpp:231); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"lsl\" (src/libs/mast/src/mast.cpp:231); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7695,7 +7748,7 @@
     "Loc_ai/LAi_sounds.c:75"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 5×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:5086); у логах: 2×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7709,7 +7762,7 @@
     "INTERFACE/passengers.c:71"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/passengers.ini:166, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7723,7 +7776,7 @@
     "INTERFACE/fortcapture.c:27"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/fortcapture.ini:61, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7737,7 +7790,7 @@
     "WorldMap/worldmap.c:74"
    ],
    "status": "підіймається: game/WorldMap.cs:412",
-   "evidence": "оригінал: core.Event \"\" (src/libs/worldmap/src/world_map.cpp:390); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"\" (src/libs/worldmap/src/world_map.cpp:390); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7765,7 +7818,7 @@
     "INTERFACE/interface.c:22"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:288); у логах: 29×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:288); у логах: 28×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7795,7 +7848,7 @@
     "INTERFACE/interface.c:23"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:293); у логах: 10×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:293); у логах: 22×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7845,7 +7898,7 @@
     "INTERFACE/interface.c:21"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:278); у логах: 10×",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/location/src/fader.cpp:278); у логах: 22×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7859,7 +7912,7 @@
     "INTERFACE/hirecrew.c:63"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:82, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7873,7 +7926,7 @@
     "INTERFACE/NationRelation.c:97"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/NationRelation.ini:59, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7891,7 +7944,7 @@
     "INTERFACE/perks.c:41"
    ],
    "status": "підіймається: game/XInterface.cs:934",
-   "evidence": "оригінал: core.Event \"sl\" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:281); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"sl\" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:281); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7909,7 +7962,7 @@
     "SEA_AI/AIFort.c:26"
    ],
    "status": "підіймається: game/SeaForts.cs:62",
-   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 183×",
+   "evidence": "оригінал: core.Event \"llallfffff\" (src/libs/sea_ai/src/ai_fort.cpp:256); у логах: 162×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7923,7 +7976,7 @@
     "SEA_AI/AIFort.c:27"
    ],
    "status": "підіймається: game/SeaForts.cs:43",
-   "evidence": "оригінал: core.Event \"al\" (src/libs/sea_ai/src/ai_fort.cpp:228); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"al\" (src/libs/sea_ai/src/ai_fort.cpp:228); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7937,7 +7990,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:86"
    ],
    "status": "підіймається: game/Sea.cs:695",
-   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420); у логах: 13039×",
+   "evidence": "оригінал: core.Event \"\" (src/libs/battle_interface/src/sea/battle_navigator.cpp:1420); у логах: 13050×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7951,7 +8004,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:51"
    ],
    "status": "підіймається: game/Sea.cs:103",
-   "evidence": "оригінал: core.Event \"slll|sllla\" (src/libs/rigging/src/flag.cpp:858); у логах: 144×",
+   "evidence": "оригінал: core.Event \"slll|sllla\" (src/libs/rigging/src/flag.cpp:858); у логах: 216×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7981,7 +8034,7 @@
     "INTERFACE/transfer_main.c:75"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Forts_Escadr.ini:62, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -7997,7 +8050,7 @@
     "SEA_AI/AIGroup.c:5"
    ],
    "status": "підіймається: game/SeaAI.cs:143",
-   "evidence": "оригінал: core.Event \"s\" (src/libs/sea_ai/src/ai_group.cpp:147); у логах: 53×",
+   "evidence": "оригінал: core.Event \"s\" (src/libs/sea_ai/src/ai_group.cpp:147); у логах: 42×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8011,7 +8064,7 @@
     "INTERFACE/helpscreen.c:27"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/helpscreen.ini:41, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8025,7 +8078,7 @@
     "INTERFACE/helpscreen.c:26"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/helpscreen.ini:40, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8039,7 +8092,7 @@
     "INTERFACE/hirecrew.c:65"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:93, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8053,7 +8106,7 @@
     "INTERFACE/hirecrew.c:64"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:112, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8067,7 +8120,7 @@
     "INTERFACE/hirecrew.c:62"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:72, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8082,7 +8135,7 @@
     "INTERFACE/transfer_goods.c:76"
    ],
    "status": "підіймається: game/XInterface.cs:394",
-   "evidence": "оригінал: core.Event \"sl\" (src/libs/xinterface/src/nodes/xi_lr_changer.cpp:208); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"sl\" (src/libs/xinterface/src/nodes/xi_lr_changer.cpp:208); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8097,7 +8150,7 @@
     "INTERFACE/hirecrew.c:67"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/hirecrew.ini:95, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8111,7 +8164,7 @@
     "INTERFACE/cannons.c:27"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/cannons.ini:109, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8186,7 +8239,7 @@
     "INTERFACE/transfer_main.c:73"
    ],
    "status": "підіймається: game/XInterface.cs:1241",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/items.c:480); у логах: 3×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/items.c:480); у логах: 2×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8266,7 +8319,7 @@
     "INTERFACE/transfer_goods.c:71"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_captain.ini:23, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8286,7 +8339,7 @@
     "INTERFACE/ransack_crew.c:56"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_captain.ini:49, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8301,7 +8354,7 @@
     "INTERFACE/save_load.c:72"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:87, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8315,7 +8368,7 @@
     "Loc_ai/LAi_init.c:37"
    ],
    "status": "підіймається: game/Characters.cs:970",
-   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 5×",
+   "evidence": "оригінал: core.Event \"iislll\" (src/libs/location/src/character.cpp:5097); у логах: 2×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8329,7 +8382,7 @@
     "Loc_ai/LAi_init.c:38"
    ],
    "status": "підіймається: game/Characters.cs:970",
-   "evidence": "у reference не підіймається; у логах: 4×",
+   "evidence": "у reference не підіймається; у логах: 6×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8343,7 +8396,7 @@
     "Loc_ai/LAi_init.c:32"
    ],
    "status": "підіймається: game/Characters.cs:860",
-   "evidence": "оригінал: core.Event \"ifff\" (src/libs/location/src/ai_character.cpp:338); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"ifff\" (src/libs/location/src/ai_character.cpp:338); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8357,7 +8410,7 @@
     "Loc_ai/LAi_init.c:43"
    ],
    "status": "підіймається: game/Characters.cs:662",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 129×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1295); у логах: 86×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8371,7 +8424,7 @@
     "Loc_ai/LAi_init.c:30"
    ],
    "status": "підіймається: game/Characters.cs:678",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 10×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1265); у логах: 11×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8386,7 +8439,7 @@
     "Characters/characters_events.c:17"
    ],
    "status": "підіймається: game/Characters.cs:737",
-   "evidence": "оригінал: core.Event \"iissf\" (src/libs/location/src/character.cpp:245); у логах: 73×",
+   "evidence": "оригінал: core.Event \"iissf\" (src/libs/location/src/character.cpp:245); у логах: 96×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8401,7 +8454,7 @@
     "Loc_ai/LAi_init.c:42"
    ],
    "status": "підіймається: game/Characters.cs:883",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:556); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:556); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8416,7 +8469,7 @@
     "Characters/characters_events.c:19"
    ],
    "status": "підіймається: game/Characters.cs:732",
-   "evidence": "оригінал: core.Event \"iissf|iissff\" (src/libs/location/src/character.cpp:239); скрипти теж підіймають (QUESTS/quests.c:850); у логах: 41×",
+   "evidence": "оригінал: core.Event \"iissf|iissff\" (src/libs/location/src/character.cpp:239); скрипти теж підіймають (QUESTS/quests.c:850); у логах: 53×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8431,7 +8484,7 @@
     "Loc_ai/LAi_init.c:35"
    ],
    "status": "підіймається: game/Characters.cs:147",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 29×",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:690); у логах: 36×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8459,7 +8512,7 @@
     "Loc_ai/LAi_init.c:39"
    ],
    "status": "підіймається: game/Characters.cs:273",
-   "evidence": "оригінал: core.Event \"iifl\" (src/libs/location/src/character.cpp:2919); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"iifl\" (src/libs/location/src/character.cpp:2919); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8473,7 +8526,7 @@
     "Loc_ai/LAi_init.c:33"
    ],
    "status": "підіймається: game/Characters.cs:908",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:520); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:520); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8501,7 +8554,7 @@
     "Loc_ai/LAi_init.c:41"
    ],
    "status": "підіймається: game/Characters.cs:162",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 34×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1394); у логах: 39×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8515,7 +8568,7 @@
     "Loc_ai/LAi_init.c:40"
    ],
    "status": "підіймається: game/Characters.cs:169",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1842); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/character.cpp:1842); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8529,7 +8582,7 @@
     "Loc_ai/LAi_init.c:31"
    ],
    "status": "підіймається: game/Characters.cs:156 (+1)",
-   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1351); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"si\" (src/libs/location/src/np_character.cpp:1351); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8543,7 +8596,7 @@
     "INTERFACE/materials.c:20"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:85, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8557,7 +8610,7 @@
     "INTERFACE/materials.c:21"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:95, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8571,7 +8624,7 @@
     "INTERFACE/materials.c:22"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:105, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8585,7 +8638,7 @@
     "INTERFACE/materials.c:23"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:115, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8599,7 +8652,7 @@
     "INTERFACE/materials.c:24"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:135, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8613,7 +8666,7 @@
     "Loc_ai/LAi_fightparams.c:610"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:142); у логах: 63×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:142); у логах: 61×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8627,7 +8680,7 @@
     "Loc_ai/LAi_fightparams.c:608"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "у reference не підіймається; у логах: 63×",
+   "evidence": "у reference не підіймається; у логах: 61×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8641,7 +8694,7 @@
     "Loc_ai/LAi_fightparams.c:606"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:96); у логах: 63×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:96); у логах: 61×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8655,7 +8708,7 @@
     "Loc_ai/LAi_fightparams.c:607"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:121); у логах: 63×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:121); у логах: 61×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8669,7 +8722,7 @@
     "Loc_ai/LAi_fightparams.c:609"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:138); у логах: 63×",
+   "evidence": "оригінал: core.Event \"i\" (src/libs/location/src/np_character.cpp:138); у логах: 61×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8703,7 +8756,7 @@
     "INTERFACE/ship.c:152"
    ],
    "status": "ім'я є в коді порту (game/EditBox.cs:55), виклик непрямий",
-   "evidence": "оригінал: core.Event \"s\" (src/libs/xinterface/src/nodes/xi_edit_box.cpp:185); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"s\" (src/libs/xinterface/src/nodes/xi_edit_box.cpp:185); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8717,7 +8770,7 @@
     "INTERFACE/ship.c:151"
    ],
    "status": "ім'я є в коді порту (game/EditBox.cs:54), виклик непрямий",
-   "evidence": "оригінал: core.Event \"s\" (src/libs/xinterface/src/nodes/xi_edit_box.cpp:181); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"s\" (src/libs/xinterface/src/nodes/xi_edit_box.cpp:181); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8745,7 +8798,7 @@
     "INTERFACE/transfer_characters.c:56"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/transfer_characters.ini:41, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8760,7 +8813,7 @@
     "INTERFACE/QuestBook.c:27"
    ],
    "status": "підіймається: game/XInterface.cs:879",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_quest_titles.cpp:196); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_quest_titles.cpp:196); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8776,7 +8829,7 @@
     "INTERFACE/QuestBook.c:25"
    ],
    "status": "підіймається: game/XInterface.cs:1008 (+1)",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_quest_titles.cpp:180); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_quest_titles.cpp:180); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8791,7 +8844,7 @@
     "INTERFACE/mainmenu.c:42"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:126, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8805,7 +8858,7 @@
     "INTERFACE/ship.c:149"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/ship.ini:153, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8819,7 +8872,7 @@
     "INTERFACE/ship.c:150"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/ship.ini:204, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8833,7 +8886,7 @@
     "INTERFACE/ransack_join.c:45"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_join.ini:58, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8847,7 +8900,7 @@
     "INTERFACE/passengers.c:70"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/passengers.ini:156, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8861,7 +8914,7 @@
     "BATTLE_INTERFACE/ispyglass.c:16"
    ],
    "status": "підіймається: game/SeaTelescope.cs:92 (+1)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8875,7 +8928,7 @@
     "INTERFACE/passengers.c:72"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/passengers.ini:176, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8889,7 +8942,7 @@
     "INTERFACE/transfer_characters.c:54"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/transfer_characters.ini:108, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8903,7 +8956,7 @@
     "INTERFACE/mainmenu.c:41"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:76, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8917,7 +8970,7 @@
     "INTERFACE/save_load.c:71"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/mainmenu.ini:97, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8937,7 +8990,7 @@
     "INTERFACE/QuestBook.c:30"
    ],
    "status": "підіймається: game/XInterface.cs:396",
-   "evidence": "оригінал: core.Event \"fs\" (src/libs/xinterface/src/nodes/xi_scroller.cpp:316); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"fs\" (src/libs/xinterface/src/nodes/xi_scroller.cpp:316); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8962,7 +9015,7 @@
     "INTERFACE/QuestBook.c:31"
    ],
    "status": "підіймається: game/XInterface.cs:396",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_scroller.cpp:197); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/xinterface/src/nodes/xi_scroller.cpp:197); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8981,7 +9034,7 @@
     "INTERFACE/transfer_characters.c:57"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/transfer_characters.ini:39, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -8995,7 +9048,7 @@
     "INTERFACE/store.c:58"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/store.ini:215, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9009,7 +9062,7 @@
     "INTERFACE/store.c:56"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/store.ini:152, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9029,7 +9082,7 @@
     "INTERFACE/QuestBook.c:29"
    ],
    "status": "підіймається: game/XInterface.cs:935",
-   "evidence": "оригінал: core.Event \"sf\" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:288); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"sf\" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:288); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9049,7 +9102,7 @@
     "BATTLE_INTERFACE/ispyglass.c:15"
    ],
    "status": "підіймається: game/SeaTelescope.cs:108 (+1)",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:386); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:386); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9077,7 +9130,7 @@
     "SEA_AI/sea.c:224"
    ],
    "status": "підіймається: game/SeaCombat.cs:160",
-   "evidence": "оригінал: core.Event \"lisffffff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:33); у логах: 16×",
+   "evidence": "оригінал: core.Event \"lisffffff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:33); у логах: 12×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9091,7 +9144,7 @@
     "SEA_AI/AIShip.c:108"
    ],
    "status": "підіймається: game/SeaFires.cs:115",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:304); у логах: 6×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:304); у логах: 11×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9123,7 +9176,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:79"
    ],
    "status": "підіймається: game/Sea.cs:549",
-   "evidence": "оригінал: core.Event \"li\" (src/libs/ship/src/ship.cpp:753); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"li\" (src/libs/ship/src/ship.cpp:753); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9137,7 +9190,7 @@
     "SEA_AI/AISeaGoods.c:18"
    ],
    "status": "підіймається: game/SeaFx.cs:485",
-   "evidence": "оригінал: core.Event \"llsl\" (src/libs/sea_ai/src/ai_sea_goods.cpp:92); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"llsl\" (src/libs/sea_ai/src/ai_sea_goods.cpp:92); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9151,7 +9204,7 @@
     "SEA_AI/AIShip.c:95"
    ],
    "status": "підіймається: game/SeaFires.cs:116",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 249×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (SEA_AI/AIShip.c:1496); у логах: 269×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9165,7 +9218,7 @@
     "SEA_AI/AIShip.c:105"
    ],
    "status": "підіймається: game/SeaAI.cs:112",
-   "evidence": "оригінал: core.Event \"aal\" (src/libs/sea_ai/src/ai_ship_camera_controller.cpp:150); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"aal\" (src/libs/sea_ai/src/ai_ship_camera_controller.cpp:150); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9179,7 +9232,7 @@
     "SEA_AI/AIShip.c:106"
    ],
    "status": "підіймається: game/SeaCombat.cs:139",
-   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); у логах: 4×",
+   "evidence": "оригінал: core.Event \"afff\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:25); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9207,7 +9260,7 @@
     "SEA_AI/AIShip.c:94"
    ],
    "status": "підіймається: game/SeaSails.cs:404",
-   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 51×",
+   "evidence": "оригінал: core.Event \"lfffl\" (src/libs/rigging/src/sail.cpp:1659); у логах: 70×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9235,7 +9288,7 @@
     "SEA_AI/AIShip.c:91"
    ],
    "status": "підіймається: game/SeaCombat.cs:172",
-   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13039×",
+   "evidence": "оригінал: core.Event \"a\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:832); у логах: 13050×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9249,7 +9302,7 @@
     "SEA_AI/AIShip.c:103"
    ],
    "status": "підіймається: game/SeaCombat.cs:266",
-   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 127×",
+   "evidence": "оригінал: core.Event \"illffflf\" (src/libs/ship/src/ship.cpp:1849); у логах: 133×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9263,7 +9316,7 @@
     "SEA_AI/AIShip.c:90"
    ],
    "status": "підіймається: game/SeaCombat.cs:174",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13039×",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/sea_ai/src/ai_ship_cannon_controller.cpp:190); у логах: 13050×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9277,7 +9330,7 @@
     "SEA_AI/AIShip.c:93"
    ],
    "status": "підіймається: game/SeaPhysics.cs:140 (+1)",
-   "evidence": "оригінал: core.Event \"llfflfff\" (src/libs/touch/src/touch.cpp:521); у логах: 68×",
+   "evidence": "оригінал: core.Event \"llfflfff\" (src/libs/touch/src/touch.cpp:521); у логах: 60×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9291,7 +9344,7 @@
     "SEA_AI/AIShip.c:92"
    ],
    "status": "підіймається: game/SeaGrounding.cs:91",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9320,7 +9373,7 @@
     "INTERFACE/ransack_crew.c:58"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Ransack_crew.ini:59, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9335,7 +9388,7 @@
     "INTERFACE/materials.c:25"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/materials.ini:125, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9350,7 +9403,7 @@
     "INTERFACE/transfer_main.c:78"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:109, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9365,7 +9418,7 @@
     "INTERFACE/transfer_goods.c:72"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/transfer_goods.ini:90, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9379,7 +9432,7 @@
     "SEA_AI/AICameras.c:82"
    ],
    "status": "підіймається: game/SeaTelescope.cs:87",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:361); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/spyglass/spyglass.cpp:361); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9393,7 +9446,7 @@
     "INTERFACE/option_screen.c:64"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/option_screen.ini:165, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9407,7 +9460,7 @@
     "INTERFACE/helpscreen.c:25"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/helpscreen.ini:39, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9421,7 +9474,7 @@
     "SEA_AI/AIShip.c:110"
    ],
    "status": "підіймається: game/WeatherFx.cs:131",
-   "evidence": "оригінал: core.Event \"fff\" (src/libs/tornado/src/tornado.cpp:108); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"fff\" (src/libs/tornado/src/tornado.cpp:108); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9437,7 +9490,7 @@
     "INTERFACE/transfer_main.c:79"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/Transfer_main.ini:92, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9453,7 +9506,7 @@
     "WorldMap/worldmap.c:72"
    ],
    "status": "підіймається: game/WorldEncounters.cs:135 (+1)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9481,7 +9534,7 @@
     "WorldMap/worldmap.c:68"
    ],
    "status": "підіймається: game/WorldMap.cs:360",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9495,7 +9548,7 @@
     "WorldMap/worldmap.c:69"
    ],
    "status": "підіймається: game/WorldMap.cs:359",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9509,7 +9562,7 @@
     "WorldMap/worldmap_events.c:178"
    ],
    "status": "підіймається: game/WorldEncounters.cs:204",
-   "evidence": "оригінал: core.Event \"\" (src/libs/worldmap/src/world_map.cpp:1070); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"\" (src/libs/worldmap/src/world_map.cpp:1070); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9523,7 +9576,7 @@
     "WorldMap/worldmap.c:66"
    ],
    "status": "підіймається: game/WorldStorms.cs:241",
-   "evidence": "оригінал: core.Event \"fffl\" (src/libs/worldmap/src/wdm_player_ship.cpp:106); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"fffl\" (src/libs/worldmap/src/wdm_player_ship.cpp:106); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9537,7 +9590,7 @@
     "WorldMap/worldmap.c:67"
    ],
    "status": "підіймається: game/WorldEncounters.cs:221",
-   "evidence": "оригінал: core.Event \"fffl\" (src/libs/worldmap/src/wdm_player_ship.cpp:139); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"fffl\" (src/libs/worldmap/src/wdm_player_ship.cpp:139); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9565,7 +9618,7 @@
     "WorldMap/worldmap.c:70"
    ],
    "status": "підіймається: game/WorldMap.cs:375",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9579,7 +9632,7 @@
     "WorldMap/worldmap.c:71"
    ],
    "status": "підіймається: game/WorldMap.cs:371",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9607,7 +9660,7 @@
     "WorldMap/worldmap.c:65"
    ],
    "status": "підіймається: game/WorldMap.cs:403",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9621,7 +9674,7 @@
     "INTERFACE/save_load.c:76"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/save_load.ini:98, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9635,7 +9688,7 @@
     "INTERFACE/save_load.c:77"
    ],
    "status": "ім'я є в коді порту (game/ColorCorrection.cs:36), виклик непрямий",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9649,7 +9702,7 @@
     "INTERFACE/store.c:62"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/store.ini:183, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9677,7 +9730,7 @@
     "INTERFACE/shiphold.c:44"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/shiphold.ini:151, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9719,7 +9772,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:98"
    ],
    "status": "підіймається: game/SeaCommands.cs:271",
-   "evidence": "оригінал: core.Event \"sa\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:255); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"sa\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:255); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9733,7 +9786,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:99"
    ],
    "status": "підіймається: game/SeaCommands.cs:257",
-   "evidence": "оригінал: core.Event \"sl\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:198); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"sl\" (src/libs/battle_interface/src/sea/battle_ship_command.cpp:198); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9794,7 +9847,7 @@
     "seadogs.c:1442"
    ],
    "status": "підіймається: game/Main.cs:1027",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:303); у логах: 11×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:303); у логах: 23×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9809,7 +9862,7 @@
     "INTERFACE/interface.c:18"
    ],
    "status": "підіймається: game/Main.cs:1028",
-   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 12×",
+   "evidence": "у reference не підіймається; скрипти теж підіймають (INTERFACE/save_load.c:307); у логах: 24×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9823,7 +9876,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:48"
    ],
    "status": "підіймається: game/SeaSails.cs:392",
-   "evidence": "оригінал: core.Event \"lslfflll\" (src/libs/rigging/src/sail.cpp:2344); у логах: 7×",
+   "evidence": "оригінал: core.Event \"lslfflll\" (src/libs/rigging/src/sail.cpp:2344); у логах: 8×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9853,7 +9906,7 @@
     "BATTLE_INTERFACE/BattleInterface.c:97"
    ],
    "status": "підіймається: game/SeaCommands.cs:235",
-   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/land/battle_man_command.cpp:110); 0× у [events] 20 логів (топ-40)",
+   "evidence": "оригінал: core.Event \"l\" (src/libs/battle_interface/src/land/battle_man_command.cpp:110); 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -9942,7 +9995,7 @@
     "INTERFACE/transfer_main.c:74"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/xinterface.cpp:1206); скрипти теж підіймають (INTERFACE/interface.c:1085); у логах: 111×",
+   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/xinterface.cpp:1206); скрипти теж підіймають (INTERFACE/interface.c:1085); у логах: 135×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10058,7 +10111,7 @@
     "CONTROLS/controls.c:2"
    ],
    "status": "підіймається: game/Main.cs:968",
-   "evidence": "у reference не підіймається; у логах: 50665×",
+   "evidence": "у reference не підіймається; у логах: 56905×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10105,7 +10158,7 @@
     "INTERFACE/interface.c:17"
    ],
    "status": "підіймається: game/XInterface.cs:1258",
-   "evidence": "оригінал: core.Event \"lll\" (src/libs/xinterface/src/xinterface.cpp:3158); у логах: 40×",
+   "evidence": "оригінал: core.Event \"lll\" (src/libs/xinterface/src/xinterface.cpp:3158); у логах: 65×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10119,7 +10172,7 @@
     "INTERFACE/interface.c:1088"
    ],
    "status": "підіймається: StormScript/Runtime/EngineStubs.cs:14 (+1)",
-   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/aviplayer/aviplayer.cpp:86); скрипти теж підіймають (INTERFACE/interface.c:1119); у логах: 51×",
+   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/aviplayer/aviplayer.cpp:86); скрипти теж підіймають (INTERFACE/interface.c:1119); у логах: 87×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10233,7 +10286,7 @@
     "INTERFACE/store.c:63"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/store.ini:184, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10247,7 +10300,7 @@
     "INTERFACE/cannons.c:28"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/cannons.ini:75, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10261,7 +10314,7 @@
     "INTERFACE/interface.c:630"
    ],
    "status": "підіймається (лише runtime-докази)",
-   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:72); скрипти теж підіймають (INTERFACE/interface.c:641); у логах: 16×",
+   "evidence": "оригінал: core.Event \"\" (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:72); скрипти теж підіймають (INTERFACE/interface.c:641); у логах: 29×",
    "score": 0,
    "kind": "ok",
    "handlers": [
@@ -10275,7 +10328,7 @@
     "INTERFACE/save_load.c:78"
    ],
    "status": "з ini інтерфейсу (RESOURCE/INI/INTERFACES/save_load.ini:52, `event:`), XInterface підіймає генерично (game/XInterface.cs:443)",
-   "evidence": "у reference не підіймається; 0× у [events] 20 логів (топ-40)",
+   "evidence": "у reference не підіймається; 0× у [events] 32 логів (топ-40)",
    "score": 0,
    "kind": "ok",
    "handlers": [

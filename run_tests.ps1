@@ -123,6 +123,16 @@ if ($Sea) {
         foreach ($i in 0..19) { $rn += "--key=Backspace@$(510 + $i)" }
         $rn += @('--type=Hawk+%0407%0436%0430%043A@540', '--key=Enter@560', '--dump=Characters[0].Ship.Name@600', '--shot-frame=620')
         $fail += Invoke-Godot 'rename' $rn 300 @('[xinterface] lock: KEY_CHOOSER', "[xinterface] text input: '$uk'", '[xinterface] unlock', "Name = `"$uk`"")
+        # screens: interface screens that no other scenario opens, each launched by its script function from the quicksave; must open without [errors]/[unresolved]
+        $en = '#Cayman+Commander'
+        $screens = @(@('fortcapture', "LaunchFortCapture(#Blaze,$en)", 'fortcapture.ini'), @('citycapture', "LaunchCityCapture($en)", 'citycapture.ini'),
+                     @('colcapture', "LaunchColonyCapture($en)", 'colony_Capture.ini'), @('materials', "LaunchMaterialsBuild($en)", 'materials.ini'),
+                     @('transferchars', "LaunchTransferCharacter(#Blaze,$en)", 'transfer_main.ini'), @('ransackcrew', "LaunchRansackCrew(#Blaze,$en)", 'ransack_crew.ini'),
+                     @('passengers', 'LaunchPassengers(#Blaze)', 'passengers.ini'), @('cards', 'LaunchCardsGame()', 'boal_cards.ini'), @('dice', 'LaunchDiceGame()', 'boal_dice.ini'),
+                     @('boalmap', 'LaunchBoalMapScreen()', 'boal_map.ini'), @('price', 'LaunchPriceList()', 'boal_price.ini'), @('statistic', 'LaunchBoalStatisticScreen(#Blaze)', 'boal_statistic.ini'))
+        foreach ($sc in $screens) {
+            $fail += Invoke-Godot "screen_$($sc[0])" @('--ctl=Quick_Load@200', "--call=$($sc[1])@400", '--shot-frame=520') 150 @($sc[2])
+        }
     }
 }
 
