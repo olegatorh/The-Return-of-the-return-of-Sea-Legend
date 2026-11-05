@@ -25,7 +25,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
     $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"") + $(if ($Hidden) { @('--position', '9000,9000', '--resolution', '1280x720') } else { @('--position', '0,0', '--resolution', '1280x720') }) + @('--') + $userArgs + @("--shot=smoke_$name.png")) `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
     if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
-    $text = (Get-Content $log, "$log.err" -ErrorAction SilentlyContinue) -join "`n"
+    $text = (Get-Content $log, "$log.err" -Encoding UTF8 -ErrorAction SilentlyContinue) -join "`n"
     $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception' }
     if (-not (Test-Path $shot)) { Write-Host 'no screenshot was produced (the run did not reach the end)' -ForegroundColor Red; return 1 }
     foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "expected in the log: $m" -ForegroundColor Red; return 1 } }
@@ -111,6 +111,13 @@ if ($Sea) {
         $fail += Invoke-Godot 'board' $bd 500 @('[location] model udeck_l', '[location] model deck1_l', '[location] model cap_l', 'INTERFACES\transfer_main.ini',
                                                 '[sea] swap ships: Blaze <-> CapitanFF01', '[sea] CapitanFF01 is dead: the ship sinks', 'battle_interfacex1')
         Remove-Item Env:SEADOGS_DUELDIST
+        # ship rename on the ship screen (addon text input, INTERFACE/key_hook.c): click the name, erase it with Backspace (script events through
+        # KEYCHOOSER/evntKeyChoose), type "Hawk" + 4 Ukrainian letters with real key presses (Ukrainian letters from the system layout), Enter -> SetShipName
+        $uk = "Hawk $([char]0x0407)$([char]0x0436)$([char]0x0430)$([char]0x043A)"
+        $rn = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=LaunchShipState()@400', '--mouse=B_SHIPNAME@500')
+        foreach ($i in 0..19) { $rn += "--key=Backspace@$(510 + $i)" }
+        $rn += @('--type=Hawk+%0407%0436%0430%043A@540', '--key=Enter@560', '--dump=Characters[0].Ship.Name@600', '--shot-frame=620')
+        $fail += Invoke-Godot 'rename' $rn 300 @('[xinterface] lock: KEY_CHOOSER', "[xinterface] text input: '$uk'", '[xinterface] unlock', "Name = `"$uk`"")
     }
 }
 

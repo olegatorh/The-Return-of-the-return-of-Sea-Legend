@@ -19,7 +19,7 @@ Layers (where the behaviour comes from):
 
 * Overall (mean of the 31 subsystems below): **71 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **15801** lines of C# (`StormScript/` library + `game/`)
+* Port code: **16120** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -45,7 +45,7 @@ Layers (where the behaviour comes from):
 | Land | Melee combat (swings, damage by script, death) | APPROX | ██████░░░░ 65 % | T | NPC fight AI driven by the script (test melee): rates from NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire, FightGo/FightStay/TaskFailure "Fight", Location_CharacterIsFight (also before the hero draws) / IsFire; damage by Location_CharacterAttack/Block/Fire; block, parry, recoil, hit reactions, NPC pistol shots, engine recharge of chr_ai.charge; how the rates turn into actions and all timings are mine (C++ not available); PotC has no fast/force/round/break attack kinds or energy |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
 | Land | Items on the ground, chests | PORT | ████████░░ 80 % | V | box locators -> OpenBox hint -> original itemsbox screen, items moved both ways (test chest); random/quest items shown (MODELR), picked with fade (MSG_MODEL_BLEND) |
-| Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |
+| Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images, text input) | PORT | ████████░░ 83 % | T | most screens render; ship rename on the ship screen works end to end (-Sea 'rename': KEYCHOOSER + key_hook.c, Ukrainian letters from the system layout, Backspace/Enter/Esc); EDITBOX is a typed text field (NodeOk/NodeCancel) instead of the original on-screen alphabet grid; LOCK_NODE makes windows modal; SET_BLIND pulses pictures; DELETE_PICTURE/STRING, DEL_SCROLLIMAGE, REFRESH_SCROLL; XBOX, GLOWS, CONTEXTHELP (its chelp_* texts are not in the game data), VIDEO missing |
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
 | Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade'); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |

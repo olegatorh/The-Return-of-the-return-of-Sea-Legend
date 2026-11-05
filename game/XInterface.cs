@@ -149,7 +149,25 @@ public partial class XView : Control
             case 45055: it.WriteRef(d[2], V.Str(S(1))); return V.Int(1);   // FILENAME2DATASTR
             case 45300: return V.Int(1000000);                             // GET_FREE_SPACE
             case 45042: case 45043: case 45044: return V.Int(-1);          // screenshot thumbnails of saves: not stored
-            case 45053: case 45052: case 45022: case 45039: case 45046: return V.Int(0);
+            case 45046:                                                    // LOCK_NODE: 0 = unlock; 1 = only this node takes input; 2 = this one too
+                if (Conv.ToInt(d[1]) == 0) Unlock(); else LockNode(S(2), Conv.ToInt(d[1]) == 1);
+                return V.Int(0);
+            case 45039:                                                    // SET_BLIND: script picture, on/off, colour min, colour max (pulses between them)
+                if (Conv.ToInt(d[2]) != 0 && d.Length > 4) blinds[S(1)] = (unchecked((uint)Conv.ToInt(d[3])), unchecked((uint)Conv.ToInt(d[4])));
+                else { blinds.Remove(S(1)); if (dynImages.TryGetValue(S(1), out var ub)) ub.Modulate = Colors.White; }
+                return V.Int(0);
+            case 45049:                                                    // DELETE_PICTURE: a script image (help screen)
+                if (dynImages.Remove(S(1), out var dp)) { dp.QueueFree(); dynKeys.Remove(S(1)); blinds.Remove(S(1)); }
+                return V.Int(0);
+            case 45050:                                                    // DELETE_STRING: a script string
+                if (strings.Remove(S(1), out var ds)) { ds.QueueFree(); strInfo.Remove(S(1)); }
+                return V.Int(0);
+            case 45029:                                                    // REFRESH_SCROLL: node
+                if (nodes.TryGetValue(S(1), out var rs) && rs is ScrollImageView rsv) rsv.Refresh();
+                return V.Int(0);
+            case 45025: DeleteScrollImage(S(1), d.Length > 2 ? Conv.ToInt(d[2]) : -1); return V.Int(0);   // DEL_SCROLLIMAGE: node, index
+            case 45022: return V.Int(0);                                   // SETHELPSTRING: the CONTEXTHELP texts (chelp_*) are not in the game data
+            case 45053: case 45052: return V.Int(0);
             case 45031: SetQuestTitles(d); return V.Int(0);                 // SET_TITLE_STRINGS: node, QuestInfo, top
         }
         Warn($"message {msg} ({fmt})");
@@ -159,6 +177,8 @@ public partial class XView : Control
     void NodeMessage(string node, int code, string param, V[] d)
     {
         if (!nodes.TryGetValue(node, out var c)) return;
+        if (c is KeyChooserView kcv) { if (code == 0 && d.Length > 3) kcv.Codes = d[3].Attr; return; }   // the list of key codes (objControlsState.key_codes)
+        if (c is EditBoxView) return;
         if (c is FormattedListView fl0)
         {
             switch (code)
@@ -289,6 +309,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
+        locks.Clear(); lockSaved.Clear(); blinds.Clear(); preLockNode = "";
         dynImages.Clear(); dynKeys.Clear(); snapped.Clear(); lastSnapExtra = new Vector2(-1, -1); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
@@ -386,7 +407,10 @@ public partial class XView : Control
                 "QUESTTEXT" => MakeQuestText(pos),
                 "CONTEXTHELP" => new Control { MouseFilter = MouseFilterEnum.Ignore },
                 "CHANGER" => MakeChanger(name, sec),
-                "GLOWS" or "GLOWCURSOR" or "XBOX" or "KEYCHOOSER" or "EDITBOX" => new Control { MouseFilter = MouseFilterEnum.Ignore },   // purely decorative / console / replaced by the port's own key binding screen    // selectable rows: selection not drawn yet
+                "EDITBOX" => new EditBoxView(Ent, name, pos[0], pos[1], pos[2], pos[3], (int)Floats(P("stringLength"), 1)[0],
+                    FontPx(P("strFont") ?? "interface_normal", Floats(P("strScale"), 1)[0] is var es && es > 0 ? es : 1f), Plain(P("argbBoxColor"), new Color(0, 0, 0, 1)), Plain(P("argbBoundColor"), new Color(0.3f, 0.3f, 0.3f, 0.5f))),
+                "KEYCHOOSER" => new KeyChooserView(),
+                "GLOWS" or "GLOWCURSOR" or "XBOX" => new Control { MouseFilter = MouseFilterEnum.Ignore },   // purely decorative / console
                 _ => null,
             };
             if (node == null) { Warn($"node type {type}"); continue; }
@@ -988,6 +1012,7 @@ public partial class XView : Control
     {
         selectedNode = name;
         if (nodes.TryGetValue(name, out var c) && c.Visible && c.FocusMode != FocusModeEnum.None && !(c is Button b && b.Disabled)) c.GrabFocus();
+        else if (c != null && GetViewport()?.GuiGetFocusOwner() is Control f && f != c) f.ReleaseFocus();   // a picture/rectangle/text node is current now, not the last focused button
     }
 
     string CurrentNode()
@@ -1016,9 +1041,149 @@ public partial class XView : Control
         }
     }
 
+    // ------------------------------------------------------------------ LOCK_NODE: modal windows and text input
+    readonly List<string> locks = new();
+    readonly Dictionary<Control, (MouseFilterEnum mf, FocusModeEnum fm)> lockSaved = new();
+    string preLockNode = "";
+
+    /// <summary>MSG_INTERFACE_LOCK_NODE 1/2: while the lock list is not empty only its nodes take the mouse, the focus and the keyboard steps.</summary>
+    void LockNode(string name, bool first)
+    {
+        if (first)
+        {
+            if (locks.Count == 0) preLockNode = CurrentNode();
+            locks.Clear();
+        }
+        if (!locks.Contains(name, StringComparer.OrdinalIgnoreCase)) locks.Add(name);
+        ApplyLocks();
+        GD.Print($"[xinterface] lock: {string.Join(",", locks)}");
+    }
+
+    void Unlock()
+    {
+        if (locks.Count == 0) return;
+        bool wasLocked = locks.Contains(selectedNode, StringComparer.OrdinalIgnoreCase);
+        locks.Clear();
+        ApplyLocks();
+        GD.Print("[xinterface] unlock");
+        // the locked node (a text input, a confirmation window) is about to be hidden: the selection goes back to where it was,
+        // unless the script has already chosen another node
+        if (!wasLocked && nodes.TryGetValue(selectedNode, out var cur) && cur.Visible) SelectNode(selectedNode);
+        else if (preLockNode.Length > 0) SelectNode(preLockNode);
+    }
+
+    bool Locked(string name) => locks.Count == 0 || locks.Contains(name, StringComparer.OrdinalIgnoreCase);
+
+    void ApplyLocks()
+    {
+        foreach (var (name, n) in nodes)
+        {
+            bool open = Locked(name);
+            foreach (var c in SelfAndControls(n))
+            {
+                if (open)
+                {
+                    if (lockSaved.Remove(c, out var s) && GodotObject.IsInstanceValid(c)) { c.MouseFilter = s.mf; c.FocusMode = s.fm; }
+                }
+                else if (!lockSaved.ContainsKey(c))
+                {
+                    lockSaved[c] = (c.MouseFilter, c.FocusMode);
+                    c.MouseFilter = MouseFilterEnum.Ignore;
+                    c.FocusMode = FocusModeEnum.None;
+                }
+            }
+        }
+        if (GetViewport()?.GuiGetFocusOwner() is Control f && f.FocusMode == FocusModeEnum.None) f.ReleaseFocus();
+    }
+
+    static IEnumerable<Control> SelfAndControls(Control c)
+    {
+        yield return c;
+        foreach (var ch in c.GetChildren())
+            if (ch is Control cc) foreach (var x in SelfAndControls(cc)) yield return x;
+    }
+
+    /// <summary>The node that takes typed text now: a visible EDITBOX / KEYCHOOSER that is locked or current.</summary>
+    Control? TextTarget()
+    {
+        foreach (var (name, n) in nodes)
+        {
+            if (n is not (EditBoxView or KeyChooserView) || !n.Visible) continue;
+            if ((locks.Count > 0 && locks.Contains(name, StringComparer.OrdinalIgnoreCase)) || name.Equals(selectedNode, StringComparison.OrdinalIgnoreCase)) return n;
+        }
+        return null;
+    }
+
+    public override void _Input(InputEvent e)
+    {
+        if (e is not InputEventKey { Pressed: true } k || GetChildCount() == 0) return;
+        var target = TextTarget();
+        if (target == null) return;
+        GetViewport().SetInputAsHandled();       // the focused button must not see Enter/Space, the game no controls
+        if (target is EditBoxView eb)
+        {
+            var ev = eb.Key(k);
+            if (ev != null) { GD.Print($"[xinterface] editbox {eb.Name}: {ev} '{eb.Text}'"); it.FireEvent(ev, new List<V> { V.Str(eb.Name.ToString()) }); }
+            return;
+        }
+        var kc = (KeyChooserView)target;
+        // the addon's text input (key_hook.c) appends characters from its own En/Ru table (switched by Ctrl, no Ukrainian letters) to
+        // strings.StrKeyHook ("text|"); printable characters are inserted here from the system layout instead, in the script's format
+        var hook = Ent.Root.Find("strings.StrKeyHook", false);
+        if (hook != null && k.Unicode >= 32 && !k.CtrlPressed && !k.AltPressed)
+        {
+            string s = hook.Value ?? "";
+            if (s.EndsWith('|')) s = s.Substring(0, s.Length - 1);
+            if (s.Length < 26) s += char.ConvertFromUtf32((int)k.Unicode);
+            hook.Value = s + "|";
+            return;
+        }
+        if (hook != null && k.Keycode == Key.Escape && it.Funcs.ContainsKey("Key_HideTextWindow"))
+        {
+            GD.Print("[xinterface] text input cancelled");
+            it.CallTop("Key_HideTextWindow");     // the script's own close (no rename); the original had no cancel key
+            return;
+        }
+        if (k.Echo && k.Keycode != Key.Backspace) return;
+        int idx = kc.IndexOf(KeyChooserView.Vk(k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode));
+        if (idx >= 0)
+        {
+            if (hook != null && k.Keycode is Key.Enter or Key.KpEnter) GD.Print($"[xinterface] text input: '{hook.Value?.TrimEnd('|')}'");
+            it.FireEvent("evntKeyChoose", new List<V> { V.Int(idx), V.Int(0) });
+        }
+    }
+
+    readonly Dictionary<string, (uint min, uint max)> blinds = new(StringComparer.OrdinalIgnoreCase);
+    double blindTime;
+
+    void DeleteScrollImage(string node, int index)
+    {
+        var r = Ent.Root.Find(node, false);
+        if (r == null || index < 0) return;
+        int n = (int)Conv.ParseFloatPrefix(r.Find("ListSize", false)?.Value);
+        if (index >= n) return;
+        // pic(index+1) goes away, the later ones move down by one
+        for (int i = index + 2; i <= n; i++)
+        {
+            var dst = r.GetOrCreate("pic" + (i - 1));
+            dst.Clear();
+            if (r.Get("pic" + i) is { } src) dst.CopyFrom(src);
+        }
+        r.Remove("pic" + n);
+        r.Find("ListSize", true)!.Value = (n - 1).ToString();
+        int cur = (int)Conv.ParseFloatPrefix(r.Find("current", false)?.Value);
+        if (cur >= n - 1) r.Find("current", true)!.Value = Math.Max(0, n - 2).ToString();
+        if (nodes.TryGetValue(node, out var c) && c is ScrollImageView sv) sv.Refresh();
+    }
+
     void Step(string command)
     {
         if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[step] {command} current='{CurrentNode()}'");
+        if (locks.Count > 0 && !Locked(CurrentNode()))      // a modal window: the steps go to its first node
+        {
+            if (nodes.TryGetValue(locks[0], out var ln) && ln.Visible) Run(locks[0], command, 0);
+            return;
+        }
         if (CurrentNode() is { Length: > 0 } cn && nodes.TryGetValue(cn, out var cnode) && cnode.Visible) Run(cn, command, 0);
         else foreach (var kv in nodes) if (kv.Value is ScrollImageView || kv.Value.GetType().Name.StartsWith("FourImages")) { Run(kv.Key, command, 0); break; }
     }
@@ -1063,6 +1228,15 @@ public partial class XView : Control
             if (dynKeys.TryGetValue(name, out var k) && k == tex + "|" + pic) continue;
             dynKeys[name] = tex + "|" + pic;
             img.Texture = Atlas.Get(tex, pic);
+        }
+        // SET_BLIND pictures pulse between two colours (the ship screen's selected state picture); 0x80 = the texture's own colour
+        blindTime += delta;
+        float bt = 0.5f + 0.5f * MathF.Sin((float)blindTime * MathF.PI);
+        foreach (var (name, (mn, mx)) in blinds)
+        {
+            if (!dynImages.TryGetValue(name, out var img)) continue;
+            float Ch(int sh) => (((mn >> sh) & 255) + (((int)((mx >> sh) & 255)) - (int)((mn >> sh) & 255)) * bt) / 128f;
+            img.Modulate = new Color(Ch(16), Ch(8), Ch(0), Math.Min(1f, Ch(24) * 128f / 255f));
         }
     }
 

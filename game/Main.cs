@@ -58,6 +58,32 @@ public partial class Main : Node
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
     readonly List<(int frame, Key key)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
+    readonly List<(int frame, string text)> typed = new();       // test hook --type=Text@N: real key presses with characters ('+' = space, %XXXX = Unicode hex: %0456 = і)
+
+    static string TypedText(string s)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] == '+') sb.Append(' ');
+            else if (s[i] == '%' && i + 4 < s.Length && int.TryParse(s.AsSpan(i + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out int u)) { sb.Append((char)u); i += 4; }
+            else sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Sends every character as a real key press: the keycode of a Latin letter/digit (layout-independent keys) and the character itself.</summary>
+    static void TypeText(string s)
+    {
+        GD.Print($"[type] '{s}'");
+        foreach (char ch in s)
+        {
+            char up = char.ToUpperInvariant(ch);
+            Key key = up is >= 'A' and <= 'Z' or >= '0' and <= '9' ? (Key)up : ch == ' ' ? Key.Space : Key.None;
+            foreach (var down in new[] { true, false })
+                Godot.Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Unicode = ch, Pressed = down, ShiftPressed = char.IsUpper(ch) });
+        }
+    }
     readonly List<(int frame, string name)> saveAt = new();       // test hook --save=name@N: write SAVE\name through the script's own save path
     readonly List<(int frame, string name)> loadAt = new();       // test hook --load=name@N
     readonly List<int> seaDuels = new();                      // test hook --duel@N
@@ -96,6 +122,7 @@ public partial class Main : Node
             else if (a.StartsWith("--mapstorm=")) { var p = a.Substring(11).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapStorms.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci))); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
+            else if (a.StartsWith("--type=")) { int at = a.LastIndexOf('@'); typed.Add((int.Parse(a.Substring(at + 1)), TypedText(a.Substring(7, at - 7)))); }
             else if (a.StartsWith("--save=")) { var p = a.Substring(7).Split('@'); saveAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
@@ -882,6 +909,7 @@ public partial class Main : Node
             host.It.SetHandler("evntSave", "SaveGame", 1);
             host.It.PostEventInternal("evntSave", 0, new List<V> { V.Str("SAVE\\" + nm), V.Str(nm.Replace('_', ' ')) });
         }
+        foreach (var (f, s) in typed) if (f == frames) TypeText(s);
         foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
         foreach (var m in mapTeleports.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt) { worldMap.Teleport(m.x, m.z, m.ay); mapTeleports.Remove(m); }
         foreach (var f in mapMeets.ToArray()) if (frames >= f && frames % 10 == 0 && worldMap.IsBuilt && worldMap.Active && worldMap.TestMeet()) mapMeets.Remove(f);
