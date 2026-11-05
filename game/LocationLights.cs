@@ -30,6 +30,7 @@ public static class LocationLights
         public LightType Type = null!;
         public Vector3 Pos;                 // Godot space
         public float Fast, SlowFrom, SlowTo, SlowT, FastT;
+        public float Itens, ItensSlow, ItensDlt, I, CoronaVis;   // lights.cpp LightState: fast and slow flicker, their sum, corona visibility
         public float K = 1f;                // current flicker factor
         public Node? Owner;
         public MeshInstance3D? CoronaNode;
@@ -70,10 +71,15 @@ public static class LocationLights
                     {
                         Name = s.Name,
                         Color = new Color(F(s, "r", 1), F(s, "g", 1), F(s, "b", 1)),
-                        Att0 = F(s, "att0", 1), Att1 = F(s, "att1", 0), Att2 = F(s, "att2", 0), Range = F(s, "range", 10),
+                        Att0 = F(s, "att0", 0), Att1 = F(s, "att1", 0), Att2 = F(s, "att2", 1), Range = F(s, "range", 10),       // lights.cpp defaults
                         Flicker = F(s, "flicker", 0), FlickerSlow = F(s, "flickerSlow", 0), Freq = F(s, "freq", 0), FreqSlow = F(s, "freqSlow", 0),
-                        Corona = string.IsNullOrEmpty(cor) ? null : cor, CoronaRange = F(s, "coronaRange", 0), CoronaSize = F(s, "coronaSize", 0),
+                        Corona = string.IsNullOrEmpty(cor) ? null : cor, CoronaRange = F(s, "coronaRange", 20), CoronaSize = F(s, "coronaSize", 1),
                     };
+                    // Lights::Init: a flicker needs its frequency and is at most 1, and the other way round
+                    var lt = types[s.Name];
+                    if (lt.Flicker <= 0f) lt.Freq = 0f; if (lt.Flicker > 1f) lt.Flicker = 1f; if (lt.Freq <= 0f) lt.Flicker = 0f;
+                    if (lt.FlickerSlow <= 0f) lt.FreqSlow = 0f; if (lt.FlickerSlow > 1f) lt.FlickerSlow = 1f; if (lt.FreqSlow <= 0f) lt.FlickerSlow = 0f;
+                    if (lt.CoronaRange <= 0f || lt.CoronaSize <= 0f) lt.Corona = null;
                 }
             GD.Print($"[lights] {types.Count} light types from lights.ini");
         }
@@ -127,27 +133,42 @@ public static class LocationLights
         foreach (var l in Lights)
         {
             var t = l.Type;
-            if (t.Flicker > 0 && t.Freq > 0)
+            // Lights::Execute: the fast part jumps to a new value in [-flicker, flicker] every 1/freq s, the slow part moves linearly to a new value in
+            // [-flickerSlow, flickerSlow] every 1/freqSlow s; the light colour is x (1 + their sum), at least 0 (it brightens as often as it dims)
+            if (t.Flicker > 0f || t.FlickerSlow > 0f)
             {
-                l.FastT += dt;
-                if (l.FastT > 1f / t.Freq) { l.FastT = 0; l.Fast = t.Flicker * (float)rnd.NextDouble(); }
+                if (t.Freq > 0f)
+                {
+                    l.FastT += dt;
+                    if (l.FastT > 1f / t.Freq) { l.FastT -= 1f / t.Freq; l.Itens = (1f - 2f * (float)rnd.NextDouble()) * t.Flicker; }
+                }
+                l.SlowT += dt;
+                float k = l.SlowT * t.FreqSlow;
+                if (k < 0f) k = 0f;
+                if (k >= 1f)
+                {
+                    k = 0f;
+                    l.SlowT -= t.FreqSlow > 0f ? 1f / t.FreqSlow : l.SlowT;
+                    l.ItensDlt = l.ItensSlow;
+                    l.ItensSlow = (1f - 2f * (float)rnd.NextDouble()) * t.FlickerSlow;
+                    l.ItensDlt = l.ItensSlow - l.ItensDlt;
+                }
+                l.I = l.ItensSlow - l.ItensDlt + k * l.ItensDlt + l.Itens;
+                l.K = Math.Max(0f, 1f + l.I);
             }
-            float slow = 0;
-            if (t.FlickerSlow > 0 && t.FreqSlow > 0)
+            if (l.CoronaMat != null && l.CoronaNode != null)
             {
-                l.SlowT += dt * t.FreqSlow;
-                if (l.SlowT >= 1f) { l.SlowT -= 1f; l.SlowFrom = l.SlowTo; l.SlowTo = (float)rnd.NextDouble(); }
-                slow = t.FlickerSlow * Mathf.Lerp(l.SlowFrom, l.SlowTo, l.SlowT);
-            }
-            l.K = Math.Clamp(1f - l.Fast - slow, 0f, 1f);
-            if (l.CoronaMat != null)
-            {
-                // the corona fades out towards its range and flickers with the light
-                float d = l.Pos.DistanceTo(cam);
-                float r = t.CoronaRange > 0 ? t.CoronaRange : 30f;
-                float a = Math.Clamp(1f - d / r, 0f, 1f);
-                float k = 0.55f + 0.45f * l.K;
-                l.CoronaMat.AlbedoColor = new Color(k, k, k, a);
+                // Lights::Realize: the corona appears / disappears at 8 per second (visible = nearer than coronaRange), its alpha rises from 0.2 to 1 over
+                // the first 30 % of the range and falls off squared after 40 %; size and alpha x (1 + clamp(0.4 x flicker, +-0.1))
+                float dist = l.Pos.DistanceTo(cam), r = Math.Max(0.01f, t.CoronaRange);
+                l.CoronaVis = Math.Clamp(l.CoronaVis + (dist < r ? 8f : -8f) * dt, 0f, 1f);
+                float d = Math.Min(1f, dist / r), a = 1f;
+                if (d < 0.3f) a *= 0.2f + 0.8f * d / 0.3f;
+                if (d > 0.4f) { a *= 1f - (d - 0.4f) / 0.6f; a *= a; }
+                float dev = 1f + Math.Clamp(l.I * 0.4f, -0.1f, 0.1f);
+                a = Math.Clamp(a * l.CoronaVis * dev, 0f, 1f);
+                l.CoronaMat.AlbedoColor = new Color(1f, 1f, 1f, a);
+                l.CoronaNode.Scale = new Vector3(dev, dev, dev);
             }
         }
     }
