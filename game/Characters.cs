@@ -75,14 +75,127 @@ public partial class CharacterView : Node3D
 
     float Skill(string key, float def) => Ent.Root.Find("chr_ai." + key, false)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
 
-    /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock, no damage) or takes the damage (Location_CharacterAttack).</summary>
-    public bool Defends(CharacterView attacker)
+    /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock: the script decides whether the blow pierces the block)
+    /// or takes the damage (Location_CharacterAttack). NPCs raise the block through their fight AI (<see cref="OnIncomingSwing"/>, <see cref="NpcFight"/>).</summary>
+    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking;
+
+    // ---- NPC fight AI. The engine's NPCharacter asks the script for its fight behaviour (Loc_ai/LAi_fightparams.c, "NPC parameters"):
+    //   NPC_Event_GetAttackActive  - probability of an attack, per second (0.3 + 0.7 * fight level)
+    //   NPC_Event_GetDefenceActive - probability of a defence, per second (0.3 + 0.35 * fight level)
+    //   NPC_Event_GetAggresive     - balance between defence and attack 0..1 (random every time it is asked)
+    //   NPC_Event_GetFireActive / NPC_Event_EnableFire - pistol shots per second / whether the NPC may shoot at all
+    // and reports the course of the fight task: Location_CharacterFightGo (walking to the enemy), Location_CharacterFightStay (in reach),
+    // Location_CharacterTaskFailure "Fight" (the enemy is gone), and asks Location_CharacterIsFight / Location_CharacterIsFire (template: may it use
+    // weapons here / is the pistol charged). The C++ source of the decision loop is not available: how the rates turn into actions (below) is ours.
+    float npcAttack = 0.5f, npcDefence = 0.4f, npcAggressive = 0.5f, npcFire = 0.01f;
+    bool npcFireEnable = true;
+    double npcParamsAt = -1e9;
+    int fightState;                       // 0 = not reported, 1 = FightGo sent, 2 = FightStay sent
+    bool? fightAllowed;                   // Location_CharacterIsFight, asked once per fight task
+    static readonly HashSet<string> paramsLogged = new();
+    /// <summary>Test knob (env SEADOGS_NPCFIRE): multiplies the script's NPC fire rate, so a short test run sees an NPC shot.</summary>
+    static readonly float FireRateScale = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_NPCFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr) ? fr : 1f;
+    public static int StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
+    public static string FightStats() => $"npc swings={StatNpcSwings} blocks raised={StatReactBlocks}+{StatGuardBlocks} hits: blocked={StatBlocked} parried={StatParried} body={StatHits} npc shots={StatNpcShots} param queries={StatParamQueries} FightGo={StatFightGo} FightStay={StatFightStay} failures={StatFightFail} script-driven={StatParamQueries > 0 && StatFightStay > 0 && StatHits + StatBlocked + StatParried > 0}";
+
+    float AskF(string ev, float def)
     {
-        if (!fightMode || !IsAlive) return false;
-        if (Blocking) return true;
-        if (IsPlayer) return false;
-        if (idleRng.NextDouble() < Math.Clamp(Skill("block", 0.1f) * 2.5f, 0.05f, 0.7f)) { blockUntil = 0.5f; return true; }     // NPCs raise the sword by chance of their block skill
-        return false;
+        var r = it.FireEvent(ev, new List<V> { V.A(Ent.Root) });
+        return r.T is VT.Int or VT.Float ? Conv.ToFloat(r) : def;
+    }
+
+    /// <summary>The fight parameters from the script, asked again every 2 s (the aggressiveness is rolled anew each time).</summary>
+    void NpcParams()
+    {
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (now - npcParamsAt < 2.0) return;
+        npcParamsAt = now;
+        StatParamQueries++;
+        npcAttack = Math.Max(0f, AskF("NPC_Event_GetAttackActive", npcAttack));
+        npcDefence = Math.Max(0f, AskF("NPC_Event_GetDefenceActive", npcDefence));
+        npcAggressive = Math.Clamp(AskF("NPC_Event_GetAggresive", npcAggressive), 0f, 1f);
+        npcFire = Math.Max(0f, AskF("NPC_Event_GetFireActive", npcFire));
+        npcFireEnable = AskF("NPC_Event_EnableFire", 1f) != 0f;
+        if (paramsLogged.Add(Id))
+            GD.Print(FormattableString.Invariant($"[fight] {Id} vs {target?.Id}: attack={npcAttack:0.###}/s defence={npcDefence:0.###}/s aggressive={npcAggressive:0.##} fire={npcFire:0.###}/s fireEnabled={npcFireEnable}"));
+    }
+
+    /// <summary>An enemy begins a swing at this NPC: it may raise the block (chance = the script's defence activity, less when aggressive).</summary>
+    void OnIncomingSwing(CharacterView attacker)
+    {
+        if (IsPlayer || !fightMode || !IsAlive || atkHitIn >= 0f || shotIn >= 0f) return;
+        NpcParams();
+        float p = Math.Clamp(npcDefence * (1.2f - 0.6f * npcAggressive), 0f, 0.9f);
+        if (idleRng.NextDouble() < p) { blockUntil = 0.6f; Blocking = true; StatReactBlocks++; }
+    }
+
+    void SetFightState(int s)
+    {
+        if (fightState == s) return;
+        fightState = s;
+        if (s == 2) StatFightStay++; else StatFightGo++;
+        it.FireEvent(s == 2 ? "Location_CharacterFightStay" : "Location_CharacterFightGo", new List<V> { V.Str("Fight"), V.A(Ent.Root) });
+    }
+
+    /// <summary>The fight task cannot go on (the enemy is dead or gone, weapons are not allowed): the template is told with Location_CharacterTaskFailure.</summary>
+    void FailFight()
+    {
+        if (task != Task.Fight) return;
+        task = Task.Stay; fightState = 0; fightAllowed = null; Blocking = false; blockUntil = 0f;
+        StatFightFail++;
+        it.FireEvent("Location_CharacterTaskFailure", new List<V> { V.Str("Fight"), V.A(Ent.Root) });
+    }
+
+    /// <summary>Location_CharacterIsFight: the template says whether weapons may be used here (LAi_LocationCanFight). No template = allowed.</summary>
+    bool AskIsFight()
+    {
+        var r = it.FireEvent("Location_CharacterIsFight", new List<V> { V.A(Ent.Root) });
+        return r.T == VT.Void || Conv.ToInt(r) != 0;
+    }
+
+    /// <summary>Location_CharacterIsFire: the template says whether the pistol can shoot now (LAi_CharacterCanFrie: chr_ai.charge >= 1).</summary>
+    bool AskIsFire()
+    {
+        var r = it.FireEvent("Location_CharacterIsFire", new List<V> { V.A(Ent.Root) });
+        return r.T != VT.Void && Conv.ToInt(r) != 0;
+    }
+
+    /// <summary>The player draws / sheathes the sword: drawing asks the template first (Location_CharacterIsFight; the script prints "CantFight").</summary>
+    public bool ToggleFightMode()
+    {
+        if (!fightMode && !AskIsFight()) return false;
+        FightMode = !fightMode;
+        return true;
+    }
+
+    /// <summary>Strike kind of an NPC: aggressive fighters wind up strong blows more often, the others cut fast.</summary>
+    Strike NpcStrike()
+    {
+        double r = idleRng.NextDouble();
+        if (r < 0.3 * npcAggressive) return Strike.Strong;
+        if (r < 0.3 * npcAggressive + 0.3) return Strike.Fast;
+        return Strike.Normal;
+    }
+
+    /// <summary>An NPC in reach of its enemy: attacks at the script's attack rate, holds a guard at the defence rate (both weighted by the aggressiveness).</summary>
+    void NpcFight(CharacterView enemy, float dt)
+    {
+        ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
+        if (atkHitIn >= 0f || shotIn >= 0f || blockUntil > 0f || (Busy && rig != null && !rig.Finished)) { PlayIdle(); return; }
+        float agg = npcAggressive;
+        if (atkCooldown <= 0f && idleRng.NextDouble() < npcAttack * (0.6f + 0.8f * agg) * dt) { StartSwing(enemy, NpcStrike()); return; }
+        if (idleRng.NextDouble() < npcDefence * (1.2f - agg) * 0.5f * dt) { blockUntil = 0.4f + (float)idleRng.NextDouble() * 0.6f; Blocking = true; StatGuardBlocks++; }
+        PlayIdle();
+    }
+
+    /// <summary>An NPC with a pistol shoots at the script's fire rate when the template allows it (Location_CharacterIsFire: the gun is charged).</summary>
+    void NpcMaybeFire(CharacterView enemy, float dist, float dt)
+    {
+        if (!npcFireEnable || gunCooldown > 0f || shotIn >= 0f || atkHitIn >= 0f || dist > 20f) return;
+        if (string.IsNullOrEmpty(Ent.Root.Find("equip.gun", false)?.Value)) return;
+        if (idleRng.NextDouble() >= npcFire * FireRateScale * dt) return;
+        if (!AskIsFire()) return;
+        if (TryFire(enemy)) StatNpcShots++;
     }
 
     void PlayReaction(bool blocked)
@@ -94,12 +207,17 @@ public partial class CharacterView : Node3D
     }
 
     /// <summary>Pistol shot (the original control ChrFire): the nearest living target in front within reach; the script applies the damage.</summary>
-    public bool TryFire()
+    public bool TryFire(CharacterView? aim = null)
     {
         if (!fightMode || !IsAlive || gunCooldown > 0f || shotIn >= 0f || rig == null) return false;
-        if (Skill("charge", 0f) < 1f) { it.FireEvent("Location_CharacterNoCharge"); return false; }
+        if (IsPlayer)
+        {
+            if (Skill("charge", 0f) < 1f) { it.FireEvent("Location_CharacterNoCharge"); return false; }
+            if (!AskIsFire()) return false;
+        }
         CharacterView? best = null; float bd = 24f * 24f;
-        foreach (var c in All.Values)
+        if (aim != null && aim.Placed && aim.IsAlive && (aim.x - x) * (aim.x - x) + (aim.z - z) * (aim.z - z) < bd) best = aim;
+        else foreach (var c in All.Values)
         {
             if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive) continue;
             float dx = c.x - x, dz = c.z - z, d2 = dx * dx + dz * dz;
@@ -209,7 +327,7 @@ public partial class CharacterView : Node3D
 
     static float Angle(float dx, float dz) => MathF.Atan2(dx, dz);
 
-    public string DebugState() => $"{Ent.Root.Get("id")?.Value} idx={Ent.Root.Get("index")?.Value} class={Ent.Class} placed={Placed} inDialog={inDialog} task={task} pos=({x:0.0},{y:0.0},{z:0.0}) target={target?.Ent.Root.Get("id")?.Value} anim={rig?.ActionName}";
+    public string DebugState() => $"{Ent.Root.Get("id")?.Value} idx={Ent.Root.Get("index")?.Value} class={Ent.Class} placed={Placed} inDialog={inDialog} task={task} pos=({x:0.0},{y:0.0},{z:0.0}) target={target?.Ent.Root.Get("id")?.Value} anim={rig?.ActionName} hp={Ent.Root.Find("chr_ai.hp", false)?.Value}";
 
     static float TurnToward(float cur, float want, float maxStep)
     {
@@ -429,12 +547,22 @@ public partial class CharacterView : Node3D
             case Task.Fight:
             case Task.Escape:
             {
-                if (target == null || !target.Placed) { PlayIdle(); break; }
+                if (target == null || !target.Placed || (task == Task.Fight && !target.IsAlive)) { if (task == Task.Fight) FailFight(); PlayIdle(); break; }
                 float dx = target.x - x, dz = target.z - z, dist = MathF.Sqrt(dx * dx + dz * dz);
                 bool flee = task == Task.Escape;
                 float stop = task == Task.Follow ? 1.8f : 1.2f;
                 bool move = flee ? dist < 8f : dist > stop + (task == Task.Follow ? 0.7f : 0f);
-                if (task == Task.Fight && dist <= 1.9f && target.IsAlive) { Swing(target, dt); break; }
+                if (task == Task.Fight)
+                {
+                    fightAllowed ??= AskIsFight();
+                    if (fightAllowed == false) { FailFight(); PlayIdle(); break; }
+                    if (!fightMode) FightMode = true;
+                    NpcParams();
+                    bool inReach = dist <= (fightState == 2 ? 2.3f : 1.9f);        // a little hysteresis between FightStay and FightGo
+                    SetFightState(inReach ? 2 : 1);
+                    NpcMaybeFire(target, dist, dt);
+                    if (inReach) { NpcFight(target, dt); break; }
+                }
                 if (!move)
                 {
                     ay = TurnToward(ay, Angle(dx, dz), turn * 2f * dt); PlayIdle();
@@ -485,6 +613,7 @@ public partial class CharacterView : Node3D
             {
                 bool blocked = atkTarget.Defends(this);
                 bool parried = blocked && atkTarget.blockAge < 0.3f;                 // a block raised just in time throws the attacker off balance
+                if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
                 atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
                 atkTarget.PlayReaction(blocked);
@@ -509,6 +638,8 @@ public partial class CharacterView : Node3D
         }
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
         if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
+        if (!IsPlayer) { StatNpcSwings++; atkCooldown -= 0.4f; }         // the NPC's own attack rate (NpcFight) paces it, not only the recovery
+        enemy.OnIncomingSwing(this);
         return true;
     }
 
@@ -526,12 +657,6 @@ public partial class CharacterView : Node3D
         Stagger(); atkCooldown = 0.4f;
         float bx = -MathF.Sin(ay) * 1.4f, bz = -MathF.Cos(ay) * 1.4f;
         Step(bx, bz, true);
-    }
-
-    void Swing(CharacterView enemy, float dt)
-    {
-        ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
-        if (!StartSwing(enemy) && atkHitIn < 0f && rig != null && rig.Finished) PlayIdle();
     }
 
     /// <summary>The nearest living person in front of this character within reach (for the player's own attacks).</summary>
@@ -638,6 +763,8 @@ public partial class CharacterView : Node3D
                 {
                     case "InDialog": inDialog = Conv.ToInt(d[2]) != 0; return V.Int(1);
                     case "ChangeFightMode": fightMode = d.Length > 2 && Conv.ToInt(d[2]) != 0; return V.Int(1);
+                    case "SetFightMode": FightMode = d.Length > 2 && Conv.ToInt(d[2]) != 0; return V.Int(1);           // with the draw animation (location login, boarding)
+                    case "IsSetBalde": return V.Int(string.IsNullOrEmpty(Ent.Root.Find("equip.blade", false)?.Value) ? 0 : 1);
                     case "SetSex": case "SetFightWOWeapon": case "LockFightMode": return V.Int(1);
                     case "IsFightMode": return V.Int(fightMode ? 1 : 0);
                     case "IsDead": return V.Int(task == Task.Dead ? 1 : 0);
@@ -663,7 +790,14 @@ public partial class CharacterView : Node3D
             case "Goto point": task = Task.Goto; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
             case "Runto point": task = Task.Run; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
             case "Follow character": task = Task.Follow; target = chr(2); followState = 0; break;
-            case "Fight": task = Task.Fight; target = chr(2); break;
+            case "Fight":
+            {
+                // the fight template re-sends the task on every template update: only a new enemy starts the fight over (events, permission)
+                var enemy = chr(2);
+                if (task != Task.Fight || !ReferenceEquals(enemy, target)) { fightState = 0; fightAllowed = null; }
+                task = Task.Fight; target = enemy;
+                break;
+            }
             case "Escape": task = Task.Escape; target = chr(2); break;
             case "Dead":
                 if (task != Task.Dead && Placed && Visible) ChrSnd("Event_ChrSnd_Dead");

@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 31 subsystems below): **70 %**
+* Overall (mean of the 31 subsystems below): **71 %**
 * Unit tests: **32** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **15092** lines of C# (`StormScript/` library + `game/`)
+* Port code: **15227** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
 | PORT | 16 | 78 % |
-| APPROX | 12 | 57 % |
+| APPROX | 12 | 58 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -42,7 +42,7 @@ Layers (where the behaviour comes from):
 | Language | Ukrainian translation layer | PORT | ███████░░░ 70 % | E | UI texts ~100%, dialogs ~79% machine-translated (gist quality) |
 | Land | Locations (models, lighting, locators, collisions, camera) | PORT | ████████░░ 85 % | V | compared with screenshots; no shadows or animated props |
 | Land | Characters (skinned models, tasks, idle poses, sitting, groups) | PORT | ████████░░ 80 % | V | walk/run/follow/fight tasks work; ragdoll and many animations missing |
-| Land | Melee combat (swings, damage by script, death) | APPROX | █████░░░░░ 55 % | V | timing and attacks are mine; sword and pistol on the body; fight stance, draw/sheathe, block (Ctrl; NPCs by their block skill; script event Location_CharacterBlock), hit reactions, pistol shot (Q; engine recharge of chr_ai.charge); not verified in a live fight, no parry/recoil |
+| Land | Melee combat (swings, damage by script, death) | APPROX | ██████░░░░ 65 % | T | NPC fight AI driven by the script (test melee): rates from NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire, FightGo/FightStay/TaskFailure "Fight", Location_CharacterIsFight (also before the hero draws) / IsFire; damage by Location_CharacterAttack/Block/Fire; block, parry, recoil, hit reactions, NPC pistol shots, engine recharge of chr_ai.charge; how the rates turn into actions and all timings are mine (C++ not available); PotC has no fast/force/round/break attack kinds or energy |
 | Land | Dialogs (window, answers, links) | PORT | █████████░ 90 % | V | works with real quest dialogs |
 | Land | Items on the ground, chests | PORT | ████████░░ 80 % | V | box locators -> OpenBox hint -> original itemsbox screen, items moved both ways (test chest); random/quest items shown (MODELR), picked with fade (MSG_MODEL_BLEND) |
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images) | PORT | ████████░░ 80 % | V | most screens render; KEYCHOOSER, EDITBOX, XBOX, GLOWS missing |
