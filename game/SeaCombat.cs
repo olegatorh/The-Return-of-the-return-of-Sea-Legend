@@ -77,9 +77,13 @@ public partial class SeaView
         float rel = MathF.Atan2(o.X - p.X, o.Z - p.Z) - p.Ay;
         while (rel > MathF.PI) rel -= MathF.Tau;
         while (rel < -MathF.PI) rel += MathF.Tau;
+        // the test hook aims without the gunner's spread (SHIP_GET_BORT_FIRE_DELTA) so the scenario hits every time; the per-ball dispersion stays
+        noSpreadOnce = true;
         FireBort(p, rel >= 0f ? "cannonr" : "cannonl", Dist(p, o));
+        noSpreadOnce = false;
     }
 
+    bool noSpreadOnce;
     static float Dist(ShipRt a, ShipRt b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
 
     /// <summary>One broadside aimed at a point <paramref name="aimDist"/> metres away at water level in the direction of the bort.</summary>
@@ -133,6 +137,7 @@ public partial class SeaView
         if (cannons.Count == 0) return;
         float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
         float rad = Conv.ToFloat(it.FireEvent("ShpGetBortFireDelta", new List<V> { V.A(s.Chr), V.Float(target.X), V.Float(target.Y), V.Float(target.Z) }));
+        if (noSpreadOnce) rad = 0f;
         float ra = Random.Shared.NextSingle() * MathF.Tau;
         target += new Vector3(rad * MathF.Sin(ra), 0f, rad * MathF.Cos(ra));
         var fdir = new Vector3(target.X - s.X, target.Y, target.Z - s.Z).Normalized();
@@ -151,7 +156,7 @@ public partial class SeaView
         float recharge = Math.Max(2f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(s.Chr) })));
         s.ReadyAt[bort] = clock + recharge;
         float dist = MathF.Sqrt((target.X - s.X) * (target.X - s.X) + (target.Z - s.Z) * (target.Z - s.Z));
-        GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), recharge {recharge:0.0} s");
+        GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), delays {shots.Min(q => q.at - clock):0.0}-{shots.Max(q => q.at - clock):0.0} s, recharge {recharge:0.0} s");
         it.FireEvent("Ship_Bort_Fire", new List<V> { V.Int(s.Index), V.A(s.Chr), V.Str(bort), V.Float(target.X), V.Float(target.Y), V.Float(target.Z), V.Float(fdir.X), V.Float(fdir.Y), V.Float(fdir.Z) });
         foreach (var q in shots) queued.Add((q.at, s, q.local, bort, q.dir, q.elev));
         if (s.IsPlayer) FireAction(s, BortDir(s, bort), v0 * v0 / G);                    // ships in the sector learn that they were fired at (SeaAI.cs)
@@ -182,7 +187,8 @@ public partial class SeaView
         var p = BallStart(s, local);
         (v0, dir, elev) = CannonFire(s.Chr, p, v0, dir, elev);
         var v = new Vector3(MathF.Sin(dir) * MathF.Cos(elev), MathF.Sin(elev), MathF.Cos(dir) * MathF.Cos(elev)) * v0;
-        ballMesh ??= new SphereMesh { Radius = 0.8f, Height = 1.6f, RadialSegments = 8, Rings = 4 };
+        // the ball sprite of AIBalls is AIBalls.Balls.<type>.Size (0.2 m, bombs 0.3) x SizeMultiply; drawn as a dark sphere of that radius
+        ballMesh ??= new SphereMesh { Radius = 0.25f, Height = 0.5f, RadialSegments = 8, Rings = 4 };
         ballMat ??= new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.12f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         var n = new MeshInstance3D { Mesh = ballMesh, MaterialOverride = ballMat };
         AddChild(n);
@@ -204,6 +210,8 @@ public partial class SeaView
         }
         return (v0, dir, elev);
     }
+
+    float BallSpeedMultiply() => it.Globals.TryGetValue("AIBalls", out var g) && g.Val.Attr?.Get("SpeedMultiply")?.Value is { Length: > 0 } m ? Math.Max(0.1f, Conv.ParseFloatPrefix(m)) : 1f;
 
     void TickCombat(float dt)
     {
@@ -232,18 +240,19 @@ public partial class SeaView
             float h = Conv.ToFloat(it.FireEvent("CannGFHeight", new List<V> { V.A(s.Chr), V.A(tgt.Chr) }));
             float ft = Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) }));
             float v0 = Math.Max(10f, F(s.Chr.Find("Ship", false), "Cannons.SpeedV0", 50f));
-            float lead = tgt.Speed * (d / v0 + ft);
+            float lead = tgt.Speed * (1853f / 3600f) * (d / (v0 * BallSpeedMultiply()) + ft);         // knots -> m/s; the ball flies SpeedMultiply x faster
             FireBort(s, bort, new Vector3(tgt.X + MathF.Sin(tgt.Ay) * lead, h, tgt.Z + MathF.Cos(tgt.Ay) * lead));
         }
         TickNotEnoughBalls();
-        // flight
+        // flight: AIBalls::Execute advances the ball time by dt x AIBalls.SpeedMultiply (AIBalls.c: 3), the trajectory is the real one
+        float bdt = dt * BallSpeedMultiply();
         for (int i = balls.Count - 1; i >= 0; i--)
         {
             var b = balls[i];
-            b.Life += dt;
+            b.Life += bdt;
             var from = b.P;
-            b.V.Y -= G * dt;
-            b.P += b.V * dt;
+            b.V.Y -= G * bdt;
+            b.P += b.V * bdt;
             b.Node.Position = new Vector3(b.P.X, b.P.Y, -b.P.Z);
             bool done = false;
             foreach (var o in ships) if (o.Index != b.Owner && !o.Dying && InsideRigging(o, b.P)) RiggingPass(o, b, from);      // masts and sails it touches (SeaSails.cs)

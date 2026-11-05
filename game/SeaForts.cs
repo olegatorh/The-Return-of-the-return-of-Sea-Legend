@@ -15,7 +15,7 @@ namespace SeaDogs;
 /// </summary>
 public partial class SeaView
 {
-    sealed class FortCannon { public Vector3 Pos; public float Damage, Next, Dir; public bool Dead; }
+    sealed class FortCannon { public Vector3 Pos; public float Damage, Next, Dir, FireIn = -1f; public bool Dead; public Vector3 Aim; }
 
     sealed class Fort { public Attr Chr = null!; public int Index; public List<FortCannon> Cannons = new(); public Attr? Island; }
 
@@ -76,12 +76,26 @@ public partial class SeaView
             if (Conv.ToInt(V.Str(f.Chr.Find("Fort.Mode", false)?.Value ?? "0")) != 0) continue;        // only a fort in normal mode shoots
             var sh = f.Chr.Find("Ship", false);
             if (sh == null) continue;
-            float v0 = Math.Max(20f, F(sh, "Cannons.SpeedV0", 70f)), range = v0 * v0 / G;
+            float v0 = Math.Max(20f, F(sh, "Cannons.SpeedV0", 70f));
             foreach (var c in f.Cannons)
             {
                 if (c.Dead) continue;
+                // AICannon::Fire: the shot leaves after the script's fire delay (CANNON_GET_FIRE_TIME), at the elevation that reaches the aim point
+                if (c.FireIn >= 0f)
+                {
+                    c.FireIn -= dt;
+                    if (c.FireIn < 0f)
+                    {
+                        float dir = MathF.Atan2(c.Aim.X - c.Pos.X, c.Aim.Z - c.Pos.Z);
+                        LaunchRaw(f.Chr, c.Pos, f.Index, (int)F(sh, "Cannons.Charge.Type"), v0, dir, HeightFireAngle(v0, c.Pos, c.Aim));
+                        c.Next = Math.Max(1f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(f.Chr) })));      // CANNON_GET_RECHARGE_TIME
+                    }
+                    continue;
+                }
                 c.Next -= dt;
                 if (c.Next > 0f) continue;
+                // AIFort::Execute: once a second every loaded cannon looks for the nearest enemy within CalcMaxFireDistance(cannon height, v0, 0.35)
+                float range = MaxFireDistance(c.Pos.Y, v0, 0.35f);
                 // the nearest enemy ship in range
                 ShipRt? best = null; float bd = range;
                 foreach (var s in ships)
@@ -90,13 +104,11 @@ public partial class SeaView
                     float dd = MathF.Sqrt((s.X - c.Pos.X) * (s.X - c.Pos.X) + (s.Z - c.Pos.Z) * (s.Z - c.Pos.Z));
                     if (dd < bd && Relation(f.Index, s.Index) == 2) { bd = dd; best = s; }
                 }
-                c.Next = 0.5f;                                      // look again soon
+                c.Next = 1f;                                        // the fort's one second fire timer
                 if (best == null) continue;
                 if (!Conv.ToBool(it.FireEvent("CannLoad", new List<V> { V.A(f.Chr) }))) { c.Next = 5f; continue; }
-                float dir = MathF.Atan2(best.X - c.Pos.X, best.Z - c.Pos.Z);
-                float elev = 0.5f * MathF.Asin(Math.Clamp(G * bd / (v0 * v0), 0f, 1f));
-                LaunchRaw(f.Chr, new Vector3(c.Pos.X, c.Pos.Y, c.Pos.Z), f.Index, (int)F(sh, "Cannons.Charge.Type"), v0, dir, elev + 0.01f);
-                c.Next = Math.Max(4f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(f.Chr) })) * 0.5f) + Random.Shared.NextSingle() * 3f;
+                c.Aim = new Vector3(best.X, 0f, best.Z);
+                c.FireIn = Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(f.Chr) })));
             }
         }
     }
@@ -105,7 +117,7 @@ public partial class SeaView
     {
         (v0, dir, elev) = CannonFire(chr, p, v0, dir, elev);                       // dispersion, smoke and sound by the script (SeaCombat.cs)
         var v = new Vector3(MathF.Sin(dir) * MathF.Cos(elev), MathF.Sin(elev), MathF.Cos(dir) * MathF.Cos(elev)) * v0;
-        ballMesh ??= new SphereMesh { Radius = 0.8f, Height = 1.6f, RadialSegments = 8, Rings = 4 };
+        ballMesh ??= new SphereMesh { Radius = 0.25f, Height = 0.5f, RadialSegments = 8, Rings = 4 };
         ballMat ??= new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.12f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
         var n = new MeshInstance3D { Mesh = ballMesh, MaterialOverride = ballMat };
         AddChild(n);
