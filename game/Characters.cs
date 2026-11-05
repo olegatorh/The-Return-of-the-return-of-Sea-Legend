@@ -20,6 +20,8 @@ public partial class CharacterView : Node3D
     public static readonly Dictionary<Attr, CharacterView> All = new();
     /// <summary>EX_MSG "FindDialogCharacter": index of the character the player can talk to, -1 = nobody (set by Main).</summary>
     public static Func<int>? FindDialog;
+    /// <summary>The locators of a group of the current location in file order (FindForvardLocator).</summary>
+    public static Func<string, IEnumerable<GmFile.Label>>? GroupLocators;
 
     readonly Interp it;
     public readonly Entity Ent;
@@ -1085,6 +1087,9 @@ void fragment() {
                 SetTask(S(1), d, Chr);
                 return V.Int(1);
             case 30401: case 30402: return V.Int(1);                                       // PUSHTASK / POPTASK
+            case 30403:                                                                    // GETTASK "le": the name np_character.cpp GetTaskName gives
+                if (d.Length > 1) it.WriteRef(d[1], V.Str(task switch { Task.None => "None", Task.Stay => "Stay", Task.Goto => "Goto point", Task.Run => "Runto point", Task.Follow => "Follow character", Task.Fight => "Fight", Task.Escape => "Escape", Task.Dead => "Dead", _ => "Unknow task" }));
+                return V.Int(1);
             case 30373:                                                                    // EX_MSG: queries and switches
                 switch (S(1))
                 {
@@ -1096,6 +1101,34 @@ void fragment() {
                     case "IsFightMode": return V.Int(fightMode ? 1 : 0);
                     case "IsDead": return V.Int(task == Task.Dead ? 1 : 0);
                     case "FindDialogCharacter": return V.Int(FindDialog?.Invoke() ?? -1);
+                    case "IsActive": return V.Int(rig != null && !rig.ActionName.StartsWith("idle", StringComparison.OrdinalIgnoreCase) ? 1 : 0);     // character.cpp isActiveState: anything but standing idle
+                    case "DistToLocator":                                                  // "lssse": group, locator, &distance (3D); -1 and 0 when there is no such locator
+                    {
+                        var l = findLocator(S(2), S(3));
+                        if (l == null) { if (d.Length > 4) it.WriteRef(d[4], V.Float(-1f)); return V.Int(0); }
+                        float dx = l.M[12] - x, dy = l.M[13] - y, dz = l.M[14] - z;
+                        if (d.Length > 4) it.WriteRef(d[4], V.Float(MathF.Sqrt(dx * dx + dy * dy + dz * dz)));
+                        return V.Int(1);
+                    }
+                    case "FindForvardLocator":                                             // "lsse": group, &name: the locator most in front of the character (supervisor.cpp FindForvardLocator)
+                    {
+                        string found = "";
+                        float fx = MathF.Sin(ay), fz = MathF.Cos(ay), best = 0f;
+                        int pick = -1, i = 0;
+                        foreach (var l in GroupLocators?.Invoke(S(2)) ?? Array.Empty<GmFile.Label>())
+                        {
+                            float lx = l.M[12] - x, lz = l.M[14] - z, cs = lx * lx + lz * lz;
+                            if (cs > 0f)
+                            {
+                                float k = (lx * fx + lz * fz) / MathF.Sqrt(cs);
+                                if (pick > 0) { if (k > best) { pick = i; best = k; found = l.Name; } }     // the original keeps "l > 0" here: index 0 is replaced by the next one
+                                else { pick = i; best = k; found = l.Name; }
+                            }
+                            i++;
+                        }
+                        if (d.Length > 3) it.WriteRef(d[3], V.Str(found));
+                        return V.Int(pick >= 0 ? 1 : 0);
+                    }
                     default: return V.Int(0);                                              // IsActive, FindDialogCharacter, ...
                 }
             case 30370: return V.Int(0);                                                   // FINDNEAR
