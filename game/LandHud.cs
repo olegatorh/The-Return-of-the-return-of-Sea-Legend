@@ -16,7 +16,7 @@ namespace SeaDogs;
 /// whether a command needs a second choice (BI_COMMODE_USER_ICONS: fast travel places, potions ...) and BI_LaunchCommand executes it.
 /// While the menu is open objLandInterface.ComState != 0 (the script then switches to "BattleInterfaceControls").</item>
 /// </list>
-/// Positions follow BLI_SetShowParameters / BLI_SetCommandParameters (values for a 640x480 screen: icons 64x64 at left+16, top = bottom-80, 8 apart;
+/// Positions follow BLI_SetShowParameters / BLI_SetCommandParameters (pixels of the 800x600 design screen, drawn at UiLayout.Hud scale: icons 64x64 at left+16, top = bottom-80, 8 apart;
 /// bars 64x16; command icons 4 apart, caption 28 above). The script's own values are computed from showWindow, which this engine never sets, so the
 /// constants are used here, anchored to the real bottom left corner of the wide window.
 /// </summary>
@@ -460,6 +460,9 @@ public partial class LandHud : CanvasLayer
         Visible = on;
         if (!on) return;
         var vis = root.GetViewportRect().Size;
+        // the script lays the HUD out in pixels of the real screen (800 x 600 design): scaled about the bottom left corner to 540 / 600 of the base canvas
+        portraits.Scale = menu.Scale = new Vector2(UiLayout.Hud, UiLayout.Hud);
+        portraits.PivotOffset = menu.PivotOffset = new Vector2(0, vis.Y);
         portraits.Visible = level == Level.None;            // the command icons take the place of the portraits
         if (portraits.Visible) UpdatePortraits(vis);
         UpdateMenu(vis);

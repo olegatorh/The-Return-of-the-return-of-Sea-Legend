@@ -102,7 +102,9 @@ public partial class SeaHud : CanvasLayer
         pointer.Visible = false;
         root.AddChild(pointer);
         menuBox.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
-        menuBox.OffsetLeft = 24; menuBox.OffsetTop = -190; menuBox.OffsetRight = 24 + 560; menuBox.OffsetBottom = -82;
+        // BattleInterface.CommandShowParam: icons 64 x 64, 4 apart, left 16, top = bottom - 80, the note 28 above (800 x 600 pixels at UiLayout.Hud scale)
+        menuBox.OffsetLeft = 16 * UiLayout.Hud; menuBox.OffsetTop = -(80 + 28) * UiLayout.Hud; menuBox.OffsetRight = (16 + 560) * UiLayout.Hud; menuBox.OffsetBottom = -16 * UiLayout.Hud;
+        menuBox.Scale = new Vector2(UiLayout.Hud, UiLayout.Hud);
         root.AddChild(menuBox);
         debug.Visible = false;
         root.AddChild(debug);
@@ -408,25 +410,25 @@ public partial class SeaHud : CanvasLayer
         menuSig = sig;
         foreach (var c in menuBox.GetChildren()) c.QueueFree();
         if (m == null || !m.Open) return;
-        const int Show = 8; const float W = 70;
+        const int Show = 8; const float W = 68;
         int first = Math.Clamp(m.Selected - Show / 2, 0, Math.Max(0, m.Items.Count - Show));
-        var title = MakeLabel(16); title.Text = m.Title; title.Position = new Vector2(0, 0); title.Size = new Vector2(560, 22); menuBox.AddChild(title);
+        var title = MakeLabel(16); title.Text = m.Title; title.Position = new Vector2(0, -26); title.Size = new Vector2(560, 22); menuBox.AddChild(title);
         for (int i = first; i < Math.Min(m.Items.Count, first + Show); i++)
         {
             var it = m.Items[i];
             bool sel = i == m.Selected;
             var b = new TextureButton { TextureNormal = sel ? it.IconSelected ?? it.Icon : it.Icon, IgnoreTextureSize = true, StretchMode = TextureButton.StretchModeEnum.Scale,
-                Position = new Vector2((i - first) * W, 44), Size = new Vector2(64, 64), FocusMode = Control.FocusModeEnum.None, Modulate = it.Enabled ? Colors.White : new Color(1, 1, 1, 0.35f) };
+                Position = new Vector2((i - first) * W, 28), Size = new Vector2(64, 64), FocusMode = Control.FocusModeEnum.None, Modulate = it.Enabled ? Colors.White : new Color(1, 1, 1, 0.35f) };
             int idx = i; b.Pressed += () => pick?.Invoke(idx);
             menuBox.AddChild(b);
-            var num = MakeLabel(13, new Color(1f, 0.85f, 0.4f)); num.Text = (i + 1).ToString(); num.Position = new Vector2((i - first) * W + 3, 44); menuBox.AddChild(num);
+            var num = MakeLabel(13, new Color(1f, 0.85f, 0.4f)); num.Text = (i + 1).ToString(); num.Position = new Vector2((i - first) * W + 3, 28); menuBox.AddChild(num);
             if (sel)
             {
-                var note = MakeLabel(15); note.Text = it.Label; note.Position = new Vector2(0, 24); note.Size = new Vector2(560, 20); menuBox.AddChild(note);
-                menuBox.AddChild(new ColorRect { Position = new Vector2((i - first) * W - 2, 42), Size = new Vector2(68, 2), Color = new Color(1f, 0.85f, 0.4f), MouseFilter = Control.MouseFilterEnum.Ignore });
+                var note = MakeLabel(15); note.Text = it.Label; note.Position = new Vector2(0, 0); note.Size = new Vector2(560, 20); menuBox.AddChild(note);
+                menuBox.AddChild(new ColorRect { Position = new Vector2((i - first) * W - 2, 26), Size = new Vector2(68, 2), Color = new Color(1f, 0.85f, 0.4f), MouseFilter = Control.MouseFilterEnum.Ignore });
             }
         }
-        if (first > 0) { var l = MakeLabel(20); l.Text = "◄"; l.Position = new Vector2(-18, 62); menuBox.AddChild(l); }
-        if (first + Show < m.Items.Count) { var l = MakeLabel(20); l.Text = "►"; l.Position = new Vector2(Show * W - 4, 62); menuBox.AddChild(l); }
+        if (first > 0) { var l = MakeLabel(20); l.Text = "◄"; l.Position = new Vector2(-18, 46); menuBox.AddChild(l); }
+        if (first + Show < m.Items.Count) { var l = MakeLabel(20); l.Text = "►"; l.Position = new Vector2(Show * W - 4, 46); menuBox.AddChild(l); }
     }
 }
