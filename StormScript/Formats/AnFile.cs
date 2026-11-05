@@ -54,6 +54,7 @@ public sealed class AniActions
         public int Start, End;
         public float Speed = 1f;
         public bool Reverse;
+        public bool Loop = true;           // loop = false in the .ani marks a one-shot action (animation_service_imp.cpp: the default is looping)
         public Dictionary<string, string> Data = new(StringComparer.OrdinalIgnoreCase);
         /// <summary>event = "LStep", 6, normal: the engine reacts when playback passes the frame (steps, sword sounds, the body falling).
         /// Reverse = the event belongs to reverse playback (back walk).</summary>
@@ -99,6 +100,7 @@ public sealed class AniActions
                 case "start_time": cur.Start = (int)float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "end_time": cur.End = (int)float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); break;
                 case "speed": cur.Speed = float.Parse(v, System.Globalization.CultureInfo.InvariantCulture); break;
+                case "loop": cur.Loop = !v.Equals("false", StringComparison.OrdinalIgnoreCase); break;
                 case "type": cur.Reverse = v.Equals("reverse", StringComparison.OrdinalIgnoreCase); break;
                 case "event":
                 {

@@ -742,7 +742,7 @@ public partial class Main : Node
             player.CameraYaw = camYaw;
         }
 
-        if (dt > 0f) GroupsState.Tick(dt);
+        if (dt > 0f) GroupsState.Tick(host.It, dt);
         foreach (var c in list) { c.SetTimeScale(scale); c.ShowNameTag(nameTags); c.Tick(dt); }
         CharacterView.PostMove(list, dt);
 
@@ -905,6 +905,17 @@ public partial class Main : Node
         return f <= 0.5f ? 0.5f + f : f * 2f;          // SetRealMouseSensitivity() of CONTROLS\controls.c
     }
 
+    /// <summary>DX9RENDER::SetCamera: every frame the renderer tells the script where the camera is (position and angles in Direct3D space); the lightning of the storms uses it.</summary>
+    void RaiseCameraPosAng()
+    {
+        if (GetViewport().GetCamera3D() is not { } c) return;
+        var p = c.GlobalPosition;
+        var f = -c.GlobalTransform.Basis.Z;                      // Godot -> Direct3D: z is mirrored
+        var n = new Vector3(f.X, f.Y, -f.Z);
+        float ay = MathF.Atan2(n.X, n.Z), ax = MathF.Atan2(-n.Y, MathF.Sqrt(n.X * n.X + n.Z * n.Z));
+        host.It.FireEvent("CameraPosAng", new List<V> { V.Float(p.X), V.Float(p.Y), V.Float(-p.Z), V.Float(ax), V.Float(ay), V.Float(0f) });
+    }
+
     LocationView? CurrentLocation() { foreach (var l in locations.Values) return l; return null; }
 
     /// <summary>
@@ -1021,6 +1032,7 @@ public partial class Main : Node
         if (wantCapture != mouseCaptured) { mouseCaptured = wantCapture; Input.MouseMode = wantCapture ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible; }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         UpdateWorld((float)delta);
+        RaiseCameraPosAng();
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
         host.It.Advance((int)(delta * 1000));
         long t2 = System.Diagnostics.Stopwatch.GetTimestamp();

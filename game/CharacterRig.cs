@@ -37,6 +37,9 @@ public partial class CharacterRig : Node3D
            && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : fallback;
     public string ActionName => curName;
 
+    /// <summary>False for a one-shot action ("loop = false" in the .ani): it stops on its last frame and the engine reports its end.</summary>
+    public bool ActionLoops(string action) => !ani.Actions.TryGetValue(action, out var a) || a.Loop;
+
     /// <summary>Play time (seconds) of an action and the moment of its strike: the "Attack*" event of the .ani (frame - start) / (file fps * speed). Null if unknown.</summary>
     public (float hit, float duration)? SwingTiming(string action)
     {

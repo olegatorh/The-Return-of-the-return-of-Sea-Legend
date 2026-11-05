@@ -435,10 +435,20 @@ void fragment() {
             }
         }
         string want = scriptAction.Length > 0 ? scriptAction : "idle_2";
-        if (playing == want) return;
-        if (!rig.Play(want, true)) rig.Play("idle_2", true);
-        playing = want;
+        if (playing != want)
+        {
+            // ACTIONPLAY: the action plays as the .ani says (most stand-ins loop, "loop = false" ones play once)
+            if (!rig.Play(want, scriptAction.Length == 0 || rig.ActionLoops(want))) rig.Play("idle_2", true);
+            playing = want; endActionSent = false;
+        }
+        // Character::EventListener: the end of a one-shot user action is reported once (the "ani" template completes its animation by it)
+        if (scriptAction.Length > 0 && !endActionSent && !rig.ActionLoops(want) && rig.Finished)
+        {
+            endActionSent = true;
+            it.FireEvent("Location_Character_EndAction", new List<V> { V.A(Ent.Root) });
+        }
     }
+    bool endActionSent;
 
     // ------------------------------------------------------------------ locomotion (location/src/character.cpp: Move/Update, ai_character.cpp, supervisor.cpp)
     // The character walks along its heading at a speed blended towards the action's "Walk speed" (Blender: old + t^0.1 * delta over "Blend time"),

@@ -26,12 +26,42 @@ public static class GroupsState
     static Group G(string n) { n = n.ToLowerInvariant(); if (!groups.TryGetValue(n, out var g)) groups[n] = g = new Group(); return g; }
     static (string, string) K(string a, string b) => (a.ToLowerInvariant(), b.ToLowerInvariant());
 
-    public static void Tick(float dt)
+    // characters_groups.cpp: a relation is "active" once its alarm reaches CGS_ALARMMAX (0.7) and stays so until it falls to CGS_ALARMMIN (0.3)
+    const float AlarmMin = 0.3f, AlarmMax = 0.7f;
+    static readonly HashSet<(string, string)> active = new();
+
+    static void UpdActive((string, string) k)
+    {
+        float a = alarm.GetValueOrDefault(k);
+        if (a <= AlarmMin) active.Remove(k);
+        if (a >= AlarmMax) active.Add(k);
+    }
+
+    /// <summary>
+    /// CharactersGroups::Execute: the alarm fades; then the script is told how things stand for the player every frame (event CharacterGroup_UpdateAlarm "fl": the highest
+    /// alarm of a hostile group, and whether such a group has somebody with the sword out in an active relation) - the script turns it into the battle music, the alarm
+    /// bar of the land interface and the hero's sword timeout.
+    /// </summary>
+    public static void Tick(Interp it, float dt)
     {
         foreach (var k in alarm.Keys.ToList())
         {
             float down = alarmDown.TryGetValue(k, out var d) ? d : 0.02f;
             if (alarm[k] > 0f) alarm[k] = Math.Max(0f, alarm[k] - down * dt);
+            UpdActive(k);
+        }
+        var members = CharacterView.All.Values.Where(c => c.Placed).ToList();
+        if (members.Count > 0)
+        {
+            float playerAlarm = 0f; bool playerActive = false;
+            foreach (var g in members.Select(c => GroupOf(c.Ent.Root)).Where(g => g.Length > 0 && !string.Equals(g, "player", StringComparison.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (Relation("player", g) != "enemy") continue;
+                var k1 = K("player", g); var k2 = K(g, "player");
+                playerAlarm = Math.Max(playerAlarm, Math.Max(alarm.GetValueOrDefault(k1), alarm.GetValueOrDefault(k2)));
+                if ((active.Contains(k1) || active.Contains(k2)) && members.Any(c => c.FightMode && string.Equals(GroupOf(c.Ent.Root), g, StringComparison.OrdinalIgnoreCase))) playerActive = true;
+            }
+            it.FireEvent("CharacterGroup_UpdateAlarm", new List<V> { V.Float(playerAlarm), V.Int(playerActive ? 1 : 0) });
         }
         foreach (var l in targets.Values)
             for (int i = l.Count - 1; i >= 0; i--)
@@ -121,7 +151,7 @@ public static class GroupsState
             case "SetGroupPriority": G(S(1)).Priority = (int)F(2); return V.Int(1);
             case "SetRelation": relation[K(S(1), S(2))] = S(3); return V.Int(1);
             case "SetAlarmReaction": reaction[K(S(1), S(2))] = (S(3), S(4)); return V.Int(1);
-            case "SetAlarm": alarm[K(S(1), S(2))] = F(3); return V.Int(1);
+            case "SetAlarm": { var k = K(S(1), S(2)); alarm[k] = Math.Clamp(F(3), 0f, 1f); UpdActive(k); return V.Int(1); }
             case "SetAlarmDown": alarmDown[K(S(1), S(2))] = F(3); return V.Int(1);
             case "GetTrg":                                                  // chr, &index
             {
@@ -138,7 +168,13 @@ public static class GroupsState
             case "Attack":                                                  // group of the attacker, group of the victim: raise the alarm
             {
                 string a = S(1), b = S(2);
-                alarm[K(a, b)] = 1f; alarm[K(b, a)] = 1f;
+                alarm[K(a, b)] = 1f; alarm[K(b, a)] = 1f; active.Add(K(a, b)); active.Add(K(b, a));
+                // MsgAttack: the victim's friends become the attacker's enemies as well
+                foreach (var other in groups.Keys.ToList())
+                {
+                    if (string.Equals(other, a, StringComparison.OrdinalIgnoreCase) || string.Equals(other, b, StringComparison.OrdinalIgnoreCase) || Relation(b, other) != "friend") continue;
+                    alarm[K(a, other)] = 1f; alarm[K(other, a)] = 1f; active.Add(K(a, other)); active.Add(K(other, a));
+                }
                 return V.Int(1);
             }
             case "AddTarget":                                               // victim, attacker, seconds to remember
