@@ -675,6 +675,29 @@ public sealed partial class Interp
                 if (dst != null) dst.Val = src.T == VT.Attr ? src : V.A(null);
                 return (true, V.Void);
             }
+            case "findclass":
+            case "findclassnext":
+            {
+                // FindClass(&arModel, "modelr") / FindClassNext(&arModel) on an aref: the aref is re-pointed at the entity's attribute root (the engine's semantics);
+                // objects are bound by the builtins instead
+                if (c.Args.Count < 1 || c.Args[0] is not UnaryExpr { Op: "&", Operand: IdentExpr aid } || FindSlot(aid.Name, f) is not { Arr: null } s
+                    || !string.Equals(s.Type, "aref", StringComparison.OrdinalIgnoreCase)) return (false, V.Void);
+                Entity? found;
+                if (lname == "findclass")
+                {
+                    string cls = Conv.ToStr(Eval(c.Args[1], f));
+                    found = Entities.FirstOrDefault(x => !x.Deleted && string.Equals(x.Class, cls, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    var cur = s.Val.Attr?.Entity;
+                    int at = cur == null ? -1 : Entities.IndexOf(cur);
+                    found = at < 0 ? null : Entities.Skip(at + 1).FirstOrDefault(x => !x.Deleted && string.Equals(x.Class, cur!.Class, StringComparison.OrdinalIgnoreCase));
+                }
+                if (found == null) return (true, V.Int(0));
+                s.Val = V.A(found.Root);
+                return (true, V.Int(1));
+            }
             case "makearef":
             {
                 if (c.Args.Count != 2) return (true, V.Void);

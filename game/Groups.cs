@@ -74,11 +74,32 @@ public static class GroupsState
         if (targets.TryGetValue(IndexOf(chr), out var list))
             foreach (var (a, _) in list.OrderBy(t => t.time))
                 if (Find(a) is { } c && c.Placed && c.IsAlive) return a;
-        float look = G(GroupOf(chr)).Look;
+        var grp = G(GroupOf(chr));
+        int best = Seen(me, grp.Look);
+        if (best >= 0) return best;
+        // nobody in sight: the engine's group "say" radius - a mate within it who sees an enemy tells the others (boarding crews across the deck find each other)
+        float bd = float.MaxValue;
+        foreach (var m in CharacterView.All.Values)
+        {
+            if (ReferenceEquals(m, me) || !m.Placed || !m.IsAlive || !string.Equals(GroupOf(m.Ent.Root), GroupOf(chr), StringComparison.OrdinalIgnoreCase)) continue;
+            var q = m.ScriptPos - me.ScriptPos;
+            if (q.X * q.X + q.Z * q.Z > grp.Say * grp.Say) continue;
+            int t = Seen(m, grp.Look);
+            if (t < 0 || Find(t) is not { } tv) continue;
+            var p = tv.ScriptPos - me.ScriptPos;
+            float d2 = p.X * p.X + p.Z * p.Z;
+            if (d2 < bd) { bd = d2; best = t; }
+        }
+        return best;
+    }
+
+    /// <summary>The nearest living enemy of <paramref name="me"/> within <paramref name="look"/> metres (plan distance), or -1.</summary>
+    static int Seen(CharacterView me, float look)
+    {
         int best = -1; float bd = look * look;
         foreach (var c in CharacterView.All.Values)
         {
-            if (ReferenceEquals(c, me) || !c.Placed || !c.IsAlive || !Enemy(chr, c.Ent.Root)) continue;
+            if (ReferenceEquals(c, me) || !c.Placed || !c.IsAlive || !Enemy(me.Ent.Root, c.Ent.Root)) continue;
             var p = c.ScriptPos - me.ScriptPos;
             float d2 = p.X * p.X + p.Z * p.Z;
             if (d2 < bd) { bd = d2; best = IndexOf(c.Ent.Root); }

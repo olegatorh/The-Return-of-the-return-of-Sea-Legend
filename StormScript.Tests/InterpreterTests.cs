@@ -228,4 +228,13 @@ public sealed class InterpreterTests : IDisposable
         Assert.Equal("1", Str(h, "r"));
         Assert.Equal("0", Str(h, "n"));
     }
+
+    [Fact]
+    public void FindClassNextWalksAllEntitiesOfTheClass()
+    {
+        // Abordage_ReloadEndFade (AIAbordage.c): if (FindClass(&arModel, "modelr")) { ...; while (FindClassNext(&arModel)) { ... } }
+        var h = Run(@"object A; object B; object C; int n; void Test() { CreateEntity(&A, ""modelr""); CreateEntity(&B, ""model""); CreateEntity(&C, ""modelr"");
+            aref m; if (FindClass(&m, ""modelr"")) { n = 1; while (FindClassNext(&m)) { n++; } } }");
+        Assert.Equal("2", Str(h, "n"));
+    }
 }

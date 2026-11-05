@@ -105,3 +105,57 @@ public partial class LogHud : Control
         foreach (var (l, _) in lines) l.Visible = visibleLog;
     }
 }
+
+/// <summary>
+/// The engine's "IBoardingStatus" (BATTLE_INTERFACE): two strips with the crews' strength during boarding. The script sets the place and colours as attributes
+/// (myLeft/myTop/enemyLeft/enemyTop/width/height/myColor/enemyColor), LOG_INIT_CHARCTER_HP 45025 shows it and LOG_SET_CHARCTER_HP 45024 "ff" sets both fractions
+/// (DrawCharacterHP in LogInterface.c; no script of the addon calls it, the entity only exists if a mod does).
+/// </summary>
+public partial class BoardingStatus : Control
+{
+    readonly ColorRect myBack = new(), myBar = new(), enemyBack = new(), enemyBar = new();
+    public readonly Entity Ent;
+
+    public BoardingStatus(Entity e)
+    {
+        Ent = e;
+        Name = "BoardingStatus";
+        MouseFilter = MouseFilterEnum.Ignore;
+        ZIndex = 50;
+        foreach (var r in new[] { myBack, myBar, enemyBack, enemyBar }) { r.MouseFilter = MouseFilterEnum.Ignore; AddChild(r); }
+        myBack.Color = enemyBack.Color = new Color(0, 0, 0, 0.5f);
+        Visible = false;
+    }
+
+    static Color Argb(string? v, Color def)
+    {
+        if (v == null || !long.TryParse(v, out long x)) return def;
+        uint u = (uint)x;
+        return new Color(((u >> 16) & 255) / 255f, ((u >> 8) & 255) / 255f, (u & 255) / 255f, ((u >> 24) & 255) / 255f);
+    }
+
+    float A(string name, float def) => Ent.Root.Get(name)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
+
+    public V OnMessage(V[] d)
+    {
+        int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
+        if (msg == 45025)
+        {
+            // interface space (640x480 core at 40,30 like the log)
+            float w = A("width", 120), h = A("height", 8);
+            myBack.Position = myBar.Position = new Vector2(40 + A("myLeft", 16), 30 + A("myTop", 340));
+            enemyBack.Position = enemyBar.Position = new Vector2(40 + A("enemyLeft", 16), 30 + A("enemyTop", 352));
+            myBack.Size = myBar.Size = enemyBack.Size = enemyBar.Size = new Vector2(w, h);
+            myBar.Color = Argb(Ent.Root.Get("myColor")?.Value, new Color(0, 0, 0.5f));
+            enemyBar.Color = Argb(Ent.Root.Get("enemyColor")?.Value, new Color(0.5f, 0, 0));
+            Visible = true;
+        }
+        else if (msg == 45024 && d.Length > 2)
+        {
+            float w = A("width", 120);
+            myBar.Size = new Vector2(w * Math.Clamp(Conv.ToFloat(d[1]), 0f, 1f), myBar.Size.Y);
+            enemyBar.Size = new Vector2(w * Math.Clamp(Conv.ToFloat(d[2]), 0f, 1f), enemyBar.Size.Y);
+        }
+        return V.Int(1);
+    }
+}

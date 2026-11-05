@@ -52,7 +52,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 ### 1.2 Море
 | Клас (DLL) | Оригінал | Порт | Докази | Що зробити |
 |---|---|---|---|---|
-| `sea_ai` (sea_ai) | кораблі, групи, задачі, гармати | 🟡 обробляє 51001, 51010, 51011, 51017, 51018, 51021-51025, 51027; **немає** `SWAP_SHIPS` 51014 (захоплення корабля після абордажу), `SET_OFFICER_2_SHIP` 51013, `SHIP_CHANGE_GROUP` 51012, `CHARACTER_DEAD` 51026, `UPDATE_RELATIONS` 51016, `SET_COMPANION_ENEMY` 51028, `GROUP_SET_TYPE` 51020, `GROUP_SET_LOCATION_OTHER_GROUP` 51019 (переслідування), `CANNON_FIRE/RELOAD` 51002/51003, `SET_CAMERAS_ATTRIBUTE` 51004 | `Sea.cs:180-226` | **51014/51013/51026/51016** — без них захоплення кораблів і зміна відносин не відображаються |
+| `sea_ai` (sea_ai) | кораблі, групи, задачі, гармати | 🟡 обробляє 51001, 51010, 51011, 51013 (`SET_OFFICER_2_SHIP`: офіцер приймає захоплений корабель), 51014 (`SWAP_SHIPS`: капітани міняються кораблями), 51017, 51018, 51021-51027 (51026 `CHARACTER_DEAD`: корабель тоне); **немає** `SHIP_CHANGE_GROUP` 51012, `UPDATE_RELATIONS` 51016, `SET_COMPANION_ENEMY` 51028, `GROUP_SET_TYPE` 51020, `GROUP_SET_LOCATION_OTHER_GROUP` 51019 (переслідування), `CANNON_FIRE/RELOAD` 51002/51003, `SET_CAMERAS_ATTRIBUTE` 51004 | `Sea.cs:180-226` | **51016/51012** — зміна відносин і груп |
 | `Ship` (ship) | модель, фізика, пожежі, імпульси | 🟡 модель/рух/хвилі/крен ✅ (через sea_ai); `MSG_SHIP_CREATE` 50300 у `[nohandler]`; немає `ACTIVATE_FIRE_PLACE` 50304 і `GET_NUM_FIRE_PLACES` 50306 (**вогонь на палубі не видно**), `ADD_MOVE_IMPULSE` 50308, `GET_CHARACTER_INDEX` 50307 | `smoke_sea.log`, `AIShip.c:816-858` | пожежі на кораблях |
 | `Sail` (rigging) | вітрила: роздування, згортання, дірки | ✅ згортання до рею / складання трикутних за станом 0 / 0.5 / 1 (анімація, ROLLINGSPEED, rollSSailForm/rollTSailForm), роздування й тріпотіння від вітру (fSsailWindDepend/fTsailWindDepend), поворот реїв до вітру (MAXTURNANGL), дірки: `DoSailHole`, `RandomHole2Sail`, `DeleteOneSailHole`, `funcGetSailSpeed`, `MSG_SAIL_SCRIPT_PROCESSING` 40099 "RandomSailsDmg" → `evntRandomSailDmg`, текстура `parus_hole.tga`; стан 0.5 = прямі вітрила взяті на половину (моє прочитання) | `SeaSails.cs`, скріни `--sailholes=me@N` | тінь вітру між вітрилами |
 | `Rope`, `Vant`, `Flag` (rigging) | канати, ванти, прапори | 🟡 будуються з міток моделі (`RiggingFx.cs`), прапор нації ✅; `MSG_FLAG_INIT` 40200 для **прапорів міст/фортів** ❌ (`[nohandler] Flag 40200`) | `RiggingFx.cs`, `smoke_*` | прапори в локаціях і на фортах |
@@ -67,7 +67,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | `TELESCOPE` (telescope), `ispyglass` | підзорна труба + панель інфо про корабель | 🟡 вигляд з окуляром ✅ (`telescope.ini`); `77300/77302` у `[nohandler]`, **панелі з назвою/типом/корпусом/командою цілі немає** (`MSG_ISG_UPDATE` 46202) | `Sea.cs:771-820`, `smoke_sea.log` | панель ispyglass |
 | `battle_interface` (battle_interface) | HUD моря | 🟡 власний макет з оригінальних текстур (`SeaHud.cs`, `SeaCommands.cs`); `BI_IN_SET_COMMAND_MODE` 46013, `BI_MSG_REFRESH` 46005, `BI_MSG_SET_ISLAND` 46003 у `[nohandler]`; не підіймаються `evntBISelectShip`, `GetRiggingData`, `GetSailTextureData`, `BI_GetData`, `evntSetUsingAbility` | `smoke_map.log`, `smoke_fight.log` | довести до оригінального контракту |
 | `shippointer` | стрілка над вибраним кораблем | ❌ (46301) | `BattleInterface.c:1854` | дрібниця |
-| `IBoardingStatus` | смуги HP під час абордажу | ❌ (`LOG_INIT_CHARCTER_HP` 45025) | `LogInterface.c:162` | разом з абордажем |
+| `IBoardingStatus` | смуги HP під час абордажу | ✅ 45025/45024: дві смуги за атрибутами скрипта; **жоден скрипт аддона не викликає `DrawCharacterHP`**, тож у грі сутність не створюється (як і в оригіналі) | `LogHud.cs` (`BoardingStatus`), `LogInterface.c:149` | — |
 | `PEOPLE_ON_SHIP` | матроси на палубі | 🟡 ходять графами, біжать до гармат; падіння щогли (77500) закриває її точки; немає лазіння | `SeaSailors.cs` | — |
 | `SEA_OPERATOR` | кінокамера пострілів/влучань | ❌ (`[nohandler] 77400`) | `smoke_*`, `shipBortFire.c:45` | низький |
 | `AISeaGoods` | плаваючі бочки з вантажем | ❌ (`ShpEatSwimGood` не підіймається) | `AISeaGoods.c`, `MODELS/SwimGoods` | середній (лут після бою) |
@@ -94,7 +94,8 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 |---|---|---|
 | mainmenu, boal_newchar (створення героя), character, save_load, ship, shiphold, shipyard, store | ✅ відкривається, сценарії | `[xinterface] loading` у `game/smoke_*.log`, `reports/*` |
 | items, perks, salary, TradeBook, NationRelation, helpscreen, option_screen, controls (власний екран клавіш), cannons, Transfer_crew, itemsbox (скриня), boal_questbook/QuestBook, passengers, hirecrew, itemstrade, transfer_goods | 🟡 відкриваються і рендеряться (скріни `game/review/*.png`, STATUS); логів сценаріїв немає | `review/items.png`, `perks*.png`, `salary.png`, `tradebook.png`, `nations.png`, `help.png`, `options.png`, `controls.png`, `cannons.png`, `tcrew.png`, `chest.png` |
-| ransack_main/crew/captain/join (після абордажу), Transfer_main, transfer_characters, fortcapture, citycapture, colony_Capture/Munity/Siege, Forts_Escadr/Siege, Munitycapture, Repayment_colony, materials | ❓ жодного відкриття в логах — **це екрани абордажу та захоплення колоній** | — |
+| ransack_main (Transfer_main.ini), обмін кораблями, вихід із потопленням ворога | ✅ сценарій `board`: екран «Грабунок» з нашим і ворожим кораблем, «Обміняти», вихід з підтвердженням | `review/board_ransack.png`, `review/board_swap.png` |
+| ransack_crew/captain/join (здача ворога), transfer_characters (офіцер на призовий корабель), fortcapture, citycapture, colony_Capture/Munity/Siege, Forts_Escadr/Siege, Munitycapture, Repayment_colony, materials | ❓ жодного відкриття в логах | — |
 | boal_cards, boal_dice (азартні ігри), boal_map, map_cabin, map_show, map_read (карти), boal_statistic, boal_price (прайс), boal_hero (вільний герой), NationLegend, addon_team, boal_frame | ❓ не перевірялися | — |
 | boal_setup, boal_beta, boal_debug | 🟡 сторінка бета доступна через `settings.ini` | `Main.cs:120` |
 | LanguageSelect, select_menu, playgame, endgame, selectCharacter, defaultnode | ⚪/❓ (вибір мови замінено портом; endgame — фінал гри не перевірено) | — |
@@ -115,7 +116,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Море | кораблі, рух, хвилі, зіткнення | ✅/🟡 | `smoke_sea.log`, STATUS 50-75 % | — |
 | Море | ШІ кораблів | 🟡 задачі move/attack/follow/defend/flee; немає переслідування групи, зміни груп/відносин | `Sea.cs:180` | 51012/51016/51019/51020 |
 | Море | гармати, ядра, пошкодження, потоплення | 🟡 без вогню на палубі, без дірок у вітрилах, без падіння щогли, без SINKEFFECT | `SeaCombat.cs` | — |
-| Море | абордаж | 🟡 скриптовий потік стартує, палуба = земний бій; ❌ `IBoardingStatus`, екрани `ransack_*` не перевірені, `SWAP_SHIPS` ❌ | `AISea.c:124` | **пройти абордаж від і до** |
+| Море | абордаж | ✅/🟡 повний цикл (тест `board`): ворог сильніший — бере на абордаж сам (`Ship_CheckMainCharacter` з `SeaAI.Update`), гравець — командою «Абордаж» (`Sea_AbordageLoad`); верхня палуба → гарматна → каюта (команди знаходять одна одну через радіус «say» груп), екран грабунку, обмін кораблями, потоплення, повернення в море; сцени з абордажними гаками немає; здача ворога (ransack_join/captain) не перевірена | `review/board_*.png`, `smoke_board.log` | ransack_join/captain, офіцер через transfer_characters |
 | Море | форти | 🟡 стріляють, отримують шкоду; захоплення фортів/колоній (екрани `fortcapture`, `colony_*`) ❓ | `SeaForts.cs` | сценарій |
 | Море | камери палуби/каюти, підзорна труба | 🟡 труба ✅ без панелі; каюта/палуба як локації ✅; камера з палуби ❌ | — | — |
 | Море | погода, шторм, смерч | 🟡 дощ/блискавка/смерч ✅, грім ❌, SunGlow ❌ | `WeatherFx.cs` | — |
@@ -133,7 +134,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 
 ## 5. Наступні кроки (за помітністю для гравця)
 1. ~~**Земний HUD `battle_land_interface`**~~ — зроблено (`LandHud.cs`).
-2. **Повний цикл абордажу і захоплення**: `AI_MESSAGE_SWAP_SHIPS` 51014, `SET_OFFICER_2_SHIP` 51013, `CHARACTER_DEAD` 51026, `IBoardingStatus`, екрани `ransack_*`; сценарій тесту від зіткнення до призового корабля.
+2. ~~**Повний цикл абордажу і захоплення**~~ — зроблено (51013/51014/51026, `IBoardingStatus`, `FindClassNext`, тест `board`); лишилось перевірити здачу ворога і призначення офіцера через екран.
 3. **Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.
 4. ~~**Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).~~ — зроблено (`SeaSails.cs`).
 5. **Пожежі на кораблях** (`MSG_SHIP_ACTIVATE_FIRE_PLACE`/`GET_NUM_FIRE_PLACES`) і частинки з оригінальних `INI/PARTICLES/*.ini` (`PS_CREATEX`, `PS_DELETE`, `PS_CLEARALL`).

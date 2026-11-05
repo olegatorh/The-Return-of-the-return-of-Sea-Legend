@@ -98,12 +98,12 @@ public sealed partial class Interp
         if (br >= 0) { idx = Conv.ParseIntPrefix(g.Substring(br + 1)); g = g.Substring(0, br); }
         if (!Globals.TryGetValue(g, out var s)) { Log($"dump: {path}: unknown global"); return; }
         if (idx >= 0 && s.Arr != null && idx < s.Arr.Length) s = s.Arr[idx];
-        if (s.Val.Attr is not { } root) { Log($"dump: {path}: not an object"); return; }
+        if (s.Val.Attr is not { } root) { Log(dot < 0 && s.Arr == null ? $"dump: {path} = {s.Val}" : $"dump: {path}: not an object"); return; }
         var node = dot < 0 ? root : root.Find(path.Substring(dot + 1), false);
         if (node == null) { Log($"dump: {path}: no such attribute"); return; }
         var sb = new StringBuilder();
         node.Dump(sb);
-        Log(sb.ToString());
+        Log($"dump: {path}:\n" + sb);
     }
 
     /// <summary>For every global array of objects: how many elements are populated (have an id or any attribute).</summary>

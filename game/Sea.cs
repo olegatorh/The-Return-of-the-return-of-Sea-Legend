@@ -101,6 +101,8 @@ public partial class SeaView : Node3D
             return V.Int(1);
         };
         i.EntityHandlers["AIFort"] = (e, fmt, d) => { int m = d.Length > 0 ? Conv.ToInt(d[0]) : 0; return m == 51005 ? AddFort(d) : m == 51008 ? FortHit(d) : V.Int(1); };
+        // AIBalls: MSG_MODEL_RELEASE 20504 when boarding starts (Abordage_ReloadStartFade) - the balls in flight are dropped; the ballistics live in SeaCombat.cs
+        i.EntityHandlers["AIBalls"] = (e, fmt, d) => { if (d.Length > 0 && Conv.ToInt(d[0]) == 20504) ClearCombat(); return V.Int(1); };
         i.EntityHandlers["Island"] = (e, fmt, d) => OnIsland(e, d);
         i.EntityHandlers["SEA_CAMERAS"] = (e, fmt, d) => V.Int(1);
         i.EntityHandlers["PEOPLE_ON_SHIP"] = (e, fmt, d) => OnPeopleOnShip(e, d);      // sailors on deck (SeaSailors.cs)
@@ -226,8 +228,44 @@ public partial class SeaView : Node3D
                 return V.Int(1);
             }
             case AI_UNLOAD: Clear(); return V.Int(1);
+            case 51014:                                                                   // AI_MESSAGE_SWAP_SHIPS "laa": the two characters change ships (ransack "swap"; the script swapped their Ship attributes)
+                if (d.Length > 2 && d[1].Attr is { } c1 && d[2].Attr is { } c2) SwapShips(c1, c2);
+                return V.Int(1);
+            case 51013:                                                                   // AI_MESSAGE_SET_OFFICER_2_SHIP "laa": officer, captured enemy: the officer takes command of that ship
+                if (d.Length > 2 && d[1].Attr is { } off && d[2].Attr is { } cap && ShipOf(cap) is { } taken)
+                {
+                    taken.Chr = off; taken.Index = (int)F(off, "index"); taken.IsPlayer = taken.Index == 0; taken.Task = -1; taken.TaskTarget = null; taken.Dying = false;
+                    Publish(taken);
+                    it.FireEvent("Shp_UpdParams", new List<V> { V.Int(taken.Index), V.Float(taken.Sail) });
+                    GD.Print($"[sea] officer {off.Get("id")?.Value} takes the ship of {cap.Get("id")?.Value}");
+                }
+                return V.Int(1);
+            case 51026:                                                                   // AI_MESSAGE_CHARACTER_DEAD "la": ShipDead (sunk, or killed after boarding): the ship goes down
+                if (d.Length > 1 && d[1].Attr is { } dead && ShipOf(dead) is { Dying: false } ds) { ds.Dying = true; ds.Task = -1; GD.Print($"[sea] {dead.Get("id")?.Value} is dead: the ship sinks"); }
+                return V.Int(1);
         }
         return V.Int(1);
+    }
+
+    ShipRt? ShipOf(Attr chr) => ships.FirstOrDefault(s => ReferenceEquals(s.Chr, chr)) ?? ships.FirstOrDefault(s => s.Index == (int)F(chr, "index", -1));
+
+    /// <summary>
+    /// AI_MESSAGE_SWAP_SHIPS (AIHelper::SwapShips): the ships keep their places, models and damage; their captains change. The script has already exchanged the
+    /// characters' Ship attributes, so after the swap every ship again reads the attributes that describe it. The positions are written back to the new owners.
+    /// </summary>
+    void SwapShips(Attr c1, Attr c2)
+    {
+        var a = ShipOf(c1); var b = ShipOf(c2);
+        if (a == null || b == null || ReferenceEquals(a, b)) { GD.Print("[sea] swap ships: a ship is missing"); return; }
+        (a.Chr, b.Chr) = (b.Chr, a.Chr);
+        (a.Index, b.Index) = (b.Index, a.Index);
+        a.IsPlayer = a.Index == 0; b.IsPlayer = b.Index == 0;
+        a.Task = b.Task = -1; a.TaskTarget = b.TaskTarget = null;
+        Publish(a); Publish(b);
+        camInit = false;
+        it.FireEvent("Shp_UpdParams", new List<V> { V.Int(a.Index), V.Float(a.Sail) });
+        it.FireEvent("Shp_UpdParams", new List<V> { V.Int(b.Index), V.Float(b.Sail) });
+        GD.Print($"[sea] swap ships: {c1.Get("id")?.Value} <-> {c2.Get("id")?.Value}");
     }
 
     void AddShip(int index, Attr chr, Attr type)

@@ -47,6 +47,16 @@ public partial class SeaView
     public bool CommandsOpen => menuLevel != MenuLevel.None;
 
     /// <summary>The HUD is hidden (and the command menu dropped) while a location, the world map or an interface owns the screen.</summary>
+    /// <summary>
+    /// Boarding keeps the sea alive under a deck/cabin location (the script freezes the SEA_EXECUTE/SEA_REALIZE layers, AIAbordage.c): ships, island and forts
+    /// are hidden while a location is loaded and come back with the sea afterwards.
+    /// </summary>
+    public void HideWorld(bool hidden)
+    {
+        foreach (var n in GetChildren().OfType<Node3D>())
+            if (n != Cam) n.Visible = !hidden;
+    }
+
     public void SuspendHud(bool suspended)
     {
         hud.Suspended = suspended;

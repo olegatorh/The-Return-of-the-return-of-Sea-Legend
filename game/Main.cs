@@ -15,6 +15,7 @@ public partial class Main : Node
     FaderView? fader;
     DialogView? dialogView;
     LogHud? logHud;
+    BoardingStatus? boardingStatus;
     LandHud? landHud;
     bool rebuildWorld;
     float clockAcc;
@@ -66,6 +67,7 @@ public partial class Main : Node
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     readonly List<(int frame, string what)> rigTests = new();   // test hooks --mastfall@N / --sailholes@N (=me: of the player's ship): break a mast / hole the sails of the nearest other ship
     int controlAt = -1;
+    readonly List<(int frame, string group)> killGroups = new();   // test hook --killgroup=brdenemy@N: kill every living character of that script group (LAi_KillCharacter)
 
     public override void _Ready()
     {
@@ -98,6 +100,7 @@ public partial class Main : Node
             else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--killgroup=")) { var p = a.Substring(12).Split('@'); killGroups.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--control@")) controlAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--answer=")) { var p = a.Substring(9).Split('@'); answers.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--mouse=")) { var p = a.Substring(8).Split('@'); mouseClicks.Add((int.Parse(p[1]), p[0])); }      // a real mouse click on a node of the interface (input system, not a direct call)
@@ -281,6 +284,12 @@ public partial class Main : Node
             if (logHud == null) { logHud = new LogHud(); AddChild(logHud); }
             return logHud.OnMessage(fmt, d);
         };
+        // "IBoardingStatus": crew strength strips during boarding
+        host.It.EntityHandlers["IBoardingStatus"] = (e, fmt, d) =>
+        {
+            if (boardingStatus == null || !ReferenceEquals(boardingStatus.Ent, e)) { boardingStatus?.QueueFree(); boardingStatus = new BoardingStatus(e); AddChild(boardingStatus); }
+            return boardingStatus.OnMessage(d);
+        };
         // "battle_land_interface": portraits of the hero and the officers, the land command menu
         host.It.EntityHandlers["battle_land_interface"] = (e, fmt, d) =>
         {
@@ -325,6 +334,7 @@ public partial class Main : Node
             if (dialogView != null && ReferenceEquals(dialogView.Ent, e)) { dialogView.QueueFree(); dialogView = null; host.It.TimeScale = 1f; }   // the dialog class restores the game speed when it dies
             if (e.Class == "location") GD.Print($"[main] location entity {e.Id} deleted ({e.Root.Path}), view known: {locations.ContainsKey(e)}");
             if (modelNodes.Remove(e, out var mn)) { mn.QueueFree(); modelDirs.Remove(e); }
+            if (boardingStatus != null && ReferenceEquals(boardingStatus.Ent, e)) { boardingStatus.QueueFree(); boardingStatus = null; }
             if (e.Class == "ILogAndActions" && logHud != null) { logHud.QueueFree(); logHud = null; }
             landHud?.OnDeleted(e);
             if (e.Class == "location")      // the location owns the people standing in it
@@ -595,6 +605,7 @@ public partial class Main : Node
 
         // the sea HUD and its command menu belong to the open sea only: on a deck or in a cabin (a location while the sea is still alive) they would hang there frozen
         sea.SuspendHud(locations.Count > 0 || worldMap.Active || UiOpen || dialogView != null);
+        sea.HideWorld(locations.Count > 0);
 
         // sea mode: the ship camera replaces the location camera
         if (sea.Active && locations.Count == 0)
@@ -830,6 +841,10 @@ public partial class Main : Node
                         args.Add(x.StartsWith('#') ? host.It.CallTop("CharacterFromID", V.Str(x.Substring(1).Replace('+', ' '))) : int.TryParse(x, out int iv) ? V.Int(iv) : V.Str(x.Replace('+', ' ')));
                 host.It.CallTop(name, args.ToArray());
             }
+        foreach (var (f, g) in killGroups)
+            if (f == frames)
+                foreach (var c in characters.Values.ToList())
+                    if (!c.IsPlayer && c.IsAlive && c.Ent.Root.Find("chr_ai.group", false)?.Value == g) host.It.CallTop("LAi_KillCharacter", V.A(c.Ent.Root));
         if (controlAt == frames) host.It.CallTop("LAi_SetPlayerType", host.It.CallTop("GetMainCharacter"));    // test hook: end the scripted intro
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);

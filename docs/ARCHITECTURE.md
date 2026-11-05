@@ -101,6 +101,11 @@ Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI
 * Combat (`game/SeaCombat.cs`): LMB / `--fire@N` fires the broadside facing the camera; cannon positions = hull labels `cannonl/cannonr/cannonf/cannonb`, ammunition by event `CannLoad`, reload by `CannGRTime`,
   ball speed `Ship.Cannons.SpeedV0` (ballistics g = 9.81), hits raise `Shp_HullHit` (damage is the script's), `Ball_WaterHit`, `Ball_IslandHit`. A ship whose `Ship.HP` reaches 0 sinks and is removed.
   Beware: in `AI_MESSAGE_ADD_SHIP` the second argument is an entity, not the character index (use `chr.index`).
+* Boarding is the script's (`SEA_AI/AIAbordage.c`, `Loc_ai/LAi_boarding.c`): `Ship_CheckMainCharacter` reads `SeaAI.Update.Ships` (distance minus half hull widths, `d_ay`,
+  relative speed) and offers "Board" or starts it itself when the enemy crew is stronger. The sea entities stay alive under the deck/cabin locations (the port hides
+  the sea scene while a location is loaded, `SeaView.HideWorld`); after the ransack screen `Return2SeaAfterAbordage` resumes it. Engine side: `AI_MESSAGE_SWAP_SHIPS`
+  (ships keep places/models, captains change), `SET_OFFICER_2_SHIP`, `CHARACTER_DEAD` (the ship sinks). Crews find each other across the deck through the group
+  "say" radius (`Groups.cs`). Test `board` in `run_tests.ps1 -Sea`.
 * Physics (`game/SeaPhysics.cs`): wave rocking and heel, wake wedge, ship-ship collisions (`Shp_Ship2ShipColl`), shore touches (`Shp_ShipIslColl`); the script converts impacts to damage.
 * Forts (`game/SeaForts.cs`, class `AIFort`): `AI_MESSAGE_ADD_FORT` -> cannons = `cannon_N/culverin_N` labels of `<fort>_locators.gm`, events `FortCreate`, `FortCDamage`; they shoot enemies (relation = script `GetRelation`).
 * Map encounters (`game/WorldEncounters.cs`): messages 311xx spawn merchant/follow/war ships on the map; contact raises `WorldMap_ShipEncounter` (the script shows the Attack/Flee screen) and the

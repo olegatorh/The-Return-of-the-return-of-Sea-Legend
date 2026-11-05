@@ -191,6 +191,16 @@ public static class Builtins
             if (Arg(a, 0).Attr is { } obj) obj.Entity = e;
             return V.Int(1);
         });
+        // bool FindClassNext(&object): binds the object to the next live entity of the class FindClass bound it to (Abordage_ReloadEndFade walks all "modelr")
+        Add("findclassnext", (it, a) =>
+        {
+            if (Arg(a, 0).Attr is not { Entity: { } cur } obj) return V.Int(0);
+            int at = it.Entities.IndexOf(cur);
+            var e = at < 0 ? null : it.Entities.Skip(at + 1).FirstOrDefault(x => !x.Deleted && string.Equals(x.Class, cur.Class, StringComparison.OrdinalIgnoreCase));
+            if (e == null) return V.Int(0);
+            obj.Entity = e;
+            return V.Int(1);
+        });
         Add("isentity", (_, a) => V.Int(Arg(a, 0).Attr?.Entity is { Deleted: false } ? 1 : 0));
         Add("sendmessage", (it, a) => it.SendMessage(Arg(a, 0).Attr, S(a, 1), a.Skip(2).ToArray()));
         Add("deleteentities", (it, _) => { it.DeleteAllEntities(null); return V.Void; });
