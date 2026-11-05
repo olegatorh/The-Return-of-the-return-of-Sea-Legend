@@ -528,6 +528,7 @@ void fragment() {
         float windAng = 0f, windSpd = 0f;
         if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) { windAng = F(wa, "Wind.Angle"); windSpd = F(wa, "Wind.Speed"); }
         var windW = new Vector3(MathF.Sin(windAng), 0f, -MathF.Cos(windAng));                   // where the wind blows to (Godot)
+        RiggingFx.WindWorld = windW;
         float k = 0.55f + 0.45f * Math.Clamp(windSpd / 14f, 0f, 1f);
         var cam = Cam.GlobalPosition;
         float ease = 1f - MathF.Exp(-dt * 1.5f);
