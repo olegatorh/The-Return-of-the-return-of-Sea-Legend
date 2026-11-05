@@ -29,12 +29,16 @@ public sealed partial class Interp
     /// <summary>Raised when the script deletes an engine object (DeleteClass / DeleteEntities).</summary>
     public Action<Entity>? EntityDeleted;
 
+    /// <summary>Raised after CreateEntity (the engine's Init of the class): host-side views of classes that get no message right away (WideScreen).</summary>
+    public Action<Entity>? EntityCreated;
+
     public bool CreateEntity(Attr? root, string cls)
     {
         if (root == null) { Error($"CreateEntity({cls}): uninitialised reference"); return false; }
         var e = new Entity { Id = nextEntityId++, Class = cls, Root = root };
         root.Entity = e;
         Entities.Add(e);
+        EntityCreated?.Invoke(e);
         return true;
     }
 
