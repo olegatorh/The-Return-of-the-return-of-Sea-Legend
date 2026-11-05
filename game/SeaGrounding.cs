@@ -75,12 +75,12 @@ public partial class SeaView
         {
             s.X = nx; s.Z = nz;
             // the shore hit counts once: the ship is 'free' again only after it got a few metres away from where it struck
-            if (s.Aground && next.touching == 0 && (!hitAt.TryGetValue(s, out var h) || new Vector2(s.X - h.x, s.Z - h.z).Length() > 6f)) s.Aground = false;
+            if (s.Aground && next.touching == 0 && (!hitAt.TryGetValue(s, out var h) || new Vector2(s.X - h.x, s.Z - h.z).Length() > 6f)) SetAground(s, false);
             return false;
         }
         bool first = !s.Aground;
         if (first) hitAt[s] = (nx, nz);
-        s.Aground = true;
+        SetAground(s, true);
         float hitSpeed = s.Speed;
         s.Speed = 0f; s.Drift = 0f;
         if (first)
@@ -91,6 +91,15 @@ public partial class SeaView
             it.FireEvent("Shp_ShipIslColl", new System.Collections.Generic.List<StormScript.Runtime.V> { StormScript.Runtime.V.Int(s.Index), StormScript.Runtime.V.Int(-1), StormScript.Runtime.V.Float(MathF.Abs(hitSpeed)), StormScript.Runtime.V.Float(0f), StormScript.Runtime.V.Int(0), StormScript.Runtime.V.Float(nx), StormScript.Runtime.V.Float(0f), StormScript.Runtime.V.Float(nz) });
         }
         return true;
+    }
+
+    /// <summary>SHIP::CheckShip2Strand: the change of the stranded state raises "Shp2Strand" (character index, new state); AIShip.c Ship_OnStrand then plays the looped "ship_aground"
+    /// sound and posts Shp2StrandNext, which damages the hull by the speed (unless the SandbankManeuver perk) until the ship is free again.</summary>
+    void SetAground(ShipRt s, bool on)
+    {
+        if (s.Aground == on) return;
+        s.Aground = on;
+        it.FireEvent("Shp2Strand", new System.Collections.Generic.List<StormScript.Runtime.V> { StormScript.Runtime.V.Int(s.Index), StormScript.Runtime.V.Int(on ? 1 : 0) });
     }
 
     /// <summary>The nearest place (spiral search, 5 m rings up to 1.5 km) where the whole hull floats.</summary>
@@ -128,7 +137,7 @@ public partial class SeaView
         }
         float px = x, pz = z;
         if (OnLand(p, px, pz, ay)) (px, pz) = NearestWater(p, px, pz, ay);
-        p.X = px; p.Z = pz; p.Ay = ay; p.Speed = 0f; p.Drift = 0f; p.TurnRate = 0f; p.Task = -1; p.Aground = false;
+        p.X = px; p.Z = pz; p.Ay = ay; p.Speed = 0f; p.Drift = 0f; p.TurnRate = 0f; p.Task = -1; SetAground(p, false);
         Publish(p);
         int k = 0;
         foreach (var s in ships.Where(s => !s.IsPlayer && !s.Dying && Relation(p.Index, s.Index) == 0 && Dist(p, s) < 3000f))

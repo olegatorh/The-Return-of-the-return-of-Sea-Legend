@@ -25,6 +25,7 @@ public partial class SeaView
         var s = ShipOf(e.Root);
         switch (msg)
         {
+            case 50300: return AddLocationShip(e, d);                                     // MSG_SHIP_CREATE "laa": a ship standing in a location (SeaLocShips.cs)
             case 50306:                                                                   // MSG_SHIP_GET_NUM_FIRE_PLACES "le"
                 if (d.Length > 1) it.WriteRef(d[1], V.Int(s?.FirePlaces.Count ?? 0));
                 return V.Int(1);
@@ -43,7 +44,7 @@ public partial class SeaView
                 }
                 return V.Int(1);
         }
-        return V.Int(1);                                                                   // MSG_SHIP_CREATE 50300 ...: nothing to do
+        return V.Int(1);
     }
 
     void ActivateFirePlace(ShipRt s, int place, string smoke, string fire, int sound, float seconds)
