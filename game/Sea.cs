@@ -42,6 +42,7 @@ public partial class SeaView : Node3D
         public MeshInstance3D? FixedRopes, YardRopes;
         public float YardYaw, YardSet, RopeYaw, RopeTimer;
         public List<(string bort, Vector3 pos)> Cannons = new();
+        public List<Vector3> FirePlaces = new();          // "fireplace" labels of the hull (engine local coordinates), SeaFires.cs
         public readonly Dictionary<string, float> ReadyAt = new();
     }
 
@@ -90,16 +91,19 @@ public partial class SeaView : Node3D
     public void Register(Interp i)
     {
         i.EntityHandlers["sea_ai"] = (e, fmt, d) => OnSeaAi(d);
-        i.EntityHandlers["particles"] = (e, fmt, d) =>
-        {
-            if (d.Length > 4 && Conv.ToInt(d[0]) == 10000) ParticleFx.Spawn(this, Conv.ToStr(d[1]), new Vector3(Conv.ToFloat(d[2]), Conv.ToFloat(d[3]), Conv.ToFloat(d[4])));
-            return V.Int(1);
-        };
+        // the class "particles" itself lives in Particles.cs (ParticleService); BallSplash (MSG_BALLSPLASH_ADD 77200) draws its water column with the
+        // original systems "watersplash" + "ball_splash" of particles.ini (BallSplash.dll has its own splash.tga sprite effect that is not reproduced)
         i.EntityHandlers["BallSplash"] = (e, fmt, d) =>
         {
-            if (d.Length > 3 && Conv.ToInt(d[0]) == 77200) ParticleFx.Splash(this, new Vector3(Conv.ToFloat(d[1]), Conv.ToFloat(d[2]), Conv.ToFloat(d[3])));
+            if (d.Length > 3 && Conv.ToInt(d[0]) == 77200 && ParticleService.Instance is { } ps)
+            {
+                var at = new Vector3(Conv.ToFloat(d[1]), 0f, Conv.ToFloat(d[3]));
+                ps.Create("watersplash", at, Vector3.Up, 0f);
+                ps.Create("ball_splash", at, Vector3.Up, 0f);
+            }
             return V.Int(1);
         };
+        i.EntityHandlers["Ship"] = (e, fmt, d) => OnShipMessage(e, d);                     // fire places, character index (SeaFires.cs)
         i.EntityHandlers["AIFort"] = (e, fmt, d) => { int m = d.Length > 0 ? Conv.ToInt(d[0]) : 0; return m == 51005 ? AddFort(d) : m == 51008 ? FortHit(d) : V.Int(1); };
         // AIBalls: MSG_MODEL_RELEASE 20504 when boarding starts (Abordage_ReloadStartFade) - the balls in flight are dropped; the ballistics live in SeaCombat.cs
         i.EntityHandlers["AIBalls"] = (e, fmt, d) => { if (d.Length > 0 && Conv.ToInt(d[0]) == 20504) ClearCombat(); return V.Int(1); };
@@ -176,7 +180,7 @@ public partial class SeaView : Node3D
     void Clear()
     {
         foreach (var s in ships) s.Node.QueueFree();
-        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
+        ships.Clear(); groupPos.Clear(); groupCommander.Clear(); ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
         Cam.Current = false;
@@ -281,7 +285,7 @@ public partial class SeaView : Node3D
         else { rt.X = F(chr, "Ship.Pos.x"); rt.Z = F(chr, "Ship.Pos.z"); rt.Ay = F(chr, "Ship.Ang.y"); }
         string name = type.Get("Name")?.Value ?? "";
         var model = LoadShipModel(name, (int)F(chr, "Nation", 3));
-        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons; rt.Ropes = model.Ropes; rt.YardNodes = model.YardNodes; rt.FixedRopes = model.FixedRopes; rt.YardRopes = model.YardRopes;
+        rt.Node = model.Root; rt.Length = model.Length; rt.Height = model.Height; rt.Width = model.Width; SetF(chr, "Ship.BoxSize.x", model.Width); SetF(chr, "Ship.BoxSize.y", model.Height); SetF(chr, "Ship.BoxSize.z", model.Length); rt.Sails = model.Sails; rt.Masts = model.Masts; rt.Cannons = model.Cannons; rt.FirePlaces = model.FirePlaces; rt.Ropes = model.Ropes; rt.YardNodes = model.YardNodes; rt.FixedRopes = model.FixedRopes; rt.YardRopes = model.YardRopes;
         AddChild(rt.Node);
         // the script sets Ship.Speed.z = 1 for a ship that sails away from the coast and 0 for one standing at the shore: that is the starting sail state
         float sp = F(chr, "Ship.Speed.z");
@@ -298,7 +302,7 @@ public partial class SeaView : Node3D
 
     sealed class ShipModel
     {
-        public readonly List<MastRt> Masts = new(); public readonly List<(string bort, Vector3 pos)> Cannons = new(); public Node3D Root = null!; public readonly List<SailRt> Sails = new();
+        public readonly List<MastRt> Masts = new(); public readonly List<(string bort, Vector3 pos)> Cannons = new(); public readonly List<Vector3> FirePlaces = new(); public Node3D Root = null!; public readonly List<SailRt> Sails = new();
         public float Length = 30f, Height = 12f, Width = 8f;
         public List<RiggingFx.Rope> Ropes = new(); public readonly HashSet<Node3D> YardNodes = new(); public MeshInstance3D? FixedRopes, YardRopes;
     }
@@ -339,6 +343,8 @@ public partial class SeaView : Node3D
         sm.Length = Math.Max(b.Size.Z, b.Size.X); sm.Height = b.Size.Y; sm.Width = Math.Min(b.Size.Z, b.Size.X);
         foreach (var l in hull.Labels.Where(l => l.Group.StartsWith("cannon", StringComparison.OrdinalIgnoreCase)))
             sm.Cannons.Add((l.Group.ToLowerInvariant(), new Vector3(l.M[12], l.M[13], l.M[14])));
+        foreach (var l in hull.Labels.Where(l => l.Group.Equals("fireplace", StringComparison.OrdinalIgnoreCase)))
+            sm.FirePlaces.Add(new Vector3(l.M[12], l.M[13], l.M[14]));
         var sailTex = GameAssets.Texture(SailTexture(nation));
         var triTex = GameAssets.Texture("ships\\parus_common.tga") ?? sailTex;
         foreach (var ml in hull.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("mast", StringComparison.OrdinalIgnoreCase)))
@@ -529,6 +535,7 @@ public partial class SeaView : Node3D
         }
         ResolveShipCollisions();
         TickCombat(dt);
+        TickFires();
         TickForts(dt);
         TickSailors(dt);
         TickSails(dt);

@@ -97,15 +97,15 @@ public partial class SeaView
                 if (!Conv.ToBool(it.FireEvent("CannLoad", new List<V> { V.A(f.Chr) }))) { c.Next = 5f; continue; }
                 float dir = MathF.Atan2(best.X - c.Pos.X, best.Z - c.Pos.Z);
                 float elev = 0.5f * MathF.Asin(Math.Clamp(G * bd / (v0 * v0), 0f, 1f));
-                LaunchRaw(new Vector3(c.Pos.X, c.Pos.Y, c.Pos.Z), f.Index, (int)F(sh, "Cannons.Charge.Type"), v0, dir, elev + 0.01f);
+                LaunchRaw(f.Chr, new Vector3(c.Pos.X, c.Pos.Y, c.Pos.Z), f.Index, (int)F(sh, "Cannons.Charge.Type"), v0, dir, elev + 0.01f);
                 c.Next = Math.Max(4f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(f.Chr) })) * 0.5f) + Random.Shared.NextSingle() * 3f;
             }
         }
     }
 
-    void LaunchRaw(Vector3 p, int owner, int type, float v0, float dir, float elev)
+    void LaunchRaw(Attr chr, Vector3 p, int owner, int type, float v0, float dir, float elev)
     {
-        dir += (Random.Shared.NextSingle() - 0.5f) * 0.04f; elev += (Random.Shared.NextSingle() - 0.5f) * 0.02f;
+        (v0, dir, elev) = CannonFire(chr, p, v0, dir, elev);                       // dispersion, smoke and sound by the script (SeaCombat.cs)
         var v = new Vector3(MathF.Sin(dir) * MathF.Cos(elev), MathF.Sin(elev), MathF.Cos(dir) * MathF.Cos(elev)) * v0;
         ballMesh ??= new SphereMesh { Radius = 0.8f, Height = 1.6f, RadialSegments = 8, Rings = 4 };
         ballMat ??= new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.12f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };

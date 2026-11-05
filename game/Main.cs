@@ -101,7 +101,7 @@ public partial class Main : Node
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
-            else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
+            else if ((a.StartsWith("--mastfall") || a.StartsWith("--sailholes") || a.StartsWith("--shipfire") || a.StartsWith("--shipboom")) && a.Contains('@')) rigTests.Add((int.Parse(a.Substring(a.IndexOf('@') + 1)), a.Substring(2, a.IndexOf('@') - 2)));
             else if (a.StartsWith("--sail=")) { var p = a.Substring(7).Split('@'); sails.Add((int.Parse(p[1]), int.Parse(p[0]))); }
             else if (a.StartsWith("--goto=")) { var p = a.Substring(7).Split('@'); gotos.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--killgroup=")) { var p = a.Substring(12).Split('@'); killGroups.Add((int.Parse(p[1]), p[0])); }
@@ -323,6 +323,9 @@ public partial class Main : Node
             }
             return cv.OnMessage(fmt, d);
         };
+        var particles = new ParticleService();
+        AddChild(particles);
+        particles.Register(host.It);
         sea.Register(host.It);
         worldMap.Register(host.It);
         CharacterView.FindDialog = () => NearestTalkable() is { } nt && nt.Ent.Root.Get("index")?.Value is { } ix ? (int)Conv.ParseFloatPrefix(ix) : -1;

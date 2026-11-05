@@ -17,17 +17,17 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 31 subsystems below): **69 %**
+* Overall (mean of the 31 subsystems below): **70 %**
 * Unit tests: **31** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **14364** lines of C# (`StormScript/` library + `game/`)
+* Port code: **14907** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
-| PORT | 15 | 77 % |
-| APPROX | 13 | 54 % |
+| PORT | 16 | 77 % |
+| APPROX | 12 | 57 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -62,7 +62,7 @@ Layers (where the behaviour comes from):
 | Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ███░░░░░░░ 35 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera |
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
-| Effects | Particles (smoke, blast, splash) | APPROX | ██░░░░░░░░ 25 % | V | generic CPU particles, not the original particle ini |
+| Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ███████░░░ 70 % | E | 3D positioning approximate; speech volume unused |
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
@@ -73,12 +73,12 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 25 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
-| APPROX | 10 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (60%), `BallSplash` (60%), `PEOPLE_ON_SHIP` (50%) |
-| STUB | 23 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
+| PORT | 26 | `fader` (90%), `Ship` (75%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| APPROX | 10 | `blast` (50%), `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `sea_ai` (60%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%) |
+| STUB | 22 | `ActivePerkShower`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
 
-Classes with real behaviour: **35 of 67** (52 %); stubs: 23, missing: 9.
+Classes with real behaviour: **36 of 67** (54 %); stubs: 22, missing: 9.
 
 ## How accuracy is checked (and what is still unchecked)
 

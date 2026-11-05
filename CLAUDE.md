@@ -72,6 +72,7 @@ are only covered by the smoke runs.
 | `--duel@N` (env `SEADOGS_DUELDIST`, default 80 m), `--killgroup=brdenemy@N` | sea: park the first enemy ship abeam (25 m = close enough for boarding); land: kill every living member of a script group (boarding decks, test `board`) |
 | `--mappos=x,z,ay@N`, `--mapstorm=dx,dz@N`, `--mapmeet@N` | world map: place the ship; a storm at ship + (dx, dz) (`0,0` = sail into it); put the ship next to the first encounter ship |
 | `--mastfall@N`, `--sailholes@N` (`=me@N`: own ship) | sea: break the main mast / put balls through 8 sails of the nearest other ship through the script events (game/SeaSails.cs) |
+| `--shipfire@N`, `--shipboom@N` (`=me@N`: own ship) | sea: set 3 fire places of the nearest other ship on fire (ShpActFirePlace + ShpFDamage) / explode it (Ship_Serious_Boom: blast + debris). Env `SEADOGS_PSLOG=1` logs particle systems (game/Particles.cs, SeaFires.cs) |
 
 Sea test recipe (from a save made in the town port): `--ctl=Quick_Load@200 --call=initTutMainCharacterShip()@300 --call=SetPlayerShipLocation(184)@320 --goto=reload.reload1@400 --ctl=ChrAction@450`
 (184 = index of the port location in `Locations[]`); `run_tests.ps1 -Sea` does exactly this.

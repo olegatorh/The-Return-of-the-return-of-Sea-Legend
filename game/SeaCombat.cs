@@ -117,9 +117,8 @@ public partial class SeaView
     {
         var sh = s.Chr.Find("Ship", false);
         float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
-        var rnd = Random.Shared;
-        dir += ((float)rnd.NextDouble() - 0.5f) * 0.05f; elev += ((float)rnd.NextDouble() - 0.5f) * 0.03f;
         var p = BallStart(s, local);
+        (v0, dir, elev) = CannonFire(s.Chr, p, v0, dir, elev);
         var v = new Vector3(MathF.Sin(dir) * MathF.Cos(elev), MathF.Sin(elev), MathF.Cos(dir) * MathF.Cos(elev)) * v0;
         ballMesh ??= new SphereMesh { Radius = 0.8f, Height = 1.6f, RadialSegments = 8, Rings = 4 };
         ballMat ??= new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.12f), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded };
@@ -127,7 +126,21 @@ public partial class SeaView
         AddChild(n);
         int type = (int)F(sh, "Cannons.Charge.Type");
         balls.Add(new Ball { P = p, V = v, Owner = s.Index, Type = type, Node = n });
-        // flash and smoke are the script's business (Ball_AddBall in AIBalls.c); the sound too
+    }
+
+    /// <summary>
+    /// CANNON_FIRE ("CannFire", AICannon.c Cannon_FireCannon -> Ball_AddBall): the script adds its dispersion by the gunner's accuracy (AIBalls.Dir / SpdV0 / Ang),
+    /// creates the cannon smoke ("cancloud", every other shot) and plays the shot sound; the engine then flies the ball with those values.
+    /// </summary>
+    (float v0, float dir, float elev) CannonFire(Attr chr, Vector3 p, float v0, float dir, float elev)
+    {
+        it.FireEvent("CannFire", new List<V> { V.A(chr), V.Float(p.X), V.Float(p.Y), V.Float(p.Z), V.Float(v0), V.Float(dir), V.Float(elev), V.Float(dir) });
+        if (it.Globals.TryGetValue("AIBalls", out var g) && g.Val.Attr is { } a)
+        {
+            float Get(string k, float def) => a.Get(k)?.Value is { Length: > 0 } s ? Conv.ParseFloatPrefix(s) : def;
+            v0 = Math.Max(10f, Get("SpdV0", v0)); dir = Get("Dir", dir); elev = Get("Ang", elev);
+        }
+        return (v0, dir, elev);
     }
 
     void TickCombat(float dt)
@@ -167,7 +180,8 @@ public partial class SeaView
                 if (o.Index == b.Owner || o.Dying || !InsideShip(o, b.P)) continue;
                 SetBallType(b);
                 GD.Print($"[sea] hit on {o.Chr.Get("id")?.Value} (HP {F(o.Chr.Find("Ship", false), "HP"):0})");
-                it.FireEvent("Shp_HullHit", new List<V> { V.A(o.Chr), V.Int(b.Owner), V.Int(o.Index), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z), V.Int(-1), V.Float(99f) });
+                var (fpi, fpd) = NearestFirePlace(o, b.P);                                    // the script sets the ship on fire when the place is near (< 4 m)
+                it.FireEvent("Shp_HullHit", new List<V> { V.A(o.Chr), V.Int(b.Owner), V.Int(o.Index), V.Float(b.P.X), V.Float(b.P.Y), V.Float(b.P.Z), V.Int(fpi), V.Float(fpd) });
                 done = true; break;
             }
             if (!done && island != null && b.P.Y < LandHeight(b.P.X, b.P.Z) && b.P.Y > -5f)

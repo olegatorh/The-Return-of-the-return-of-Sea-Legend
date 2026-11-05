@@ -27,19 +27,19 @@ Sea | Boarding | SCRIPT | 70 | T | whole flow (test board): enemy/player start -
 Sea | Telescope, cabin, deck cameras, people on deck | APPROX | 35 | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera
 Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | 75 | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified
 Map | Map encounters (merchant, follow, war) | APPROX | 55 | V | spawn, move, contact; storms missing
-Effects | Particles (smoke, blast, splash) | APPROX | 25 | V | generic CPU particles, not the original particle ini
+Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | 70 | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast
 Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | 70 | E | 3D positioning approximate; speech volume unused
 Engine | Controls and mouse look | APPROX | 60 | E | sensitivity and invert from the options
 Engine | Colour correction, screen effects | APPROX | 60 | V | gamma, contrast, brightness shader
 Entity class | fader | PORT | 90 | E |
-Entity class | Ship | PORT | 70 | E |
+Entity class | Ship | PORT | 75 | V | fire places ("fireplace" labels): MSG_SHIP_GET_NUM_FIRE_PLACES / ACTIVATE_FIRE_PLACE burn ship_smoke + ship_fire on the moving ship for the script's time, then stop the sound; the nearest place goes to Shp_HullHit (bInflame); GET_CHARACTER_INDEX; no ADD_MOVE_IMPULSE
 Entity class | MODELR | PORT | 85 | E |
 Entity class | MODEL | PORT | 85 | E |
 Entity class | location | PORT | 85 | E |
 Entity class | Sound | PORT | 70 | E |
 Entity class | Island | PORT | 70 | E |
 Entity class | ActivePerkShower | STUB | 0 | E |
-Entity class | blast | STUB | 0 | E |
+Entity class | blast | APPROX | 50 | V | LM_SETPOINT/ANGLES: 6-11 wooden debris pieces (MODELS/particles/palka01-05) thrown out ballistically; the original's exact debris behaviour is unknown
 Entity class | dialog | PORT | 90 | E |
 Entity class | scrshoter | STUB | 0 | E |
 Entity class | CAviPlayer | STUB | 0 | E |
@@ -64,7 +64,7 @@ Entity class | Rope | MISSING | 0 | E |
 Entity class | Flag | MISSING | 0 | E |
 Entity class | Vant | MISSING | 0 | E |
 Entity class | WideScreen | STUB | 0 | E |
-Entity class | AIBalls | APPROX | 65 | E |
+Entity class | AIBalls | APPROX | 65 | E | every shot raises CannFire (Ball_AddBall: script dispersion, cannon smoke cancloud, shot sound)
 Entity class | artifact | STUB | 0 | E |
 Entity class | AIFort | APPROX | 55 | E |
 Entity class | blots | STUB | 0 | E |
@@ -76,14 +76,14 @@ Entity class | DECK_CAMERA | MISSING | 0 | E |
 Entity class | battle_interface | APPROX | 20 | E |
 Entity class | shippointer | STUB | 0 | E |
 Entity class | locationcamera | PORT | 80 | E |
-Entity class | particles | APPROX | 25 | E |
+Entity class | particles | PORT | 75 | V | PS_CREATE/CREATEX/_RIC/CREATEXX, PS_DELETE, PS_CLEARALL, PS_PAUSEALL, PS_SETVECTORS; windpower/winddirection attributes; CPU simulation + one MultiMesh per system
 Entity class | ILogAndActions | PORT | 70 | E |
 Entity class | IBoardingStatus | PORT | 60 | E | two crew strips (45025/45024, LogHud.cs); no addon script calls DrawCharacterHP, so it never appears in this game
 Entity class | worldmap | PORT | 75 | T | all messages (311xx, 31000/31001) and events handled
 Entity class | Weather | PORT | 60 | E |
 Entity class | sea_ai | APPROX | 60 | E | + SWAP_SHIPS 51014, SET_OFFICER_2_SHIP 51013, CHARACTER_DEAD 51026
 Entity class | touch | STUB | 0 | E |
-Entity class | BallSplash | APPROX | 60 | E |
+Entity class | BallSplash | APPROX | 55 | V | water column from the particles.ini systems watersplash + ball_splash; BallSplash.dll's own splash.tga sprite effect not reproduced
 Entity class | SINKEFFECT | STUB | 0 | E |
 Entity class | PEOPLE_ON_SHIP | APPROX | 50 | V | walk graphs from AI_MESSAGE_ADD_SHIP, crew size, POS.Mode, isNight; mast fall (77500) closes the mast points and the men there run off; climbing not done (game/SeaSailors.cs)
 Entity class | SeaLocatorShow | STUB | 0 | E |

@@ -591,6 +591,8 @@ void fragment() {
         bool me = what.EndsWith("=me");
         var o = me ? p : ships.Where(x => !x.IsPlayer && !x.Dying).OrderBy(x => p == null ? 0f : Dist(p, x)).FirstOrDefault() ?? p;
         if (o == null) { GD.Print("[sea] rig test: no ship"); return; }
+        if (what.StartsWith("shipfire")) { FireTest(o); return; }
+        if (what.StartsWith("shipboom")) { it.CallTop("Ship_Serious_Boom", V.Float(o.X), V.Float(o.Height * 0.5f), V.Float(o.Z)); return; }       // explosion: blast + debris + blast_inv
         if (what.StartsWith("mastfall"))
         {
             var m = o.Masts.Where(x => !x.Down && !x.Bowsprit).OrderByDescending(x => x.Top).FirstOrDefault();
