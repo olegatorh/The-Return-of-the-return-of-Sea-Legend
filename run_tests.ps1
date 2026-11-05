@@ -23,7 +23,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
     $log = "$root\game\smoke_$name.log"
     Remove-Item $shot, $log -ErrorAction SilentlyContinue
     Write-Host "== godot run '$name'" -ForegroundColor Cyan
-    $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"") + $(if ($Hidden) { @('--position', '9000,9000', '--resolution', '1280x720') } else { @('--position', '0,0', '--resolution', '1280x720') }) + @('--') + $userArgs + @("--shot=smoke_$name.png")) `
+    $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"") + $(if ($Hidden) { @('--position', '9000,9000', '--resolution', '1280x720') } else { @('--position', '320,180', '--resolution', '1280x720') }) + @('--') + $userArgs + @("--shot=smoke_$name.png")) `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
     if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
     $text = (Get-Content $log, "$log.err" -Encoding UTF8 -ErrorAction SilentlyContinue) -join "`n"
