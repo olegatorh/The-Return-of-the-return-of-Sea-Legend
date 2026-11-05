@@ -61,6 +61,7 @@ public sealed class AniActions
     }
 
     public string AnimationFile = "";
+    public Dictionary<string, string> GlobalData = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, Action> Actions = new(StringComparer.OrdinalIgnoreCase);
 
     public static AniActions Parse(string text)
@@ -86,6 +87,11 @@ public sealed class AniActions
             if (cur == null)
             {
                 if (k.Equals("animation", StringComparison.OrdinalIgnoreCase)) r.AnimationFile = v;
+                else if (k.Equals("data", StringComparison.OrdinalIgnoreCase))
+                {
+                    var gp = v.Split(',');                               // file-wide data, e.g. "Turn speed" (a.GetData in UpdateActionsData)
+                    if (gp.Length >= 2) r.GlobalData[gp[0].Trim().Trim('"')] = gp[1].Trim().Trim('"');
+                }
                 continue;
             }
             switch (k.ToLowerInvariant())

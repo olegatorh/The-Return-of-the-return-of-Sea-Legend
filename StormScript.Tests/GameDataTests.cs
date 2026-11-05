@@ -129,6 +129,62 @@ public sealed class FormatTests
         Assert.True(withSnd > files / 2, $"{withSnd}/{files} patches name snd_ materials");
     }
 
+    [Fact]
+    public void PatchMoveSlidesAlongBorderAndStaysInside()
+    {
+        // two triangles forming the square (0..10, 0..10) on the floor y = 1; the first has the neighbour link, the outer edges are borders
+        var p = new PtcFile
+        {
+            Vx = [0, 10, 10, 0], Vy = [1, 1, 1, 1], Vz = [0, 0, 10, 10],
+            Tris = [new PtcFile.Tri { A = 0, B = 3, C = 2, N0 = -1, N1 = -1, N2 = 1 }, new PtcFile.Tri { A = 0, B = 2, C = 1, N0 = 0, N1 = -1, N2 = -1 }],
+        };
+        int node = p.FindNode(2, 1, 3, out var h);
+        Assert.True(node >= 0);
+        Assert.InRange(h, 0.99f, 1.01f);
+        // straight move inside, falling onto the floor
+        var pos = (x: 2f, y: 5f, z: 3f);
+        node = p.Move(node, (4, 4.9f, 6), ref pos);
+        Assert.Equal((4f, 4.9f, 6f), pos);
+        pos = (4, 0.5f, 6);
+        p.Move(node, (4.1f, 0.4f, 6), ref pos);
+        Assert.True(p.IsBearing); Assert.InRange(pos.y, 0.99f, 1.01f);
+        // a diagonal move out of the square slides along the border and never leaves it
+        pos = (9f, 1f, 5f);
+        node = p.FindNode(9, 1, 5, out _);
+        node = p.Move(node, (12f, 1f, 7f), ref pos);
+        Assert.True(p.IsSlide);
+        Assert.InRange(pos.x, 9f, 10.01f);
+        Assert.InRange(pos.z, 5f, 7.1f);
+        Assert.True(p.FindNode(pos.x, pos.y, pos.z, out _) >= 0 || pos.x <= 10.01f);
+    }
+
+    [Fact]
+    public void RandomWalksOnRealPatchesNeverLeaveThem()
+    {
+        if (!Paths.HasGame) return;
+        var rnd = new Random(7);
+        int walked = 0;
+        foreach (var f in Files("*.ptc").Take(40))
+        {
+            var p = PtcFile.Parse(File.ReadAllBytes(f));
+            if (p.IsSea || p.Tris.Length < 4) continue;
+            var (cx, cy, cz) = Centre(p, p.Tris[p.Tris.Length / 2]);
+            int node = p.FindNode(cx, cy, cz, out _);
+            if (node < 0) continue;
+            var pos = (x: cx, y: cy, z: cz);
+            float ang = 0;
+            for (int i = 0; i < 400; i++)
+            {
+                if (i % 20 == 0) ang = (float)(rnd.NextDouble() * 6.28);
+                node = p.Move(node, (pos.x + MathF.Sin(ang) * 0.1f, pos.y - 0.05f, pos.z + MathF.Cos(ang) * 0.1f), ref pos);
+                Assert.InRange(node, 0, p.Tris.Length - 1);
+                Assert.True(pos.y >= p.FindHeight(node, pos.x, pos.z) - 0.01f, f);
+            }
+            walked++;
+        }
+        Assert.True(walked > 0);
+    }
+
     static (float, float, float) Centre(PtcFile p, PtcFile.Tri t) =>
         ((p.Vx[t.A] + p.Vx[t.B] + p.Vx[t.C]) / 3, (p.Vy[t.A] + p.Vy[t.B] + p.Vy[t.C]) / 3, (p.Vz[t.A] + p.Vz[t.B] + p.Vz[t.C]) / 3);
 

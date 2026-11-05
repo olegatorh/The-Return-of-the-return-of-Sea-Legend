@@ -330,6 +330,7 @@ void fragment() {
     void SnapToPatch()
     {
         if (getPatch() is { } p && p.Snap(x, y, z, out var nx, out var ny, out var nz)) { x = nx; y = ny; z = nz; }
+        node = -1; vy = 0f;
     }
 
     void Apply()
@@ -410,42 +411,244 @@ void fragment() {
         playing = want;
     }
 
-    /// <summary>Tries to walk by (dx,dz); stays inside the walkable patch and slides along its edge. Returns true if it moved.</summary>
-    /// <summary>True if moving to (nx,nz) would push this character into another person (a move that increases the distance is always allowed).</summary>
-    bool Blocked(float nx, float nz)
+    // ------------------------------------------------------------------ locomotion (location/src/character.cpp: Move/Update, ai_character.cpp, supervisor.cpp)
+    // The character walks along its heading at a speed blended towards the action's "Walk speed" (Blender: old + t^0.1 * delta over "Blend time"),
+    // turns at the action's "Turn speed" (constant rate), falls with g = 9.8 and is kept on the walk patch by PtcData::Move (node graph, sliding along border edges).
+    int node = -1;                          // triangle of the walk patch under the character (currentNode)
+    float vy;                               // vertical speed
+    float spd, bsOld, bsDlt, bsT = 1f, bsK; // blended speed (m/s, negative = backwards)
+    float turnSpd = 2f, nay;
+    bool hasNay, isMove, isBack, wantRun, pushMove;
+    string curMove = "";
+    float kSpd = 1f, kSpdCur = 1f;
+    readonly float kSpdDlt = (float)(Random.Shared.NextDouble() * 0.1 - 0.05);       // character.cpp: rand() * 0.1 / RAND_MAX - 0.05
+    readonly float likeKSpd = 0.9f + (float)Random.Shared.NextDouble() * 0.2f;       // ai_character.cpp
+    float movecs = 1f;                      // smoothed floor normal y (stairs below CHARACTER_COS_STAIR 0.9)
+    bool isUp;
+    public bool IsSliding;                  // the last move ran into the patch border (ptc.isSlide)
+    float slideX, slideZ;
+    float gfX, gfZ;                         // goForce (read by the neighbours' alignment / bypass forces)
+    CharacterView? exch;                    // the character we do not collide with (SetExCharacter)
+    bool isCollision;
+    float collisionValue;
+    public const float RadiusNormal = 0.7f, RadiusFight = 1.5f, CharHeight = 1.8f;
+    float Radius => fightMode ? RadiusFight : RadiusNormal;
+    public static int StatColThreshold, StatBusyPos, StatEscapeSlide;
+    static readonly bool PhysLog = System.Environment.GetEnvironmentVariable("SEADOGS_PHYSLOG") != null;
+    int physN;
+
+    // goto command state (CmdGotoPoint)
+    float gotoWait;
+    bool gotoIsWait;
+    int gotoBusyCnt;
+
+    void BlendSpeed(float to, float time)
+    {
+        bsOld = spd; bsDlt = to - spd;
+        if (time > 0f) { bsK = 1f / time; bsT = 0f; } else { bsK = 1f; bsT = 1f; }
+    }
+
+    void SetMove(string action)
+    {
+        if (action == curMove) return;
+        curMove = action;
+        if (action.Length > 0 && rig?.MoveData(action) is { } m) { BlendSpeed(m.speed, m.blend); turnSpd = m.turn; }
+        else { BlendSpeed(0f, 0.4f); turnSpd = rig?.IdleTurnSpeed ?? 2f; }                  // standing: the idle's blend time, the file's "Turn speed"
+    }
+
+    /// <summary>Character::Turn(ay): the heading to turn to (at the action's turn rate).</summary>
+    void Turn(float want) { nay = want; hasNay = true; }
+
+    /// <summary>One frame of Character::Move + Character::Update: speed factor, blended speed, heading, gravity and the patch move.</summary>
+    void Locomote(float dt)
+    {
+        if (rig == null) return;
+        // speed factor
+        kSpd = Math.Clamp(kSpd, 0f, 1f);
+        kSpdCur += (kSpd - kSpdCur) * Math.Min(dt * 0.5f, 1f);
+        float k = kSpdCur * 0.3f + 0.7f + kSpdDlt;
+        rig.SpeedMul = k;
+        // which move action (UpdateAnimation): stairs when the floor is steeper than cos 0.9 and the character does not run
+        string act = "";
+        if (isMove)
+        {
+            if (fightMode) act = wantRun ? (isBack ? "fight back run" : "fight run") : (isBack ? "fight back walk" : "fight walk");
+            else if (movecs > 0.9f || wantRun) act = wantRun ? (isBack ? "back run" : "run") : (isBack ? "back walk" : "walk");
+            else act = isBack ? (isUp ? "back stairs up" : "back stairs down") : (isUp ? "stairs up" : "stairs down");
+        }
+        SetMove(act);
+        if (bsK > 0f)
+        {
+            bsT += bsK * dt;
+            if (bsT > 1f) { bsT = 1f; bsK = 0f; }
+            spd = bsOld + MathF.Pow(bsT, 0.1f) * bsDlt;
+        }
+        // moving along the heading, turning
+        float s = dt * spd * k;
+        float nx = x + MathF.Sin(ay) * s, nz = z + MathF.Cos(ay) * s;
+        if (hasNay) { float old = ay; ay = TurnToward(ay, nay, turnSpd * dt); if (MathF.Abs(ay - nay) < 1e-4f) hasNay = false; _ = old; }
+        kSpd = 1f;
+        // gravity + the patch
+        vy -= 9.8f * dt;
+        PatchMove(nx, y + vy * dt, nz);
+        var patch = getPatch();
+        if (patch != null && node >= 0)
+        {
+            float kk = Math.Min(10f * dt, 1f);
+            var nn = patch.NodeNormal(node);
+            movecs += (nn.y - movecs) * kk;
+            isUp = nn.x * MathF.Sin(ay) + nn.z * MathF.Cos(ay) <= 0f;
+        }
+        if (PhysLog && (isMove || MathF.Abs(spd) > 0.01f) && ++physN % 10 == 0) GD.Print($"[phys] {Id} pos=({x:0.00},{y:0.00},{z:0.00}) ay={ay:0.00} spd={spd:0.00} k={k:0.00} act={curMove} node={node} slide={IsSliding} stairs={movecs:0.00}");
+    }
+
+    /// <summary>Moves the character to (nx, ny, nz) over the walk patch: finds the node first when the character has none, then PtcData::Move.</summary>
+    void PatchMove(float nx, float ny, float nz)
+    {
+        var patch = getPatch();
+        if (patch == null || patch.Tris.Length == 0) { x = nx; z = nz; vy = 0f; return; }
+        if (node < 0)
+        {
+            node = patch.FindNode(x, y, z, out _);
+            if (node < 0) node = patch.NearestTri(x, z, y);
+        }
+        var pos = (x, y, z);
+        node = patch.Move(node, (nx, ny, nz), ref pos);
+        x = pos.x; y = pos.y; z = pos.z;
+        if (patch.IsBearing) vy = 0f;
+        IsSliding = patch.IsSlide;
+        if (IsSliding) { slideX = patch.SlideDirX; slideZ = patch.SlideDirZ; }
+        if (y < -1000f) { y = -500f; vy = 0f; }
+    }
+
+    /// <summary>Walks by an offset (the recoil step) over the patch; true if the character moved.</summary>
+    bool Step(float dx, float dz)
+    {
+        float ox = x, oz = z;
+        PatchMove(x + dx, y, z + dz);
+        return (x - ox) * (x - ox) + (z - oz) * (z - oz) > 1e-8f;
+    }
+
+    /// <summary>Supervisor::CheckPosition: no other character stands at the point.</summary>
+    bool PosFree(float px, float py, float pz)
     {
         foreach (var c in All.Values)
         {
             if (ReferenceEquals(c, this) || !c.Placed || !c.Visible) continue;
-            float cd = (c.x - x) * (c.x - x) + (c.z - z) * (c.z - z), nd = (c.x - nx) * (c.x - nx) + (c.z - nz) * (c.z - nz);
-            if (nd < 0.45f * 0.45f && nd < cd) return true;
-        }
-        return false;
-    }
-
-    bool Step(float dx, float dz, bool useBounds)
-    {
-        var patch = getPatch();
-        float nx = x + dx, nz = z + dz;
-        if (Blocked(nx, nz))
-        {
-            // slide along the other person instead of stopping dead
-            if (!Blocked(nx, z)) nz = z;
-            else if (!Blocked(x, nz)) nx = x;
-            else return false;
-            dx = nx - x; dz = nz - z;
-        }
-        if (useBounds && patch != null)
-        {
-            if (patch.Contains(nx, nz, y, 1.0f, out var ny)) { x = nx; z = nz; y = ny; return true; }
-            if (patch.Contains(nx, z, y, 1.0f, out ny)) { x = nx; y = ny; return true; }
-            if (patch.Contains(x, nz, y, 1.0f, out ny)) { z = nz; y = ny; return true; }
+            if (MathF.Abs(py - c.y) > CharHeight * 0.8f) continue;
+            float dx = px - c.x, dz = pz - c.z;
+            if (dx * dx + dz * dz > c.Radius * 0.8f) continue;
             return false;
         }
-        x = nx; z = nz;
-        if (patch != null && patch.Snap(x, y, z, out var sx, out var sy, out var sz)) { y = sy; }
         return true;
     }
+
+    /// <summary>AICharacter::CalcRepulsionForces + Calculate: separation, alignment, bypass and patch-edge forces summed with the go force.</summary>
+    (float x, float z) SteerForce(float goX, float goZ)
+    {
+        gfX = goX; gfZ = goZ;
+        float sepX = 0, sepZ = 0, alX = 0, alZ = 0, arX = 0, arZ = 0;
+        var near = new List<(CharacterView c, float d, float maxD)>();
+        foreach (var c in All.Values)
+        {
+            if (ReferenceEquals(c, this) || !c.Placed || !c.Visible || !c.IsAlive) continue;
+            float dx = c.x - x, dz = c.z - z, d = dx * dx + dz * dz, rr = (Radius + c.Radius) * 4f;
+            if (d > rr * rr) continue;
+            near.Add((c, MathF.Sqrt(d), rr));
+        }
+        if (near.Count > 0)
+        {
+            float kn = 1f / near.Count;
+            foreach (var (c, d, maxD) in near)
+            {
+                if (d == 0f || ReferenceEquals(exch, c) || ReferenceEquals(c.exch, this)) continue;
+                float dx = c.x - x, dz = c.z - z, kd = 1f / d, kr = kn * (maxD - d) / maxD;
+                sepX -= dx * kr * kd * kd; sepZ -= dz * kr * kd * kd;
+                float k = 1f - MathF.Abs(goX * c.gfX + goZ * c.gfZ);
+                float afx = (goX + c.gfX) * (kn * kr * kd * k), afz = (goZ + c.gfZ) * (kn * kr * kd * k);
+                if (afx * dx + afz * dz < 0f) { alX += afx; alZ += afz; } else { alX -= afx; alZ -= afz; }
+                float kcs = goX * dx + goZ * dz;
+                if (kcs > 0f)
+                {
+                    k = kn * kr * kd * kcs;
+                    if (goX * dz - goZ * dx < 0f) k = -k;
+                    arX += k * goZ; arZ += k * -goX;
+                }
+            }
+        }
+        static void Limit(ref float ax, ref float az) { float l = ax * ax + az * az; if (l > 1f) { l = 1f / MathF.Sqrt(l); ax *= l; az *= l; } }
+        Limit(ref sepX, ref sepZ); Limit(ref alX, ref alZ); Limit(ref arX, ref arZ);
+        float ks = fightMode ? 0.5f : 1.1f;
+        float fx = sepX * ks + alX * 0.1f + arX * 0.1f + goX * 1.2f, fz = sepZ * ks + alZ * 0.1f + arZ * 0.1f + goZ * 1.2f;
+        if (getPatch() is { } p && node >= 0) { var (ex, ez) = p.EdgeForce(node); fx += ex * 0.2f; fz += ez * 0.2f; }
+        return (fx, fz);
+    }
+
+    /// <summary>The steering of AICharacter::CmdUpdateGotoPoint: turn along the summed force, slow down when it is weak.</summary>
+    void FollowForce(float fx, float fz)
+    {
+        Turn(Angle(fx, fz));
+        float l = fx * fx + fz * fz;
+        kSpd = l < 0.7f ? likeKSpd * l / 0.7f : likeKSpd;
+    }
+
+    static float pushAng;
+
+    /// <summary>Supervisor::Update after the moves: characters closer than the mean of their radii are pushed apart (the one that stands still gives way),
+    /// then the patch is asked again; a character that keeps colliding raises Location_CharacterColThreshold (AICharacter::Update).</summary>
+    public static void PostMove(IList<CharacterView> list, float dt)
+    {
+        if (dt <= 0f) return;
+        var live = list.Where(c => c.Placed && c.Visible && c.rig != null && c.task != Task.Dead && c.IsAlive).ToList();
+        var before = live.ToDictionary(c => c, c => (c.x, c.z));
+        foreach (var c in live) c.isCollision = false;
+        for (int i = 0; i < live.Count - 1; i++)
+            for (int j = i + 1; j < live.Count; j++)
+            {
+                var ci = live[i]; var cj = live[j];
+                float r = ci.Radius + cj.Radius;
+                float dx = ci.x - cj.x, dz = ci.z - cj.z, d = dx * dx + dz * dz;
+                if (d > r * r * 4f) continue;
+                if (cj.y > ci.y + CharHeight || ci.y > cj.y + CharHeight) continue;
+                r *= 0.5f;
+                if (d >= r * r) continue;
+                if (d <= 0.25f)
+                {
+                    dx = 0.5f * MathF.Cos(pushAng); dz = 0.5f * MathF.Sin(pushAng); d = dx * dx + dz * dz;
+                    pushAng += MathF.PI / 64f;
+                }
+                d = MathF.Sqrt(d); d = (r - d) / d; dx *= d; dz *= d;
+                ci.isCollision = cj.isCollision = true;
+                bool moveI = ci.pushMove, moveJ = cj.pushMove;
+                float wi, wj;                                   // shares of the push taken by i (away) and j
+                if (ci.fightMode) (wi, wj) = moveI == moveJ ? (0.5f, 0.5f) : moveI ? (0.999f, 0.001f) : (0.001f, 0.999f);
+                else (wi, wj) = moveI == moveJ ? (0.5f, 0.5f) : moveI ? (0.9f, 0.1f) : (0.1f, 0.9f);
+                ci.x += dx * wi; ci.z += dz * wi; cj.x -= dx * wj; cj.z -= dz * wj;
+            }
+        foreach (var c in live)
+        {
+            var (ox, oz) = before[c];
+            float px = c.x, pz = c.z;
+            if (px != ox || pz != oz) { c.x = ox; c.z = oz; c.PatchMove(px, c.y, pz); c.Apply(); }
+            if (c.isCollision)
+            {
+                c.collisionValue += dt;
+                if (c.collisionValue > 1f)
+                {
+                    c.collisionValue = 0.8f;
+                    StatColThreshold++;
+                    c.it.FireEvent("Location_CharacterColThreshold", new List<V> { V.Str(c.TaskName), V.A(c.Ent.Root) });
+                }
+            }
+            else c.collisionValue = Math.Max(0f, c.collisionValue - dt * 0.1f);
+        }
+    }
+
+    string TaskName => task switch
+    {
+        Task.None => "None", Task.Stay => "Stay", Task.Goto => "Goto point", Task.Run => "Runto point", Task.Follow => "Follow character",
+        Task.Fight => "Fight", Task.Escape => "Escape", _ => "Dead",
+    };
 
     void EndTask(string name)
     {
@@ -513,6 +716,73 @@ void fragment() {
             }
     }
 
+    /// <summary>AICharacter::CmdProcessGotoPoint / CmdUpdateGotoPoint: turn along the summed force, move only when facing the way (dot >= 0.9 - fl * 0.1).</summary>
+    void SteerGo(float gx, float gz, float distFinal, bool run, float dt)
+    {
+        float fl = MathF.Sqrt(gx * gx + gz * gz);
+        if (fl > 0f) { gx /= fl; gz /= fl; } else { gx = MathF.Sin(ay); gz = MathF.Cos(ay); }
+        float f2 = Math.Clamp((fl - 0.5f) / (2.0f - 0.5f), 0f, 1f);
+        var (fx, fz) = SteerForce(gx, gz);
+        pushMove = gx * MathF.Sin(ay) + gz * MathF.Cos(ay) >= 0.9f - f2 * 0.1f;     // Process: StartMove only when facing the way ...
+        isMove = true;                                                              // ... but Update calls StartMove() again: the walker always walks and turns along the forces
+        if (!pushMove && gotoCool <= 0f && idleRng.NextDouble() < 1.0 - Math.Exp(-dt * 60.0 / 1024.0))
+        {
+            // turned away from the goal by the other forces: now and then (1 frame in 1024 at 60 fps) stop for 1.2 s and face the goal
+            gotoIsWait = true; gotoWait = 1.2f; waitTurn = true; waitAng = Angle(gx, gz);
+            Turn(waitAng);
+            return;
+        }
+        wantRun = run && distFinal >= 1.5f;                             // "slow down in front of the locator"
+        if (PhysLog && ++physN % 20 == 0) GD.Print($"[steer] {Id} go=({gx:0.00},{gz:0.00}) fl={fl:0.00} force=({fx:0.00},{fz:0.00}) ay={ay:0.00} move={isMove} final={distFinal:0.0}");
+        FollowForce(fx, fz);
+    }
+
+    float gotoCool, waitAng;
+    bool waitTurn;
+
+    /// <summary>The wait state of AICharacter::CmdUpdateGotoPoint: stand still (turning to the wanted way after a random hold-up), and when the wait is over
+    /// continue if the goal is free, wait again up to 3 times, then the task fails. True while the character waits.</summary>
+    bool GotoWaiting(float dt, bool busy, float px, float pz)
+    {
+        if (!gotoIsWait) { gotoCool -= dt; return false; }
+        isMove = false;
+        if (waitTurn) Turn(waitAng);
+        gotoWait -= dt;
+        if (gotoWait > 0f) return true;
+        if (!busy || PosFree(px, y, pz))
+        {
+            gotoIsWait = false;
+            gotoCool = 1f + (float)(idleRng.NextDouble() / (idleRng.NextDouble() + 0.0001));         // 1 + rand / (rand + 1)
+            if (gotoCool > 4f) gotoCool = 4f;
+            return false;
+        }
+        if (gotoBusyCnt < 3) { gotoBusyCnt++; gotoWait = 2f + (float)idleRng.NextDouble() * 2f; return true; }
+        FailTask();
+        return true;
+    }
+
+    /// <summary>The next waypoint towards (gx, gz) over the walk patch (triangle route re-planned when the goal moves), or the goal itself.</summary>
+    (float x, float z) NextWaypoint(float gx, float gz, float gy, float dt)
+    {
+        if (getPatch() is not { } patch) return (gx, gz);
+        pathTimer -= dt;
+        if (path == null || pathTimer <= 0f || (gx - pathX) * (gx - pathX) + (gz - pathZ) * (gz - pathZ) > 1f)
+        {
+            path = patch.FindPath(x, z, y, gx, gz, gy);
+            pathTimer = 0.8f; pathX = gx; pathZ = gz;
+        }
+        while (path != null && path.Count > 1 && (path[0].x - x) * (path[0].x - x) + (path[0].z - z) * (path[0].z - z) < 1.0f * 1.0f) path.RemoveAt(0);     // wider than the run turn radius (3.3 / 5.5 = 0.6 m), or the walker orbits the waypoint
+        return path != null && path.Count > 0 ? path[0] : (gx, gz);
+    }
+
+    /// <summary>The goto command failed (the point stays occupied): the task ends and the template is told with Location_CharacterTaskFailure.</summary>
+    void FailTask()
+    {
+        string name = TaskName;
+        task = Task.Stay; gotoIsWait = false;
+        it.FireEvent("Location_CharacterTaskFailure", new List<V> { V.Str(name), V.A(Ent.Root) });
+    }
+
     public void Tick(float dt)
     {
         if (!Placed || rig == null) return;
@@ -520,11 +790,11 @@ void fragment() {
         Detect(dt);
         UpdateEquipment();
         if (dt > 0f) { TickSwing(dt); TickGun(dt); }
-        if (inDialog || dt <= 0f) { PlayIdle(); return; }
+        if (inDialog || dt <= 0f) { isMove = false; PlayIdle(); return; }
+        isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
+        var patch = getPatch();
 
-        float walk = rig.ActionSpeed("walk", 1.6f), run = rig.ActionSpeed("run", 3.3f), turn = rig.ActionTurnSpeed("walk", 5.5f);
-
-        // player: keyboard control while the script lets the player act
+        // player: keyboard control while the script lets the player act (the engine's "special mode": turn to the wanted direction and walk forward)
         if (IsPlayer && !ScriptControlled && task is Task.Stay or Task.None)
         {
             if (Input.LengthSquared() > 0.01f)
@@ -534,12 +804,12 @@ void fragment() {
                 var fwd = new Vector2(-s, -c);      // Godot (x, z)
                 var right = new Vector2(c, -s);
                 var m = (fwd * Input.Y + right * Input.X).Normalized();
-                float dx = m.X, dz = -m.Y;
-                float speed = Run ? run : walk;
-                ay = TurnToward(ay, Angle(dx, dz), turn * 2f * dt);
-                if (Step(dx * speed * dt, dz * speed * dt, true)) PlayMove(Run ? "run" : "walk"); else PlayIdle();
+                Turn(Angle(m.X, -m.Y));
+                isMove = true; pushMove = true; wantRun = Run;
+                PlayMove(Run ? "run" : "walk");
             }
             else PlayIdle();
+            Locomote(dt);
             Apply();
             return;
         }
@@ -549,20 +819,29 @@ void fragment() {
             case Task.Goto:
             case Task.Run:
             {
-                float speed = task == Task.Run ? run : walk;
-                float dx = tx - x, dz = tz - z, dist = MathF.Sqrt(dx * dx + dz * dz);
-                if (dist <= Math.Max(0.25f, speed * dt))
+                bool run = task == Task.Run;
+                float rad = run ? 0.6f : 0.3f;                              // NPC_STOP_GOTODIST (x2 for running)
+                float dx = tx - x, dz = tz - z, d2 = dx * dx + dz * dz;
+                if (GotoWaiting(dt, true, tx, tz)) { PlayIdle(); break; }
+                if (d2 < rad * rad)
                 {
-                    x = tx; z = tz;
-                    if (getPatch() is { } p && p.Snap(x, y, z, out var sx, out var sy, out var sz)) { x = sx; y = sy; z = sz; }
                     PlayIdle();
-                    Apply();
-                    EndTask(task == Task.Run ? "Runto point" : "Goto point");
-                    return;
+                    EndTask(run ? "Runto point" : "Goto point");
+                    break;
                 }
-                ay = TurnToward(ay, Angle(dx, dz), turn * 2f * dt);
-                Step(MathF.Sin(ay) * speed * dt, MathF.Cos(ay) * speed * dt, false);
-                PlayMove(task == Task.Run ? "run" : "walk");
+                // the point is taken by somebody: wait a little, tell the template (BusyPos), give up after a few tries (AICharacter::CmdProcessGotoPoint)
+                if (d2 < 2f * 2f && !PosFree(tx, y, tz))
+                {
+                    if (gotoBusyCnt > 1 + idleRng.Next(4)) { PlayIdle(); FailTask(); break; }
+                    StatBusyPos++;
+                    gotoBusyCnt++; gotoIsWait = true; waitTurn = false; gotoWait = 2f + (float)idleRng.NextDouble() * 2f;
+                    it.FireEvent("Location_CharacterBusyPos", new List<V> { V.A(Ent.Root), V.Float(tx), V.Float(ty), V.Float(tz) });
+                    PlayIdle();
+                    break;
+                }
+                var (wx, wz) = NextWaypoint(tx, tz, ty, dt);
+                SteerGo(wx - x, wz - z, MathF.Sqrt(d2), run, dt);
+                if (isMove) PlayMove(wantRun ? "run" : "walk"); else PlayIdle();
                 break;
             }
             case Task.Follow:
@@ -572,9 +851,42 @@ void fragment() {
                 if (target == null || !target.Placed || (task == Task.Fight && !target.IsAlive)) { if (task == Task.Fight) FailFight(); PlayIdle(); break; }
                 float dx = target.x - x, dz = target.z - z, dist = MathF.Sqrt(dx * dx + dz * dz);
                 bool flee = task == Task.Escape;
-                float stop = task == Task.Follow ? 1.8f : 1.2f;
-                bool move = flee ? dist < 8f : dist > stop + (task == Task.Follow ? 0.7f : 0f);
-                if (task == Task.Fight)
+                exch = flee ? null : target;                                  // SetExCharacter: the followed / fought character does not push us away
+                if (flee)
+                {
+                    if (IsSliding)                                            // np_character.cpp UpdateEscapeCharacter: stuck at the patch border
+                    {
+                        StatEscapeSlide++;
+                        task = Task.Stay; IsSliding = false;
+                        it.FireEvent("Location_CharacterEscapeSlide", new List<V> { V.Str("Escape"), V.A(Ent.Root) });
+                        PlayIdle();
+                        break;
+                    }
+                    if (dist >= 20f)                                          // NPC_STOP_ESCAPE
+                    {
+                        PlayIdle();
+                        EndTask("Escape");
+                        break;
+                    }
+                    // away from the enemy (goForce * 3 in the engine), always running
+                    float awx = dist > 0.001f ? -dx / dist : 0f, awz = dist > 0.001f ? -dz / dist : 1f;
+                    var (efx, efz) = SteerForce(awx * 3f, awz * 3f);
+                    isMove = true; pushMove = true; wantRun = true;
+                    FollowForce(efx, efz);
+                    PlayMove("run");
+                    break;
+                }
+                bool arrived;
+                if (task == Task.Follow)
+                {
+                    // NPC_START_DIST_NPC 2.5 / NPC_STOP_DIST_NPC 1.5: walk after the target once it is farther than 2.5 m, stop within 1.5 m
+                    arrived = followState != 1 ? dist <= 2.5f : dist < 1.5f;
+                    if (followState == 1 && arrived) followState = 0;
+                    if (arrived && followState != 2) { followState = 2; it.FireEvent("Location_CharacterFollowStay", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
+                    if (!arrived && followState != 1) { followState = 1; fightRun = false; it.FireEvent("Location_CharacterFollowGo", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
+                    if (dist > 10f) fightRun = true; else if (dist < 4f) fightRun = false;      // NPC_RUN_DIST_NPC / NPC_WALK_DIST_NPC
+                }
+                else
                 {
                     fightAllowed ??= AskIsFight();
                     if (fightAllowed == false) { FailFight(); PlayIdle(); break; }
@@ -583,43 +895,30 @@ void fragment() {
                     bool inReach = dist <= (fightState == 2 ? 2.4f : 2.0f);        // np_character.cpp: NPC_FIGHT_STOP_DIST 2.0 / NPC_FIGHT_GO_DIST 2.4
                     SetFightState(inReach ? 2 : 1);
                     NpcMaybeFire(target, dist, dt);
-                    if (inReach) { NpcFight(target, dt); break; }
+                    if (inReach) { Turn(Angle(dx, dz)); NpcFight(target, dt); break; }
+                    // fight: run while farther than NPC_FIGHT_RUN_DIST (4 m), walk inside NPC_FIGHT_WALK_DIST (2.5 m), keep the gait in between
+                    fightRun = dist > 4f || (fightRun && dist >= 2.5f);
+                    arrived = false;
                 }
-                if (!move)
+                if (arrived)
                 {
-                    ay = TurnToward(ay, Angle(dx, dz), turn * 2f * dt); PlayIdle();
-                    if (task == Task.Follow && followState != 2) { followState = 2; it.FireEvent("Location_CharacterFollowStay", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
+                    Turn(Angle(dx, dz)); PlayIdle();
                     break;
                 }
-                if (task == Task.Follow && followState != 1) { followState = 1; it.FireEvent("Location_CharacterFollowGo", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
-                // fight: run while farther than NPC_FIGHT_RUN_DIST (4 m), walk inside NPC_FIGHT_WALK_DIST (2.5 m), keep the gait in between
-                if (task == Task.Fight) fightRun = dist > 4f || (fightRun && dist >= 2.5f);
-                float speed = flee || (task == Task.Fight ? fightRun : dist > 6f) ? run : walk;
-                float ax = dx, az = dz;
-                if (!flee && getPatch() is { } patch)
-                {
-                    // walk around obstacles: route over the walk patch, re-planned when the target moves
-                    pathTimer -= dt;
-                    if (path == null || pathTimer <= 0f || (target.x - pathX) * (target.x - pathX) + (target.z - pathZ) * (target.z - pathZ) > 1f)
-                    {
-                        path = patch.FindPath(x, z, y, target.x, target.z, target.y);
-                        pathTimer = 0.8f; pathX = target.x; pathZ = target.z;
-                    }
-                    while (path != null && path.Count > 1 && (path[0].x - x) * (path[0].x - x) + (path[0].z - z) * (path[0].z - z) < 0.5f * 0.5f) path.RemoveAt(0);
-                    if (path != null && path.Count > 0) { ax = path[0].x - x; az = path[0].z - z; }
-                }
-                float want = flee ? Angle(-dx, -dz) : Angle(ax, az);
-                ay = TurnToward(ay, want, turn * 2f * dt);
-                Step(MathF.Sin(ay) * speed * dt, MathF.Cos(ay) * speed * dt, true);
-                PlayMove(speed == run ? "run" : "walk");
+                if (GotoWaiting(dt, false, 0f, 0f)) { PlayIdle(); break; }
+                var (ax, az) = NextWaypoint(target.x, target.z, target.y, dt);
+                SteerGo(ax - x, az - z, dist, fightRun, dt);
+                if (isMove) PlayMove(wantRun ? "run" : "walk"); else PlayIdle();
                 break;
             }
             case Task.Dead:
-                break;
+                Apply();
+                return;
             default:
                 PlayIdle();
                 break;
         }
+        Locomote(dt);
         Apply();
     }
 
@@ -680,7 +979,7 @@ void fragment() {
         if (!fightMode || !IsAlive || Busy) return;
         Stagger(); atkCooldown = 0.4f;
         float bx = -MathF.Sin(ay) * 1.4f, bz = -MathF.Cos(ay) * 1.4f;
-        Step(bx, bz, true);
+        Step(bx, bz);
     }
 
     /// <summary>The nearest living person in front of this character within reach (for the player's own attacks).</summary>
@@ -705,7 +1004,7 @@ void fragment() {
         var p = text.Split(',');
         if (p.Length < 4) return;
         float F(string t) => float.Parse(t, System.Globalization.CultureInfo.InvariantCulture);
-        x = F(p[0]); y = F(p[1]); z = F(p[2]); ay = F(p[3]);
+        x = F(p[0]); y = F(p[1]); z = F(p[2]); ay = F(p[3]); node = -1; vy = 0f;
         Apply();
     }
 
@@ -811,8 +1110,8 @@ void fragment() {
         {
             case "None": task = Task.None; break;
             case "Stay": task = Task.Stay; break;
-            case "Goto point": task = Task.Goto; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
-            case "Runto point": task = Task.Run; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
+            case "Goto point": gotoIsWait = false; gotoBusyCnt = 0; gotoCool = 0f; path = null; task = Task.Goto; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
+            case "Runto point": gotoIsWait = false; gotoBusyCnt = 0; gotoCool = 0f; path = null; task = Task.Run; tx = Fl(2); ty = Fl(3); tz = Fl(4); break;
             case "Follow character": task = Task.Follow; target = chr(2); followState = 0; break;
             case "Fight":
             {

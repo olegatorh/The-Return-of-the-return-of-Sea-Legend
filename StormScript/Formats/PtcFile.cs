@@ -119,6 +119,8 @@ public sealed class PtcFile
         return found;
     }
 
+    public int NearestTri(float x, float z, float refY) => TriAt(x, z, refY);
+
     int TriAt(float x, float z, float refY)
     {
         int best = -1; float bd = float.MaxValue;
@@ -206,5 +208,195 @@ public sealed class PtcFile
             if (dy < best) { best = dy; y = py; found = true; }
         }
         return found;
+    }
+
+    // ------------------------------------------------------------------ node walking (location/src/ptc_data.cpp)
+
+    float[]? nrmX, nrmY, nrmZ;
+
+    void BuildNormals()
+    {
+        nrmX = new float[Tris.Length]; nrmY = new float[Tris.Length]; nrmZ = new float[Tris.Length];
+        for (int i = 0; i < Tris.Length; i++)
+        {
+            var t = Tris[i];
+            float ux = Vx[t.B] - Vx[t.A], uy = Vy[t.B] - Vy[t.A], uz = Vz[t.B] - Vz[t.A];
+            float wx = Vx[t.C] - Vx[t.A], wy = Vy[t.C] - Vy[t.A], wz = Vz[t.C] - Vz[t.A];
+            float nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+            float l = MathF.Sqrt(nx * nx + ny * ny + nz * nz);
+            if (l < 1e-12f) { nrmY[i] = 1f; continue; }
+            if (ny < 0) l = -l;                                   // the patch is a floor: the normal looks up
+            nrmX[i] = nx / l; nrmY[i] = ny / l; nrmZ[i] = nz / l;
+        }
+    }
+
+    /// <summary>Unit normal of a triangle (pointing up) - the engine's <c>GetNodeNormal</c>.</summary>
+    public (float x, float y, float z) NodeNormal(int node)
+    {
+        if (node < 0 || node >= Tris.Length) return (0, 0, 0);
+        if (nrmX == null) BuildNormals();
+        return (nrmX![node], nrmY![node], nrmZ![node]);
+    }
+
+    /// <summary>Surface height of a triangle's plane at (x, z) - <c>PtcData::FindHeight</c>.</summary>
+    public float FindHeight(int node, float x, float z)
+    {
+        var (nx, ny, nz) = NodeNormal(node);
+        if (MathF.Abs(ny) < 1e-6f) return Vy[Tris[node].A];
+        float d = nx * Vx[Tris[node].A] + ny * Vy[Tris[node].A] + nz * Vz[Tris[node].A];
+        return (d - nx * x - nz * z) / ny + 0.0001f;
+    }
+
+    /// <summary>True if (x, z) is inside the triangle in plan (the engine's edge test: not outside any edge).</summary>
+    bool InsideTri(int node, float x, float z)
+    {
+        var t = Tris[node];
+        for (int j = 0; j < 3; j++)
+        {
+            int s = j == 0 ? t.A : j == 1 ? t.B : t.C, e = j == 0 ? t.B : j == 1 ? t.C : t.A;
+            float nx = -(Vz[e] - Vz[s]), nz = Vx[e] - Vx[s];
+            if (x * nx + z * nz > Vx[s] * nx + Vz[s] * nz) return false;
+        }
+        return true;
+    }
+
+    /// <summary>The triangle under (x, z) whose surface is closest to y (the engine's <c>FindNode</c>); -1 outside the patch. <paramref name="h"/> = surface height there.</summary>
+    public int FindNode(float x, float y, float z, out float h)
+    {
+        int node = -1; float best = float.MaxValue; h = 0f;
+        for (int i = 0; i < Tris.Length; i++)
+        {
+            if (!InsideTri(i, x, z)) continue;
+            float hh = FindHeight(i, x, z), d = MathF.Abs(y - hh);
+            if (d < best) { best = d; h = hh; node = i; }
+        }
+        return node;
+    }
+
+    /// <summary>Set by <see cref="Move"/>: the move ran into the patch edge / stands on the floor / the edge's outward direction.</summary>
+    public bool IsSlide, IsBearing;
+    public float SlideDirX, SlideDirZ;
+
+    /// <summary>
+    /// <c>PtcData::Move</c>: moves <paramref name="pos"/> to <paramref name="to"/> across the triangle graph starting in <paramref name="curNode"/>; the
+    /// move that leaves the patch slides along the border edge (the position stays inside), height is lifted onto the floor (never below it).
+    /// Returns the node the position ended in (-1 = no node given).
+    /// </summary>
+    public int Move(int curNode, (float x, float y, float z) to, ref (float x, float y, float z) pos, int depth = 0)
+    {
+        IsSlide = false; IsBearing = false;
+        if (curNode < 0 || curNode >= Tris.Length) return -1;
+        float dx = to.x - pos.x, dz = to.z - pos.z;
+        var ps = pos;
+        int firstNode = curNode;
+        float dst = dx * dx + dz * dz;
+        if (dst == 0f || depth > 32)
+        {
+            if (to.y != pos.y)
+            {
+                float hy = FindHeight(curNode, pos.x, pos.z);
+                pos.y = to.y;
+                if (pos.y < hy) pos.y = hy;
+            }
+            return curNode;
+        }
+        dst = MathF.Sqrt(dst);
+        float dirX = dx / dst, dirZ = dz / dst;
+        float ndX = dirZ, ndZ = -dirX;                            // vertical plane through the displacement segment
+        float d = ndX * pos.x + ndZ * pos.z;
+        int fromNode = -2;
+        for (int loop = 0; loop < 256; loop++)
+        {
+            var t = Tris[curNode];
+            int j;
+            for (j = 0; j < 3; j++)
+            {
+                int s = j == 0 ? t.A : j == 1 ? t.B : t.C, e = j == 0 ? t.B : j == 1 ? t.C : t.A;
+                float nx = -(Vz[e] - Vz[s]), nz = Vx[e] - Vx[s];
+                float nl = MathF.Sqrt(nx * nx + nz * nz);
+                if (nl == 0f) continue;
+                nx /= nl; nz /= nl;
+                if (to.x * nx + to.z * nz > Vx[s] * nx + Vz[s] * nz) break;
+            }
+            if (j == 3)
+            {
+                pos = to;
+                float h = FindHeight(curNode, pos.x, pos.z);
+                if (pos.y < h) { pos.y = h; IsBearing = true; }
+                return curNode;
+            }
+            int curEdge = -1;
+            float pX = 0, pZ = 0;
+            for (j = 0; j < 3; j++)
+            {
+                int nbj = j == 0 ? t.N0 : j == 1 ? t.N1 : t.N2;
+                if (nbj == fromNode) continue;
+                int s = j == 0 ? t.A : j == 1 ? t.B : t.C, e = j == 0 ? t.B : j == 1 ? t.C : t.A;
+                float d1 = ndX * Vx[s] + ndZ * Vz[s] - d, d2 = ndX * Vx[e] + ndZ * Vz[e] - d;
+                if (d1 * d2 > 0f) continue;
+                if (d1 - d2 == 0f) continue;
+                double k = d1 / (double)(d1 - d2);
+                if (k < 0) k = 0;
+                if (k > 1) k = 1;
+                float qx = (float)(Vx[s] + (Vx[e] - Vx[s]) * k), qz = (float)(Vz[s] + (Vz[e] - Vz[s]) * k);
+                if ((d1 = dirX * (qx - ps.x) + dirZ * (qz - ps.z)) < -0.00001f) continue;
+                if ((d2 = dirX * (to.x - qx) + dirZ * (to.z - qz)) < -0.00001f) continue;
+                curEdge = j; pX = qx; pZ = qz;
+                if (nbj >= 0) break;
+                if (d1 != 0f && d2 != 0f) break;
+            }
+            if (curEdge == -1)
+            {
+                IsSlide = true;
+                return firstNode;
+            }
+            int nb = curEdge == 0 ? t.N0 : curEdge == 1 ? t.N1 : t.N2;
+            if (nb >= 0 && nb < Tris.Length)
+            {
+                fromNode = curNode;
+                curNode = nb;
+                continue;
+            }
+            // a border edge: slide along it
+            {
+                int s = curEdge == 0 ? t.A : curEdge == 1 ? t.B : t.C, e = curEdge == 0 ? t.B : curEdge == 1 ? t.C : t.A;
+                float nx = -(Vz[e] - Vz[s]), nz = Vx[e] - Vx[s];
+                float dd = nx * nx + nz * nz;
+                if (dd == 0f) { pos = (pX, pos.y, pZ); return curNode; }
+                dd = 1f / MathF.Sqrt(dd);
+                nx *= dd; nz *= dd;
+                float sldX = to.x - pX, sldZ = to.z - pZ;
+                dd = nx * sldX + nz * sldZ;
+                if (dd > 0f) dd += 0.001f;
+                if (dd < 0f) dd -= 0.001f;
+                var np = (x: to.x - nx * dd, y: to.y, z: to.z - nz * dd);
+                if (np.x == to.x && np.z == to.z) { IsSlide = true; return firstNode; }
+                np = (pos.x + (np.x - pos.x) * 0.99f, pos.y + (np.y - pos.y) * 0.99f, pos.z + (np.z - pos.z) * 0.99f);
+                curNode = Move(firstNode, np, ref pos, depth + 1);
+                IsSlide = true;
+                SlideDirX = dd >= 0f ? nx : -nx; SlideDirZ = dd >= 0f ? nz : -nz;
+                return curNode;
+            }
+        }
+        return curNode;
+    }
+
+    /// <summary>The force pushing away from the border edges of a node (<c>PtcData::FindForce</c>), used by the NPCs as the slide force.</summary>
+    public (float x, float z) EdgeForce(int node)
+    {
+        if (node < 0 || node >= Tris.Length) return (0, 0);
+        var t = Tris[node];
+        float fx = 0, fz = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            int nb = i == 0 ? t.N0 : i == 1 ? t.N1 : t.N2;
+            if (nb >= 0) continue;
+            int s = i == 0 ? t.A : i == 1 ? t.B : t.C, e = i == 0 ? t.B : i == 1 ? t.C : t.A;
+            float nx = Vz[e] - Vz[s], nz = -(Vx[e] - Vx[s]);
+            float nl = MathF.Sqrt(nx * nx + nz * nz);
+            if (nl == 0f) continue;
+            fx += nx / nl; fz += nz / nl;
+        }
+        return (fx, fz);
     }
 }

@@ -620,6 +620,7 @@ public partial class Main : Node
 
         if (dt > 0f) GroupsState.Tick(dt);
         foreach (var c in list) { c.SetTimeScale(scale); c.ShowNameTag(nameTags); c.Tick(dt); }
+        CharacterView.PostMove(list, dt);
 
         // the game clock (the engine's weather module kept Environment.time running): one game minute per 2.5 s of running game time, only while a
         // location is shown and nothing (dialog, interface screen) freezes the game
@@ -950,7 +951,7 @@ public partial class Main : Node
             GD.Print($"[main] TimeScale={host.It.TimeScale}, locations={locations.Count}, entities alive: " + string.Join(", ", host.It.Entities.Where(en => !en.Deleted).GroupBy(en => en.Class).Select(g => g.Key + "x" + g.Count())));
             foreach (var ch in GetChildren()) GD.Print($"[tree] {ch.Name} {ch.GetType().Name} children={ch.GetChildCount()} queued={ch.IsQueuedForDeletion()}");
             foreach (var c in characters.Values) GD.Print("[chars] " + c.DebugState());
-            GD.Print("[fight] " + CharacterView.FightStats() + $" player fightMode={characters.Values.FirstOrDefault(c => c.IsPlayer)?.FightMode}");
+            GD.Print("[fight] " + CharacterView.FightStats() + $" player fightMode={characters.Values.FirstOrDefault(c => c.IsPlayer)?.FightMode} colThreshold={CharacterView.StatColThreshold} busyPos={CharacterView.StatBusyPos} escapeSlide={CharacterView.StatEscapeSlide}");
             if (landHud != null) GD.Print("[landhud] " + landHud.DebugState());
             foreach (var m in modelNodes.Values)
                 foreach (var part in m.GetChildren().OfType<Node3D>()) GD.Print($"[models] {part.Name} at {m.GlobalPosition} visible={m.Visible} size={(m.Basis * ModelFactory.Bounds(part).Size).Abs()}"

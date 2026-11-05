@@ -24,6 +24,7 @@ public partial class CharacterRig : Node3D
     string curName = "";
     bool loop = true;
     public float Fps => an.Fps;
+    public float SpeedMul = 1f;         // the character speed factor k (character.cpp Move: animation speed x k)
     public float TimeScale = 1f;        // 0 while a dialog is open (the script calls SetTimeScale)
 
     /// <summary>"Walk speed" (m/s) of an action from the .ani file.</summary>
@@ -35,6 +36,21 @@ public partial class CharacterRig : Node3D
         => ani.Actions.TryGetValue(action, out var a) && a.Data.TryGetValue("Turn speed", out var v)
            && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : fallback;
     public string ActionName => curName;
+
+    static float Fl(string? v, float def) => v != null && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
+
+    /// <summary>The engine's <c>UpdateActionMoveData</c>: signed "Walk speed" (0 if absent), "Blend time" (0.2), "Turn speed" (the file's, 2.0 if absent).
+    /// Null if the action does not exist.</summary>
+    public (float speed, float blend, float turn)? MoveData(string action)
+    {
+        if (!ani.Actions.TryGetValue(action, out var a)) return null;
+        float fileTurn = Fl(ani.GlobalData.GetValueOrDefault("Turn speed"), 2f);
+        a.Data.TryGetValue("Walk speed", out var ws); a.Data.TryGetValue("Blend time", out var bt); a.Data.TryGetValue("Turn speed", out var ts);
+        return (Fl(ws, 0f), Math.Max(0f, Fl(bt, 0.2f)), Fl(ts, fileTurn));
+    }
+
+    /// <summary>The file-wide "Turn speed" (turning in place, idle).</summary>
+    public float IdleTurnSpeed => Fl(ani.GlobalData.GetValueOrDefault("Turn speed"), 2f);
 
     static (AnFile, AniActions)? LoadAnim(string anim)
     {
@@ -216,7 +232,7 @@ public partial class CharacterRig : Node3D
         if (cur == null) return;
         float len = Math.Max(cur.End - cur.Start, 1);
         float prev = time;
-        time += (float)delta * TimeScale * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
+        time += (float)delta * TimeScale * SpeedMul * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
         bool wrapped = false;
         if (time >= len)
         {
