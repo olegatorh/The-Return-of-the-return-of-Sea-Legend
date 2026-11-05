@@ -7,7 +7,7 @@ using Godot;
 namespace SeaDogs;
 
 /// <summary>
-/// The player's key bindings (keyboard, by physical key so they work with any layout). The original game's control system is script-driven (CONTROLS\init_pc.c);
+/// The player's key bindings (keyboard, by physical key so they work with any layout). The original game's control system is script-driven (CONTROLS/init_pc.c);
 /// this port keeps its own table for the actions it implements in the engine and stores it in settings.ini [keys]. Edited in the options screen (Controls -> Change).
 /// </summary>
 public static class Keys
@@ -18,9 +18,10 @@ public static class Keys
     {
         new("LandForward", "На суші", "Рух вперед", Key.W), new("LandBack", "На суші", "Рух назад", Key.S),
         new("LandLeft", "На суші", "Крок вліво", Key.A), new("LandRight", "На суші", "Крок вправо", Key.D),
-        new("LandRun", "На суші", "Біг", Key.Shift), new("LandTalk", "На суші", "Розмова", Key.E), new("LandSword", "На суші", "Дістати / сховати шаблю", Key.F), new("LandBlock", "На суші", "Блок (утримувати, шабля добута)", Key.Ctrl), new("LandFire", "На суші", "Постріл з пістоля", Key.Q), new("LandRecoil", "На суші", "Відскок назад", Key.Z),
+        new("LandRun", "На суші", "Біг (сучасне) / повільний крок (класичне)", Key.Shift), new("LandTalk", "На суші", "Розмова", Key.E), new("LandSword", "На суші", "Дістати / сховати шаблю", Key.F), new("LandBlock", "На суші", "Блок (утримувати, шабля добута)", Key.Ctrl), new("LandFire", "На суші", "Постріл з пістоля", Key.Q), new("LandRecoil", "На суші", "Відскок назад", Key.Z),
         new("LandCamLeft", "На суші", "Камера вліво", Key.Left), new("LandCamRight", "На суші", "Камера вправо", Key.Right),
         new("LandCamUp", "На суші", "Камера вгору", Key.Up), new("LandCamDown", "На суші", "Камера вниз", Key.Down),
+        new("LandLook", "На суші", "Погляд з очей / камера ззаду", Key.Tab),
 
         new("SeaLeft", "На морі й карті", "Поворот ліворуч", Key.A), new("SeaRight", "На морі й карті", "Поворот праворуч", Key.D),
         new("SeaSailUp", "На морі й карті", "Підняти вітрила", Key.W), new("SeaSailDown", "На морі й карті", "Опустити вітрила", Key.S),
@@ -36,17 +37,25 @@ public static class Keys
 
         new("QuickSave", "Загальні", "Швидке збереження", Key.F4), new("QuickLoad", "Загальні", "Швидке завантаження", Key.F6),
         new("Interface", "Загальні", "Екран персонажа / інтерфейс", Key.F2), new("MainMenu", "Загальні", "Головне меню", Key.F1),
-        new("NameTags", "Загальні", "Імена над персонажами", Key.F3), new("FlyCam", "Загальні", "Вільна камера (налагодження)", Key.F9), new("BugReport", "Загальні", "Звіт про помилку (знімок + лог + стан)", Key.F8),
+        new("LandStyle", "Загальні", "Керування на суші: сучасне / класичне (як в оригіналі)", Key.F10), new("NameTags", "Загальні", "Імена над персонажами", Key.F3), new("FlyCam", "Загальні", "Вільна камера (налагодження)", Key.F9), new("BugReport", "Загальні", "Звіт про помилку (знімок + лог + стан)", Key.F8),
     };
 
     static readonly Dictionary<string, Key> map = All.ToDictionary(a => a.Id, a => a.Default);
     static string path = "";
+
+    /// <summary>
+    /// Land control scheme. false = this port's: WASD walks relative to the camera, the right mouse button / arrows turn the camera. true = the original
+    /// (CONTROLS/init_pc.c): the mouse turns the hero and the camera height, A/D turn, W/S (or the right/middle mouse button) walk forward/back, the hero runs
+    /// unless Shift is held, and the camera follows the hero's heading with inertia.
+    /// </summary>
+    public static bool Classic;
 
     public static Key Get(string id) => map.TryGetValue(id, out var k) ? k : Key.None;
     public static bool Down(string id) => Input.IsPhysicalKeyPressed(Get(id));
     public static bool Is(InputEventKey e, string id) => e.PhysicalKeycode == Get(id);
 
     public static void Set(string id, Key k) { map[id] = k; Save(); }
+    public static void SetClassic(bool on) { Classic = on; Save(); }
     public static void ResetAll() { foreach (var a in All) map[a.Id] = a.Default; Save(); }
     public static string Name(Key k) => k == Key.None ? "—" : OS.GetKeycodeString(k);
 
@@ -62,7 +71,8 @@ public static class Keys
             int eq = line.IndexOf('=');
             if (!inKeys || eq < 0 || line.StartsWith(';')) continue;
             string id = line.Substring(0, eq).Trim(), val = line.Substring(eq + 1).Trim();
-            if (map.ContainsKey(id) && int.TryParse(val, out var code)) map[id] = (Key)code;
+            if (id == "LandClassic") Classic = val == "1";
+            else if (map.ContainsKey(id) && int.TryParse(val, out var code)) map[id] = (Key)code;
         }
     }
 
@@ -81,6 +91,7 @@ public static class Keys
         lines.Add("[keys]");
         lines.Add("; Godot physical key codes; edit them in the game (Options -> Controls -> Change)");
         foreach (var a in All) lines.Add($"{a.Id} = {(int)map[a.Id]}");
+        lines.Add($"LandClassic = {(Classic ? 1 : 0)}");
         File.WriteAllLines(path, lines);
     }
 }
@@ -108,6 +119,9 @@ public partial class KeyBindingsScreen : CanvasLayer
         hint.Text = "Натисніть кнопку з клавішею, потім нову клавішу (Esc — скасувати)";
         hint.HorizontalAlignment = HorizontalAlignment.Center;
         root.AddChild(hint);
+        var style = new CheckButton { Text = "Класичне керування на суші (як в оригіналі: миша повертає героя, A/D — поворот, W/S — хід)", ButtonPressed = Keys.Classic };
+        style.Toggled += on => Keys.SetClassic(on);
+        root.AddChild(style);
         var scroll = new ScrollContainer { SizeFlagsVertical = Control.SizeFlags.ExpandFill };
         root.AddChild(scroll);
         var list = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };

@@ -283,6 +283,9 @@ public partial class CharacterView : Node3D
     public Vector2 Input;           // x: strafe right, y: forward (camera relative)
     public bool Run;
     public float CameraYaw;         // Godot yaw of the camera
+    public bool Classic;            // the original scheme: Input.Y moves along the heading (negative = backwards), TurnAdd turns the hero
+    public float TurnAdd;           // Player::Rotate: heading change wanted this frame (rad, already scaled; consumed by Tick)
+    public bool LookHidden { set { if (rig != null) rig.Visible = !value; } }    // first-person camera: the model is not drawn
 
     public float X => x;
     public float Y => y;
@@ -386,7 +389,7 @@ void fragment() {
     void PlayMove(string action)
     {
         if (rig == null) return;
-        if (fightMode) action = action switch { "walk" => "fight walk", "run" => "fight run", _ => action };
+        if (fightMode) action = action switch { "walk" => "fight walk", "run" => "fight run", "back walk" => "fight back walk", "back run" => "fight back run", _ => action };
         if (playing == action) return;
         if (Busy && !rig.Finished) return;
         if (rig.Play(action, true)) playing = action;
@@ -819,7 +822,17 @@ void fragment() {
         // player: keyboard control while the script lets the player act (the engine's "special mode": turn to the wanted direction and walk forward)
         if (IsPlayer && !ScriptControlled && task is Task.Stay or Task.None)
         {
-            if (Input.LengthSquared() > 0.01f)
+            if (TurnAdd != 0f) { Turn(ay + Math.Clamp(TurnAdd, -0.3f, 0.3f)); TurnAdd = 0f; }     // Player::Rotate: a = rotate * 0.01, at most 0.3 rad ahead of the heading
+            if (Classic)
+            {
+                if (MathF.Abs(Input.Y) > 0.01f)
+                {
+                    isBack = Input.Y < 0f; isMove = true; pushMove = true; wantRun = Run;
+                    PlayMove((isBack ? "back " : "") + (Run ? "run" : "walk"));
+                }
+                else PlayIdle();
+            }
+            else if (Input.LengthSquared() > 0.01f)
             {
                 // camera-relative move in Godot space -> Direct3D space (z flips)
                 float s = MathF.Sin(CameraYaw), c = MathF.Cos(CameraYaw);

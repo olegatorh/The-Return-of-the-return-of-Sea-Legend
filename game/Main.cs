@@ -114,6 +114,8 @@ public partial class Main : Node
             else if (a.StartsWith("--call="))  { var p = a.Substring(7).Split('@'); calls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--move=")) { var p = a.Substring(7).Split('@'); var xy = p[0].Split(','); var fr = p[1].Split('-'); moves.Add((int.Parse(fr[0]), int.Parse(fr[1]), new Vector2(float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture), float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture)))); }
             else if (a.StartsWith("--dump=")) { var p = a.Substring(7).Split('@'); dumps.Add((int.Parse(p[1]), p[0])); }
+            else if (a == "--classic") Keys.Classic = true;                                // the original land control scheme (see Keys.Classic)
+            else if (a.StartsWith("--look@")) lookAtFrame = int.Parse(a.Substring(7));       // Tab (first-person view) at frame N
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
@@ -548,6 +550,13 @@ public partial class Main : Node
         // F = draw/sheathe the sword (the original used E; E talks here)
         if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf && pf.ToggleFightMode()) { logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
+        if (e is InputEventKey { Pressed: true, Echo: false } tabk && Keys.Is(tabk, "LandLook") && locations.Count > 0 && dialogView == null && !UiOpen && camMode == 1
+            && characters.Values.FirstOrDefault(c => c.IsPlayer) is { Placed: true, FightMode: false } lp0 && lp0.IsAlive) lookMode = !lookMode;               // ChrCamCameraSwitch
+        if (e is InputEventKey { Pressed: true, Echo: false } stk && Keys.Is(stk, "LandStyle") && locations.Count > 0 && dialogView == null && !UiOpen)
+        {
+            Keys.SetClassic(!Keys.Classic);
+            logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(Keys.Classic ? "Керування на суші: класичне (миша повертає героя)" : "Керування на суші: сучасне (WASD відносно камери)") });
+        }
         if (e is InputEventKey { Pressed: true, Echo: false } f8 && Keys.Is(f8, "BugReport")) SaveBugReport();
         if (e is InputEventKey { Pressed: true } f9 && Keys.Is(f9, "FlyCam")) flyMode = !flyMode;          // free debug camera
         if (e is InputEventKey { Pressed: true } f3 && Keys.Is(f3, "NameTags"))                              // show/hide name tags
@@ -578,7 +587,13 @@ public partial class Main : Node
     Vector3 camToPos;
     float? camLockPitch;                  // locationcamera MSG_CAMERA_MOVE
     bool camSleep;                        // locationcamera MSG_CAMERA_SLEEP
-    float camYaw, camPitch = 0.38f, camDist = 3.6f;
+    float camYaw, camPitch = 0.4f, camDist = 3.0f;       // LocationCamera: ax = 0.4, radius = 3
+    readonly LandCamera landCam = new();
+    static readonly bool CamLog = System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG") != null;
+    float mouseDx, mouseDy;               // mouse motion since the last frame (the classic scheme turns the hero with it)
+    float lookBlend, lookPitch;           // Tab: first-person view, blended in over a second like LocationCamera::kMorph
+    bool lookMode, lookHidden;
+    int lookAtFrame = -1, jumpAtFrame = -1;
     // test hook: env SEADOGS_LANDCAM="x,y,z,tx,ty,tz" (Godot coordinates) fixes the location camera
     (Vector3 pos, Vector3 look)? landCamHook = ParseLandCam();
     static (Vector3, Vector3)? ParseLandCam()
@@ -674,26 +689,47 @@ public partial class Main : Node
         var list = characters.Values.ToList();
         var player = list.FirstOrDefault(c => c.IsPlayer);
 
+        if (frames == lookAtFrame) lookMode = !lookMode;          // test hook --look@N
         // player input: only when no dialog/interface has the keyboard
         bool free = dialogView == null && !UiOpen && !flyMode && landHud?.MenuOpen != true;
         if (player != null)
         {
             var mv = Vector2.Zero;
+            bool classic = Keys.Classic;
+            float turnAdd = 0f, pitchSpeed = 0f;
             if (free)
             {
-                if (Keys.Down("LandForward")) mv.Y += 1;
-                if (Keys.Down("LandBack")) mv.Y -= 1;
-                if (Keys.Down("LandRight")) mv.X += 1;
-                if (Keys.Down("LandLeft")) mv.X -= 1;
-                if (Keys.Down("LandCamLeft")) camYaw += 1.8f * delta;
-                if (Keys.Down("LandCamRight")) camYaw -= 1.8f * delta;
-                if (camLockPitch == null && Keys.Down("LandCamUp")) camPitch = Math.Clamp(camPitch + 0.9f * delta, 0.05f, 1.3f);
-                if (camLockPitch == null && Keys.Down("LandCamDown")) camPitch = Math.Clamp(camPitch - 0.9f * delta, 0.05f, 1.3f);
+                if (classic)
+                {
+                    // CONTROLS/init_pc.c: right mouse button = ChrForward, middle = ChrBackward, A/D = ChrTurnHL/HR (+-12 per frame), the mouse = ChrTurnH / ChrCamTurnV;
+                    // W/S walk too. Shift (ChrRun) makes the hero walk: Player::IsRunMode returns "not pressed".
+                    if (Keys.Down("LandForward") || Input.IsMouseButtonPressed(MouseButton.Right)) mv.Y += 1;
+                    if (Keys.Down("LandBack") || Input.IsMouseButtonPressed(MouseButton.Middle)) mv.Y -= 1;
+                    if (Keys.Down("LandRight")) turnAdd += 12f * 0.01f;
+                    if (Keys.Down("LandLeft")) turnAdd -= 12f * 0.01f;
+                    if (mouseCaptured) { turnAdd += mouseDx * RealSens("mouse.x_sens") * 0.01f; pitchSpeed = -mouseDy * RealSens("mouse.y_sens") * 0.004f * (InvertCameras() ? -1f : 1f) / Math.Max(delta, 0.001f); }
+                }
+                else
+                {
+                    if (Keys.Down("LandForward")) mv.Y += 1;
+                    if (Keys.Down("LandBack")) mv.Y -= 1;
+                    if (Keys.Down("LandRight")) mv.X += 1;
+                    if (Keys.Down("LandLeft")) mv.X -= 1;
+                    if (Keys.Down("LandCamLeft")) camYaw += 1.8f * delta;
+                    if (Keys.Down("LandCamRight")) camYaw -= 1.8f * delta;
+                }
+                if (Keys.Down("LandCamUp")) pitchSpeed += 0.9f;
+                if (Keys.Down("LandCamDown")) pitchSpeed -= 0.9f;
             }
-            foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) mv = dir;     // test hook
+            mouseDx = mouseDy = 0f;
+            if (camLockPitch == null && !lookMode) camPitch = landCam.Pitch(camPitch, pitchSpeed, delta);
+            else if (lookMode) lookPitch = Math.Clamp(lookPitch - pitchSpeed * delta * 0.7f, -0.8f, 0.8f);
+            foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) { mv = dir; if (classic) { mv = new Vector2(0, dir.Y); turnAdd += dir.X * 0.12f; } }     // test hook
             player.Input = mv;
+            player.Classic = classic;
+            player.TurnAdd += turnAdd;
             player.Blocking = free && player.FightMode && Keys.Down("LandBlock");
-            player.Run = Keys.Down("LandRun");
+            player.Run = classic ? !Keys.Down("LandRun") : Keys.Down("LandRun");
             player.CameraYaw = camYaw;
         }
 
@@ -768,28 +804,40 @@ public partial class Main : Node
             return;
         }
         if (player == null || !player.Placed || flyMode) return;
-        if (!camInit) { camYaw = -player.Heading; camInit = true; }
-        var target = player.Position + new Vector3(0, 1.45f, 0);
-        var off = new Vector3(MathF.Sin(camYaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(camYaw) * MathF.Cos(camPitch)) * camDist;
-        var want = target + off;
-        // keep the camera inside the room: shorten the boom when a wall is in the way
-        var space = cam.GetWorld3D()?.DirectSpaceState;
-        if (space != null)
+        if (!camInit) { camYaw = -player.Heading; camInit = true; landCam.Born = true; }
+        bool canLook = !player.FightMode && player.IsAlive && dialogView == null;
+        if (lookMode && !canLook) lookMode = false;
+        lookBlend = Math.Clamp(lookBlend + (lookMode ? 1f : -1f) * delta, 0f, 1f);       // kMorph: a second to blend between the views
+        bool hide = lookBlend >= 1f;
+        if (hide != lookHidden) { lookHidden = hide; player.LookHidden = hide; }
+        // the classic scheme: the camera turns after the hero's heading with the inertia rotInertia (CameraFollow::MoveCamera)
+        if (Keys.Classic && camMode == 1 && !lookMode)
         {
-            var hit = space.IntersectRay(PhysicsRayQueryParameters3D.Create(target, want));
-            if (hit.Count > 0)
-            {
-                var hp = (Vector3)hit["position"];
-                float dist = Math.Max(0.5f, target.DistanceTo(hp) - 0.25f);
-                want = target + (want - target).Normalized() * dist;
-            }
+            float dAng = -player.Heading - camYaw;
+            while (dAng > MathF.PI) dAng -= 2f * MathF.PI;
+            while (dAng < -MathF.PI) dAng += 2f * MathF.PI;
+            if (MathF.Abs(dAng) > 0.001f) camYaw += dAng * Math.Min(delta * LandCamera.RotInertia, 1f);
         }
-        cam.GlobalPosition = want;
-        cam.LookAt(target);
+        else if (lookMode) camYaw = -player.Heading;
+        const float charHeight = CharacterView.CharHeight;
+        var target = player.Position + new Vector3(0, charHeight * LandCamera.LookHeight, 0);
+        landCam.Place(cam, target, player.Position.Y, charHeight, camYaw, camPitch, camDist, delta);
+        if (CamLog && frames % 50 == 0) GD.Print($"[camera] frame {frames}: radius {landCam.Radius:0.00}/{camDist:0.0} yaw {camYaw:0.00} pitch {camPitch:0.00} heading {player.Heading:0.00} pos {cam.GlobalPosition} look={lookBlend:0.0} classic={Keys.Classic}");
+        if (lookBlend > 0f)
+        {
+            // first person (ExecuteLook): the eyes, looking along the heading, tilted by the vertical angle
+            float h = player.Heading;
+            var eye = player.Position + new Vector3(0, charHeight, 0) + new Vector3(MathF.Sin(h), 0, -MathF.Cos(h)) * 0.1f;
+            var dir = new Vector3(MathF.Sin(h) * MathF.Cos(lookPitch), -MathF.Sin(lookPitch), -MathF.Cos(h) * MathF.Cos(lookPitch));
+            float k = lookBlend * lookBlend * (3f - 2f * lookBlend);
+            cam.GlobalPosition = cam.GlobalPosition.Lerp(eye, k);
+            cam.LookAt(target.Lerp(eye + dir, k));
+        }
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
+        if (e is InputEventMouseMotion cm && mouseCaptured && Keys.Classic && locations.Count > 0 && !flyMode) { mouseDx += cm.Relative.X; mouseDy += cm.Relative.Y; return; }        // ChrTurnH / ChrCamTurnV
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen) { sea.FirePlayer(); return; }
         if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && dialogView == null && !UiOpen)
         {
@@ -834,9 +882,12 @@ public partial class Main : Node
             float dx = mm.Relative.X * sx, dy = mm.Relative.Y * sy * (inv ? -1f : 1f);
             if (sea.Active && locations.Count == 0) sea.Look(dx, dy);
             else if (worldMap.Active && locations.Count == 0) worldMap.Look(dx, dy);
-            else { camYaw -= dx * 0.005f; if (camLockPitch == null) camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.3f); }
+            else if (lookMode) { if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } lp1) lp1.TurnAdd += dx * 0.005f; lookPitch = Math.Clamp(lookPitch + dy * 0.004f, -0.8f, 0.8f); }
+            else { camYaw -= dx * 0.005f; if (camLockPitch == null) camPitch = Math.Clamp(camPitch + dy * 0.004f, LandCamera.PitchMin, LandCamera.PitchMax); }
         }
     }
+
+    bool InvertCameras() => host.It.Globals.TryGetValue("InterfaceStates", out var ist) && ist.Val.Attr?.Get("InvertCameras")?.Value == "1";
 
     float RealSens(string path)
     {
@@ -956,6 +1007,8 @@ public partial class Main : Node
         perkView.Visible = dialogView == null && !UiOpen && !worldMap.Active;
         // the deck camera hides the cursor and turns with the mouse (not in scripted test runs, not while a menu or a screen needs the pointer)
         bool wantCapture = sea.DeckCamera && locations.Count == 0 && !UiOpen && dialogView == null && !sea.CommandsOpen && !worldMap.Active && shotPath == null;
+        // the classic land scheme turns the hero with the mouse, which therefore stays hidden in the window while the game is running
+        if (Keys.Classic && locations.Count > 0 && !UiOpen && dialogView == null && landHud?.MenuOpen != true && !flyMode && camMode == 1 && !worldMap.Active && shotPath == null) wantCapture = true;
         if (wantCapture != mouseCaptured) { mouseCaptured = wantCapture; Input.MouseMode = wantCapture ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible; }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         UpdateWorld((float)delta);
