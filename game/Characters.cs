@@ -91,6 +91,7 @@ public partial class CharacterView : Node3D
     bool npcFireEnable = true;
     double npcParamsAt = -1e9;
     int fightState;                       // 0 = not reported, 1 = FightGo sent, 2 = FightStay sent
+    bool fightRun = true;
     bool? fightAllowed;                   // Location_CharacterIsFight, asked once per fight task
     static readonly HashSet<string> paramsLogged = new();
     /// <summary>Test knob (env SEADOGS_NPCFIRE): multiplies the script's NPC fire rate, so a short test run sees an NPC shot.</summary>
@@ -579,7 +580,7 @@ void fragment() {
                     if (fightAllowed == false) { FailFight(); PlayIdle(); break; }
                     if (!fightMode) FightMode = true;
                     NpcParams();
-                    bool inReach = dist <= (fightState == 2 ? 2.3f : 1.9f);        // a little hysteresis between FightStay and FightGo
+                    bool inReach = dist <= (fightState == 2 ? 2.4f : 2.0f);        // np_character.cpp: NPC_FIGHT_STOP_DIST 2.0 / NPC_FIGHT_GO_DIST 2.4
                     SetFightState(inReach ? 2 : 1);
                     NpcMaybeFire(target, dist, dt);
                     if (inReach) { NpcFight(target, dt); break; }
@@ -591,7 +592,9 @@ void fragment() {
                     break;
                 }
                 if (task == Task.Follow && followState != 1) { followState = 1; it.FireEvent("Location_CharacterFollowGo", new List<V> { V.Str("Follow character"), V.A(Ent.Root) }); }
-                float speed = flee || task == Task.Fight || dist > 6f ? run : walk;
+                // fight: run while farther than NPC_FIGHT_RUN_DIST (4 m), walk inside NPC_FIGHT_WALK_DIST (2.5 m), keep the gait in between
+                if (task == Task.Fight) fightRun = dist > 4f || (fightRun && dist >= 2.5f);
+                float speed = flee || (task == Task.Fight ? fightRun : dist > 6f) ? run : walk;
                 float ax = dx, az = dz;
                 if (!flee && getPatch() is { } patch)
                 {
