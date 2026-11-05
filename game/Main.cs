@@ -304,7 +304,9 @@ public partial class Main : Node
                     {
                         var g = StormScript.Formats.GmFile.Parse(File.ReadAllBytes(file));
                         foreach (var c in holder.GetChildren()) c.QueueFree();
-                        holder.AddChild(ModelFactory.Build(g, Path.GetFileNameWithoutExtension(file), modelDirs[e].TrimEnd((char)92), null));
+                        var built = ModelFactory.Build(g, Path.GetFileNameWithoutExtension(file), modelDirs[e].TrimEnd((char)92), null);
+                        holder.AddChild(built);
+                        LandFlags.Register(e, built, g);
                         GD.Print("[model] loaded " + S(1));
                         return V.Int(1);
                     }
@@ -323,6 +325,7 @@ public partial class Main : Node
             }
             return V.Int(1);
         };
+        host.It.EntityHandlers["Flag"] = (e, fmt, d) => LandFlags.OnMessage(d);       // flags of towns, ports and forts (the ship flags are built by SeaView)
         host.It.EntityHandlers["MODELR"] = modelHandler;
         host.It.EntityHandlers["MODEL"] = modelHandler;
         host.It.EntityHandlers["CharactersGroups"] = (e, fmt, d) => GroupsState.OnMessage(host.It, d);

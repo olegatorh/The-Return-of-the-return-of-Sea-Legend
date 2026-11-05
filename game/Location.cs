@@ -32,7 +32,7 @@ public partial class LocationView : Node3D
     readonly List<(List<StandardMaterial3D> mats, Vector2 speed)> sliders = new();
     float animTime;
 
-    public LocationView(Interp it, Entity ent) { this.it = it; Ent = ent; Name = "Location"; }
+    public LocationView(Interp it, Entity ent) { this.it = it; Ent = ent; Name = "Location"; LandFlags.EnsureEntity(it); }
 
     /// <summary>Interiors have no weather (loc.environment.weather != "true"): the characters get an indoor ambient.</summary>
     public bool Indoor => Ent.Root.Find("environment.weather", false)?.Value != "true";
@@ -54,6 +54,7 @@ public partial class LocationView : Node3D
     {
         float dt = (float)delta;
         animTime += dt;
+        LandFlags.Tick(it);
         foreach (var (node, sp) in spinners) node.Rotation += sp * dt;
         foreach (var (mats, sp) in sliders)
         {
@@ -77,7 +78,11 @@ public partial class LocationView : Node3D
             case 30142: lightPath = S(1).Trim((char)92, '/'); return V.Int(1);
             case 30143: shadowPath = S(1); return V.Int(1);
             case 30100: return V.Int(AddModel(S(1)) ? 1 : 0);                    // ADD_MODEL "lssl"
-            case 30101: return V.Int(0);                                         // GET_MODEL: no model objects yet
+            case 30101:                                                          // GET_MODEL "le": the last added model as an object (the loader hands it to the Flag class)
+                if (lastNode == null || lastModel == null || d.Length < 2 || d[1].Attr is not { } mref) return V.Int(0);
+                it.CreateEntity(mref, "locmodel");
+                if (mref.Entity != null) LandFlags.Register(mref.Entity, lastNode, lastModel);
+                return V.Int(1);
             case 30110: PlaceLastModel(S(1), S(2)); return V.Int(1);             // MODEL_SET_POS
             case 30111:                                                          // MODEL_SET_ROT "lfff": spin speed (rad/s) around the model's own axes
                 if (lastNode == null) return V.Int(0);
