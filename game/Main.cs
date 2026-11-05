@@ -114,6 +114,8 @@ public partial class Main : Node
             else if (a.StartsWith("--call="))  { var p = a.Substring(7).Split('@'); calls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--move=")) { var p = a.Substring(7).Split('@'); var xy = p[0].Split(','); var fr = p[1].Split('-'); moves.Add((int.Parse(fr[0]), int.Parse(fr[1]), new Vector2(float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture), float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture)))); }
             else if (a.StartsWith("--dump=")) { var p = a.Substring(7).Split('@'); dumps.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--at=")) { var p = a.Substring(5).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; atHooks.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci), float.Parse(v[3], ci))); }      // test hook: stand at x,y,z facing ay
+            else if (a.StartsWith("--jump@")) jumpAtFrame = int.Parse(a.Substring(7));      // test hook: the hero jumps forward at frame N
             else if (a == "--classic") Keys.Classic = true;                                // the original land control scheme (see Keys.Classic)
             else if (a.StartsWith("--look@")) lookAtFrame = int.Parse(a.Substring(7));       // Tab (first-person view) at frame N
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
@@ -381,6 +383,9 @@ public partial class Main : Node
         {
             if (!characters.TryGetValue(e, out var cv))
             {
+                CharacterView.JumpPatchOf ??= () => CurrentLocation()?.JumpPatch;
+                CharacterView.Obstacle ??= (a, b) => CurrentLocation()?.Cam?.GetWorld3D()?.DirectSpaceState is { } sp && sp.IntersectRay(PhysicsRayQueryParameters3D.Create(new Vector3(a.X, a.Y, -a.Z), new Vector3(b.X, b.Y, -b.Z))).Count > 0;
+                CharacterView.SeaLevelOf ??= (px, pz) => outdoor.HasSea && CurrentLocation() is { } lv && lv.Ent.Root.Get("swimming")?.Value != "0" ? SeaWaves.Height(px, -pz) : null;
                 cv = new CharacterView(host.It, e, (g, n) => CurrentLocation()?.FindLocator(g, n), () => CurrentLocation()?.Patch);
                 cv.LocationRoot = () => CurrentLocation()?.Ent.Root;
                 characters[e] = cv;
@@ -594,6 +599,7 @@ public partial class Main : Node
     float lookBlend, lookPitch;           // Tab: first-person view, blended in over a second like LocationCamera::kMorph
     bool lookMode, lookHidden;
     int lookAtFrame = -1, jumpAtFrame = -1;
+    readonly List<(int frame, float x, float y, float z, float ay)> atHooks = new();
     // test hook: env SEADOGS_LANDCAM="x,y,z,tx,ty,tz" (Godot coordinates) fixes the location camera
     (Vector3 pos, Vector3 look)? landCamHook = ParseLandCam();
     static (Vector3, Vector3)? ParseLandCam()
@@ -690,6 +696,8 @@ public partial class Main : Node
         var player = list.FirstOrDefault(c => c.IsPlayer);
 
         if (frames == lookAtFrame) lookMode = !lookMode;          // test hook --look@N
+        foreach (var h in atHooks) if (h.frame == frames && player != null) { player.TeleportTo(h.x, h.y, h.z, h.ay); camInit = false; }
+        if (frames == jumpAtFrame && player != null) GD.Print($"[jump] requested: {(player.Jump() ? "started" : "no jump patch / no landing here")}");
         // player input: only when no dialog/interface has the keyboard
         bool free = dialogView == null && !UiOpen && !flyMode && landHud?.MenuOpen != true;
         if (player != null)

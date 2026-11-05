@@ -14,6 +14,7 @@ public partial class OutdoorEnv : Node3D
     Node3D? sky;
     string skyDir = "";
     MeshInstance3D? sea;
+    public bool HasSea => sea != null;
     ShaderMaterial? seaMat, farMat;
     MeshInstance3D? seaFar;
     WorldEnvironment? world;

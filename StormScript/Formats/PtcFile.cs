@@ -273,6 +273,24 @@ public sealed class PtcFile
         return node;
     }
 
+    float[][]? vcache;
+
+    /// <summary>PtcData::Trace: nearest crossing of the segment src -> dst with the patch (fraction along it, 2 = none); both sides count.</summary>
+    public float Trace(float sx, float sy, float sz, float dx, float dy, float dz)
+    {
+        if (vcache == null) { vcache = new float[Vx.Length][]; for (int i = 0; i < vcache.Length; i++) vcache[i] = new[] { Vx[i], Vy[i], Vz[i] }; }
+        float best = 2f;
+        float lx = Math.Min(sx, dx), hx = Math.Max(sx, dx), lz = Math.Min(sz, dz), hz = Math.Max(sz, dz);
+        foreach (var t in Tris)
+        {
+            if (Math.Max(Vx[t.A], Math.Max(Vx[t.B], Vx[t.C])) < lx || Math.Min(Vx[t.A], Math.Min(Vx[t.B], Vx[t.C])) > hx) continue;
+            if (Math.Max(Vz[t.A], Math.Max(Vz[t.B], Vz[t.C])) < lz || Math.Min(Vz[t.A], Math.Min(Vz[t.B], Vz[t.C])) > hz) continue;
+            float k = TriTrace.Triangle(vcache[t.A], vcache[t.B], vcache[t.C], sx, sy, sz, dx, dy, dz);
+            if (k < best) best = k;
+        }
+        return best;
+    }
+
     /// <summary>Set by <see cref="Move"/>: the move ran into the patch edge / stands on the floor / the edge's outward direction.</summary>
     public bool IsSlide, IsBearing;
     public float SlideDirX, SlideDirZ;

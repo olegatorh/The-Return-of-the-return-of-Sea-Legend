@@ -173,6 +173,7 @@ public partial class CharacterView : Node3D
     /// <summary>The player draws / sheathes the sword: drawing asks the template first (Location_CharacterIsFight; the script prints "CantFight").</summary>
     public bool ToggleFightMode()
     {
+        if (isSwim || isJump) return false;                    // character.cpp: no sword while swimming or in the air
         if (!fightMode && !AskIsFight()) return false;
         FightMode = !fightMode;
         return true;
@@ -360,7 +361,7 @@ void fragment() {
 
     void Apply()
     {
-        Position = new Vector3(x, y, -z);
+        Position = new Vector3(x, isSwim ? seaY : y, -z);
         Rotation = new Vector3(0, -ay, 0);
         Placed = true;
     }
@@ -389,6 +390,7 @@ void fragment() {
     void PlayMove(string action)
     {
         if (rig == null) return;
+        if (isSwim) action = "swim";
         if (fightMode) action = action switch { "walk" => "fight walk", "run" => "fight run", "back walk" => "fight back walk", "back run" => "fight back run", _ => action };
         if (playing == action) return;
         if (Busy && !rig.Finished) return;
@@ -409,6 +411,7 @@ void fragment() {
     void PlayIdle()
     {
         if (rig == null) return;
+        if (isSwim) { if (playing != "swim" && rig.Play("swim", true)) playing = "swim"; return; }
         if (Busy && !rig.Finished) return;                                  // let a swing, a draw, a shot or a reaction finish
         if (Blocking && fightMode) { if (playing != "block" && rig.Play("block", true)) playing = "block"; return; }
         if (fightMode)
@@ -495,9 +498,11 @@ void fragment() {
         rig.SpeedMul = k;
         // which move action (UpdateAnimation): stairs when the floor is steeper than cos 0.9 and the character does not run
         string act = "";
+        if (runDisable) wantRun = false;                                  // no running in water above the ankles
         if (isMove)
         {
-            if (fightMode) act = wantRun ? (isBack ? "fight back run" : "fight run") : (isBack ? "fight back walk" : "fight walk");
+            if (isSwim) act = "swim";
+            else if (fightMode) act = wantRun ? (isBack ? "fight back run" : "fight run") : (isBack ? "fight back walk" : "fight walk");
             else if (movecs > 0.9f || wantRun) act = wantRun ? (isBack ? "back run" : "run") : (isBack ? "back walk" : "walk");
             else act = isBack ? (isUp ? "back stairs up" : "back stairs down") : (isUp ? "stairs up" : "stairs down");
         }
@@ -516,6 +521,10 @@ void fragment() {
         // gravity + the patch
         vy -= 9.8f * dt;
         PatchMove(nx, y + vy * dt, nz);
+        UpdateSwim(dt);
+        if (isSwim) vy = 0f;
+        // Character::Update: at a border of the walk patch over the jump patch the hero steps off the ledge
+        if (EnableJump && IsSliding && !fightMode && !isSwim && !Busy && TestJump(new Vector3(x + 0.001f * MathF.Sin(ay), y - 0.001f, z + 0.001f * MathF.Cos(ay)))) BeginJump(false);
         var patch = getPatch();
         if (patch != null && node >= 0)
         {
@@ -818,6 +827,8 @@ void fragment() {
         if (inDialog || dt <= 0f) { isMove = false; PlayIdle(); return; }
         isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
         var patch = getPatch();
+        EnableJump = IsPlayer && !ScriptControlled && task is Task.Stay or Task.None;
+        if (isJump) { TickJump(dt); return; }
 
         // player: keyboard control while the script lets the player act (the engine's "special mode": turn to the wanted direction and walk forward)
         if (IsPlayer && !ScriptControlled && task is Task.Stay or Task.None)

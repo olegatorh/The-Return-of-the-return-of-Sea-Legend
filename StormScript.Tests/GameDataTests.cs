@@ -227,3 +227,30 @@ public sealed class LanguageTests : IDisposable
         Assert.Equal("Ukrainian", l.Name);
     }
 }
+
+/// <summary>Segment-triangle test of the walk patch / jump patch (PtcData::Trace): the engine lets a character fall through a ledge only if this finds the floor below.</summary>
+public sealed class TraceTests
+{
+    static TriSoup Floor(float y)
+    {
+        var s = new TriSoup();
+        s.Add(new float[] { 0, y, 0, 10, y, 0, 0, y, 10, 10, y, 10 }, new[] { 0, 1, 2, 1, 3, 2 });
+        return s;
+    }
+
+    [Fact]
+    public void ASegmentCrossingTheFloorReturnsTheFractionAlongIt()
+    {
+        var floor = Floor(1f);
+        Assert.Equal(0.25f, floor.Trace(4, 2, 3, 4, -2, 3), 3);
+        Assert.Equal(0.75f, floor.Trace(4, -2, 3, 4, 2, 3), 3);          // both sides count
+    }
+
+    [Fact]
+    public void AMissReturnsTwo()
+    {
+        var floor = Floor(1f);
+        Assert.Equal(2f, floor.Trace(4, 3, 3, 4, 2, 3));                 // stops above the floor
+        Assert.Equal(2f, floor.Trace(15, 2, 3, 15, -2, 3));              // beside it
+    }
+}

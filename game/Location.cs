@@ -104,7 +104,7 @@ public partial class LocationView : Node3D
                 try { Patch = PtcFile.Parse(File.ReadAllBytes(ModelFile(S(1), ".ptc"))); GD.Print($"[location] patch {S(1)}: {Patch.Tris.Length} triangles"); return V.Int(1); }
                 catch (Exception e) { GD.PrintErr($"[location] patch {S(1)}: {e.Message}"); return V.Int(0); }
             case 30121: case 30123: return V.Int(1);
-            case 30122: return V.Int(File.Exists(ModelFile(S(1), ".gm")) ? 1 : 0);    // SET_JMP_PATCH
+            case 30122: return V.Int(LoadJumpPatch(S(1)) ? 1 : 0);                       // SET_JMP_PATCH
             case 30125: groupRadius[S(1)] = Conv.ToFloat(d[2]); return V.Int(1);
             case 30126: locRadius[(S(1).ToLowerInvariant(), S(2).ToLowerInvariant())] = Conv.ToFloat(d[3]); return V.Int(1);
             case 30128:                                                          // ADD_LIGHT "lsfff": light type (lights.ini), position
@@ -131,6 +131,27 @@ public partial class LocationView : Node3D
         }
         Warn($"message {msg} ({fmt})");
         return V.Int(0);
+    }
+
+    /// <summary>The jump patch (Location::LoadJumpPatch): a model, never drawn, whose triangles mark the places where the hero may step off a ledge (Character::TestJump).</summary>
+    public TriSoup? JumpPatch;
+
+    bool LoadJumpPatch(string name)
+    {
+        string file = ModelFile(name, ".gm");
+        if (!File.Exists(file)) return false;
+        try
+        {
+            var g = GmFile.Parse(File.ReadAllBytes(file));
+            var soup = new TriSoup();
+            foreach (var o in g.Objects)
+                if (g.ExtractObject(o) is { } m) soup.Add(m.Pos, m.Index);
+            JumpPatch = soup;
+            GD.Print($"[location] jump patch {name}: {soup.Count} triangles, {soup.BoundsText}");
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_JUMPLOG") != null && Patch != null) CharacterView.ScanLedges(Patch, soup);
+            return true;
+        }
+        catch (Exception e) { GD.PrintErr($"[location] jump patch {name}: {e.Message}"); return false; }
     }
 
     LocAnimals? animals;
