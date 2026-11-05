@@ -78,7 +78,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 ### 1.3 Карта світу
 | Клас | Оригінал | Порт | Докази | Що зробити |
 |---|---|---|---|---|
-| `worldmap` (WorldMap) | сцена, кораблі, зустрічі, шторми, меню | 🟡 сцена, зони островів, дата, зустрічі 31100-31200 ✅; **шторми `MSG_WORLDMAP_CREATESTORM` 31000/31001 ❌**, подія `WorldMap_PlayerInStorm` ❌; меню очікування (`WorldMap_WaitMenuSelect/ChangeSelectoin`) і вікно подій (`WorldMap_EventWindow*`) ❌; `WorldMap_IsSkipEnable` ❌ | `WorldMap.cs`, `WorldEncounters.cs:44-47` | шторми на карті + меню пропуску часу |
+| `worldmap` (WorldMap) | сцена, кораблі, зустрічі, шторми, меню | ✅ сцена, зони островів, дата, зустрічі 31100-31200, шторми 31000/31001 (хмари/дощ/блискавки, `WorldMap_PlayerInStorm`, `info.playerInStorm`, `storm.*`), вікно подій (`eventWindow`, `WorldMap_EventWindow*`), меню очікування з пропуском часу (`waitMenu`, клавіша T, `WorldMap_WaitMenu*`), `WorldMap_IsSkipEnable`; 🟡 рух/вигляд штормів і склад меню очікування — моя реконструкція (C++ коду немає), без смерчу на карті і звуку дощу | `WorldStorms.cs`, `WorldMapUi.cs`, тест `storm` | — |
 
 ## 2. Події, які має підіймати рушій (231 ім'я, 44 підіймаються)
 Події інтерфейсів (`BuyPress`, `SavePress`, `ConfirmYes` ...) підіймаються **загально** через `command = ...,event:Name` в ini (`XView.Run`), тому тут не рахуються.
@@ -86,7 +86,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 |---|---|---|
 | Земля, персонажі | `CharacterUpdate`, `CharactersStateUpdate`, `Location_CharacterEndTask/EntryToLocator/ExitFromLocator/FollowGo/FollowStay/Attack/Block/Fire` | `Event_ChrSnd_Attack/Hit/Dead/Body` (**звуки ударів і смерті**), `Location_CharacterFightGo/FightStay/IsFight/IsFire/SGFire/EscapeSlide/TaskFailure/BusyPos/ColThreshold/InLocator`, `Location_Character_EndAction`, `NPC_Event_GetAttackActive/GetDefenceActive/GetFireActive/GetAggresive/EnableFire` (бій NPC іде за власними правилами порту, а не за параметрами скрипта), `CharacterGroup_UpdateAlarm`, `LocationTimeUpdate`, `EventCharacterDead` |
 | Море | `ShpCreate/ShpDelete/Shp_UpdParams/Shp_HullHit/Shp_Ship2ShipColl/Shp_ShipIslColl/ShpMastDamage/ShpSailDamage/Shp_NotEnoughBalls`, `Ball_*Hit`, `CannLoad/CannGRTime`, `FortCreate/FortCDamage`, `TornadoDamage`, `Ship_Bort_Fire`, `BI_*` (4) | `CannFire/CannUnload/CannGFTime/CannGFHeight/CannReCaclParam`, `ShpChCharge`, `ShpFireAction`, `Shp_ChkSituation`, `Shp2Strand`, `ShpEatSwimGood`, `Ball_FlyUpdate`, `SeaGetLayers`, `GrpChkTsk`, `AbordageCanBe`, `EventMastFall`, `DoSailHole`, `evntRandomSailDmg`, `TelescopeActive`, `SetTelescopeInfo/ReleaseTelescopeInfo`, `SeaCameras_Switch` |
-| Карта | `WorldMap_UpdateDate/EncounterCreate/ShipEncounter/DeleteShipEncounter/inside_/outside_islandzone`, `ExitFromWorldMap` | `WorldMap_PlayerInStorm`, `WorldMap_WaitMenu*`, `WorldMap_EventWindow*`, `WorldMap_IsSkipEnable` |
+| Карта | `WorldMap_UpdateDate/EncounterCreate/ShipEncounter/DeleteShipEncounter/inside_/outside_islandzone`, `ExitFromWorldMap`, `WorldMap_PlayerInStorm`, `WorldMap_WaitMenu*`, `WorldMap_EventWindow*`, `WorldMap_IsSkipEnable` | — |
 | Інтерфейс/керування | `ievnt_command`, `FormatedTextActivate`, `SetScrollerPos`, `QuestActivate`, `DialogEvent`, `Control Activation` | `evntKeyChoose` (вибір клавіш — замінено власним екраном), `InterfaceKey/MainMenuKey`, `DialogCancel`, `EmergencyDialogExit`, `FaderEvent_StartFadeIn/EndFadeIn`, `ScrollPosChange/ScrollTopChange` (частково через вузли) |
 
 ## 3. Інтерфейси (`RESOURCE/INI/INTERFACES`, 66 ini)
@@ -123,7 +123,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 | Море | частинки (дим, вогонь, бризки) | 🟡 загальні частинки замість `INI/PARTICLES` | `ParticleFx.cs` | — |
 | Море | плаваючий вантаж, акули, чайки | ❌ | — | — |
 | Карта світу | сцена, кораблі, зустрічі, дата | ✅/🟡 | `smoke_map.log` | — |
-| Карта світу | шторми, меню очікування, вікно подій | ❌ | `worldmap_globals.c:27` | **шторми** |
+| Карта світу | шторми, меню очікування, вікно подій | ✅/🟡 шторм на карті -> море в шторм (погода, шкода від вітру); вікна з текстур `WorldMap/Interfaces` | `smoke_storm.log` | — |
 | HUD моря | навігатор, ескадра, ціль, команди | 🟡 власний макет; немає панелі труби, стрілки корабля, активних навичок | `SeaHud.cs` | — |
 | Збереження | `OnSave/OnLoad`, мініатюри | ✅ | unit-тест, `reports/*` | — |
 | Налаштування | `SAVEOPTIONS/LOADOPTIONS` 45052/45053 | 🟡 повертають 0; порт зберігає свої в `settings.ini` | `XInterface.cs:152` | — |
@@ -135,7 +135,7 @@ _Стан на 2026-11-05 (коміт `Sail to port/ship ...`). Під час а
 ## 5. Наступні кроки (за помітністю для гравця)
 1. ~~**Земний HUD `battle_land_interface`**~~ — зроблено (`LandHud.cs`).
 2. ~~**Повний цикл абордажу і захоплення**~~ — зроблено (51013/51014/51026, `IBoardingStatus`, `FindClassNext`, тест `board`); лишилось перевірити здачу ворога і призначення офіцера через екран.
-3. **Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.
+3. ~~**Шторми на карті світу** (`MSG_WORLDMAP_CREATESTORM`, `WorldMap_PlayerInStorm`) і меню очікування/вікно подій на карті.~~ — зроблено (`WorldStorms.cs`, `WorldMapUi.cs`, тест `storm`).
 4. ~~**Вітрила**: згортання/розгортання за станом, роздування вітром, дірки (`RandomSailsDmg`), падіння щогли (MAST) з реакцією матросів (77500).~~ — зроблено (`SeaSails.cs`).
 5. **Пожежі на кораблях** (`MSG_SHIP_ACTIVATE_FIRE_PLACE`/`GET_NUM_FIRE_PLACES`) і частинки з оригінальних `INI/PARTICLES/*.ini` (`PS_CREATEX`, `PS_DELETE`, `PS_CLEARALL`).
 6. **Звуки персонажів** (`Event_ChrSnd_Attack/Hit/Dead/Body`) і **голосові привітання NPC** (`Greetings_alias.ini`).

@@ -29,6 +29,7 @@ public partial class WorldMapView : Node3D
     float encTimer, dateTimer;
     double secOfDay;
     readonly WorldHud hud = new() { Name = "MapHud" };
+    readonly WorldMapUi ui = new() { Name = "MapUi" };
 
     /// <summary>The world map exists as soon as the script has created the entity (it sends no message to it first).</summary>
     public bool Active
@@ -47,6 +48,7 @@ public partial class WorldMapView : Node3D
         Name = "WorldMapView";
         AddChild(Cam);
         AddChild(hud);
+        AddChild(ui);
     }
 
     public void Register(Interp i)
@@ -66,6 +68,7 @@ public partial class WorldMapView : Node3D
     void Clear()
     {
         encs.Clear(); encHooked = false;
+        ClearStorms(); ui.Close();
         scene?.QueueFree(); scene = null; shipNode = null; ent = null; built = false; inside = "";
         Cam.Current = false;
         hud.Set(false, "", 0, 0);
@@ -150,6 +153,8 @@ public partial class WorldMapView : Node3D
         shipAy = F(root, "playerShipAY");
         secOfDay = F(root, "date.hour") * 3600 + F(root, "date.min") * 60 + F(root, "date.sec");
         PublishShip(true);
+        HookWindows();
+        HookStormAttrs();          // a new map has no storms yet (the attributes outlive the entity)
         if (land != null && land.IsLand(shipX, shipZ)) { var (sx, sz) = land.NearestSea(shipX, shipZ); shipX = sx; shipZ = sz; }       // a spawn point on a coast cell: back into the water
         GD.Print($"[map] world map built: {isls?.Count} islands, {placed} markers; ship at ({shipX:0},{shipZ:0}) ay={shipAy:0.00}, from island '{curIsland}', date {F(root, "date.day"):0}.{F(root, "date.month"):0}.{F(root, "date.year"):0}");
     }
@@ -189,7 +194,9 @@ public partial class WorldMapView : Node3D
             if (Keys.Down("SeaZoomIn")) camDist = Math.Max(60f, camDist - 120f * dt);
             if (Keys.Down("SeaZoomOut")) camDist = Math.Min(900f, camDist + 120f * dt);
         }
-        if (SeaSpeedRate() is var rate && dt > 0f)
+        // an open interface screen or the map's own window freezes the map (the original freezes the execute layers: EngineLayersOffOn)
+        bool run = input && !ui.IsOpen;
+        if (run && SeaSpeedRate() is var rate && dt > 0f)
         {
             shipAy += turn * 0.55f * dt;
             float speed = rate * 0.7f * sail;
@@ -198,13 +205,17 @@ public partial class WorldMapView : Node3D
             if (land == null || !land.IsLand(nx, nz)) { shipX = nx; shipZ = nz; }
         }
         PublishShip();
-        UpdateDate(dt);
-        UpdateZones();
-        TickEncounters(dt);
-        if (!Active) return;
+        if (run)
+        {
+            UpdateDate(dt);
+            UpdateZones();
+            TickEncounters(dt);
+            if (!Active) return;
+            if (!TickStorms(dt)) return;
+        }
 
         // encounters / storms: the script decides (wdmEvent_EncounterCreate); the engine gives it the elapsed time and the ship position
-        encTimer += dt;
+        if (run) encTimer += dt;
         if (encTimer >= 0.5f)
         {
             it.FireEvent("WorldMap_EncounterCreate", new List<V> { V.Float(encTimer), V.Float(shipX), V.Float(shipZ), V.Float(shipAy) });
@@ -242,23 +253,62 @@ public partial class WorldMapView : Node3D
     }
 
     /// <summary>The map clock: worldMap.date.hourPerSec game hours per second (set by the script from the slowest ship); the script is told with WorldMap_UpdateDate and NextDay.</summary>
-    void UpdateDate(float dt)
+    void UpdateDate(float dt, double skipSec = 0)
     {
         var root = Root!;
         float hps = F(root, "date.hourPerSec", 4f);
-        secOfDay += dt * hps * 3600.0;
-        bool nextDay = false;
-        while (secOfDay >= 86400.0) { secOfDay -= 86400.0; nextDay = true; AdvanceDay(root); }
+        secOfDay += dt * hps * 3600.0 + skipSec;
+        int days = 0;
+        while (secOfDay >= 86400.0) { secOfDay -= 86400.0; days++; AdvanceDay(root); }
         root.Find("date.hour", true)!.Value = ((int)(secOfDay / 3600)).ToString();
         root.Find("date.min", true)!.Value = ((int)(secOfDay % 3600 / 60)).ToString();
         root.Find("date.sec", true)!.Value = ((int)(secOfDay % 60)).ToString();
         dateTimer += dt;
-        if (nextDay || dateTimer >= 0.25f)
+        if (days > 0 || skipSec > 0 || dateTimer >= 0.25f)
         {
             dateTimer = 0f;
             it.FireEvent("WorldMap_UpdateDate", new List<V> { V.Float((float)(secOfDay / 3600.0)) });
-            if (nextDay) it.FireEvent("NextDay");
+            for (int i = 0; i < days && Active; i++) it.FireEvent("NextDay");
         }
+    }
+
+    // ------------------------------------------------------------------ the map's own windows
+    static readonly (string text, float hours)[] WaitItems = { ("Чекати 1 годину", 1f), ("Чекати 3 години", 3f), ("Чекати 6 годин", 6f), ("Чекати 12 годин", 12f), ("Чекати добу", 24f), ("Скасувати", 0f) };
+
+    public bool WindowOpen => ui.IsOpen;
+    public bool WindowKey(Key k) => ui.Key(k);
+
+    void HookWindows()
+    {
+        var root = Root!;
+        root.GetOrCreate("eventWindow").GetOrCreate("update").OnWrite = _ => Callable.From(OpenEventWindow).CallDeferred();
+        root.GetOrCreate("waitMenu").GetOrCreate("update").OnWrite = _ => Callable.From(OpenWaitMenu).CallDeferred();
+    }
+
+    /// <summary>worldMap.eventWindow.update: the script's message (wdmMessage) with two answers; WorldMap_EventWindowSelect(0 = yes, 1 = no).</summary>
+    void OpenEventWindow()
+    {
+        if (!built || Root?.Get("eventWindow") is not { } ew) return;
+        string text = ew.Get("text")?.Value ?? "", yes = ew.Get("yes")?.Value ?? "", no = ew.Get("no")?.Value ?? "";
+        GD.Print($"[map] event window: '{text}' [{yes}] [{no}]");
+        ui.OpenEvent(text, yes, no,
+            r => { GD.Print("[map] event window choice " + r); it.FireEvent("WorldMap_EventWindowSelect", new List<V> { V.Int(r) }); },
+            c => it.FireEvent("WorldMap_EventWindowChangeSelectoin", new List<V> { V.Int(c) }));
+    }
+
+    /// <summary>The wait menu (worldMap.waitMenu.update or the MapWait key): the clock jumps forward; WorldMap_WaitMenuSelect(item).</summary>
+    public void OpenWaitMenu()
+    {
+        if (!built || ui.IsOpen) return;
+        var names = new string[WaitItems.Length];
+        for (int i = 0; i < names.Length; i++) names[i] = WaitItems[i].text;
+        ui.OpenMenu("Очікування", names, r =>
+        {
+            it.FireEvent("WorldMap_WaitMenuSelect", new List<V> { V.Int(r) });
+            if (!Active || r < 0 || r >= WaitItems.Length || WaitItems[r].hours <= 0f) return;
+            GD.Print($"[map] waiting {WaitItems[r].hours:0} h");
+            UpdateDate(0f, WaitItems[r].hours * 3600.0);
+        }, c => it.FireEvent("WorldMap_WaitMenuChangeSelectoin", new List<V> { V.Int(c) }));
     }
 
     static void AdvanceDay(Attr root)
@@ -333,7 +383,7 @@ public partial class WorldHud : CanvasLayer
         help.AddThemeFontSizeOverride("font_size", 14);
         help.AddThemeColorOverride("font_color", new Color(1, 1, 1, 0.8f));
         help.Position = new Vector2(12, 0); help.AnchorTop = 1f; help.AnchorBottom = 1f; help.OffsetTop = -34; help.OffsetBottom = -8;
-        help.Text = "A/D — поворот   W/S — вітрила   ←→↑↓ PgUp/PgDn — камера   Enter — зайти на острів / в море";
+        help.Text = "A/D — поворот   W/S — вітрила   ←→↑↓ PgUp/PgDn — камера   Enter — зайти на острів / в море   T — чекати";
         AddChild(help);
         Visible = false;
     }

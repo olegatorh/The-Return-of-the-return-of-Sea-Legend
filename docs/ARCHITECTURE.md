@@ -110,7 +110,7 @@ Entry from a port: the script (`reload.c: ReloadToSea` → `SeaLogin` in `SEA_AI
 * Forts (`game/SeaForts.cs`, class `AIFort`): `AI_MESSAGE_ADD_FORT` -> cannons = `cannon_N/culverin_N` labels of `<fort>_locators.gm`, events `FortCreate`, `FortCDamage`; they shoot enemies (relation = script `GetRelation`).
 * Map encounters (`game/WorldEncounters.cs`): messages 311xx spawn merchant/follow/war ships on the map; contact raises `WorldMap_ShipEncounter` (the script shows the Attack/Flee screen) and the
   ships are logged into the sea through `wdmLoginToSea.encounters`. `worldMap.encounter.cur` is an SPI attribute (write hook `Attr.OnWrite`).
-* Missing: original battle_interface HUD (46xxx), sail/mast damage and fires, storms/tornado, telescope, cabin/deck cameras, balls splash/smoke visuals, sea sounds, sail trim by wind.
+* Missing: original battle_interface HUD (46xxx), sail/mast damage and fires, telescope, cabin/deck cameras, balls splash/smoke visuals, sea sounds, sail trim by wind.
 
 ## 6c. World map (`game/WorldMap.cs`, class `WorldMapView`)
 `Sea_MapLoad` (script) fades out, `Sea_MapEndFade` calls `wdmCreateMap` which creates the entity `worldmap`; the object `worldMap` holds all data (islands with `position.x/z`, `rx/rz`
@@ -119,6 +119,12 @@ The port builds the scene (`Islands.gm`, sea texture, markers, labels, `ship.gm`
 `WorldMap_UpdateDate`, `NextDay`), reports island zones (`WorldMap_inside_islandzone`/`outside_islandzone`) and asks the script for encounters every 0.5 s (`WorldMap_EncounterCreate`).
 Enter/Space raises `ExitFromWorldMap` -> `wdmReloadToSea` -> `SeaLogin` with the ship placed relative to the island (`(shipPos - island.rx/rz) * 19.6`).
 The first visit starts a scripted tutorial scene (deck location `qdeck`) - that is the game, not a bug. The fader entity's events carry data `(int, fader)` (`WdmEndFade` reads it).
+Storms (`game/WorldStorms.cs`): 31000/31001 (`wdmStormGen`, one at a time) create a storm `stormBrnDistMin..Max` away on open water; it drifts (islands are solid, as for
+encounter ships), fades with `stormViewDistMin..Max`, dies after its life time or beyond `stormDistKill`; SPI `worldMap.storm.num/cur/x/z/time`. Sailing into its core sets
+`worldMap.info.playerInStorm = 1` and raises `WorldMap_PlayerInStorm(x, z, ay, index)` -> `wdmReloadToSea` -> `Login.Storm` -> storm weather and wind damage at sea (script).
+Windows (`game/WorldMapUi.cs`): the event window (`worldMap.eventWindow.*` + `update`, `WorldMap_EventWindowSelect/ChangeSelectoin`) and the wait menu (`waitMenu.update` or
+key T, `WorldMap_WaitMenuSelect/ChangeSelectoin`; the engine jumps the clock). `WorldMap_IsSkipEnable` is asked before each ship encounter (the addon always answers false).
+An open interface screen or map window freezes the map (the original freezes the execute layers in `EngineLayersOffOn`). Test hooks `--mapstorm=dx,dz@N`, `--mapmeet@N`.
 
 ## 7. Pitfalls found the hard way (read before debugging)
 1. **`ClearEvents()` must keep `#event_handler` registrations** — otherwise AI templates silently die after "new game".

@@ -51,6 +51,11 @@ if ($Sea) {
         $b = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--act@1250', '--shot-frame=2000')
         $fail += Invoke-Godot 'map' $b 300 @('[map] world map built', '[map] exit to sea at QuebradasCostillas')
+        # world-map storm: the script creates it (wdmCreateStorm -> MSG_WORLDMAP_CREATESTORM), a hook moves it onto the ship, WorldMap_PlayerInStorm sends us
+        # to the sea with Login.Storm = 1 (storm weather; AIShip.c applies the wind damage)
+        $sm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--mapstorm=0,0@1200', '--dump=WeatherParams.Storm@1800', '--shot-frame=2000')
+        $fail += Invoke-Godot 'storm' $sm 300 @('[map] storm created', '[map] the ship sailed into storm 0', 'Storm = "1"')
         # Martinique: the French squadron is placed abeam and shot at; the script must apply the damage
         $c = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250',

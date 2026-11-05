@@ -63,7 +63,9 @@ public partial class Main : Node
     readonly List<int> seaDuels = new();                      // test hook --duel@N
     int actRetryUntil;
     readonly List<(int frame, float x, float z, float ay)> mapTeleports = new();      // test hook --mappos=x,z,ay@N: place the WORLD MAP ship once the map is built (retries every 10 frames)
-    readonly List<int> seaActions = new();                    // test hook --act@N: execute the offered sea action (Enter)
+    readonly List<(int frame, float dx, float dz)> mapStorms = new();   // test hook --mapstorm=dx,dz@N: a world-map storm placed at the ship + (dx, dz) (retries every 10 frames until the map is built)
+    readonly List<int> mapMeets = new();                      // test hook --mapmeet@N: the world-map ship is put next to the first encounter ship
+    readonly List<int> seaActions = new();                  // test hook --act@N: execute the offered sea action (Enter)
     readonly List<(int frame, int dir)> sails = new();       // test hook --sail=+1@N / --sail=-1@N: sail state up/down at sea
     readonly List<(int frame, string what)> rigTests = new();   // test hooks --mastfall@N / --sailholes@N (=me: of the player's ship): break a mast / hole the sails of the nearest other ship
     int controlAt = -1;
@@ -90,6 +92,8 @@ public partial class Main : Node
             else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--mappos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
+            else if (a.StartsWith("--mapmeet@")) mapMeets.Add(int.Parse(a.Substring(10)));
+            else if (a.StartsWith("--mapstorm=")) { var p = a.Substring(11).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapStorms.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci))); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
             else if (a.StartsWith("--save=")) { var p = a.Substring(7).Split('@'); saveAt.Add((int.Parse(p[1]), p[0])); }
@@ -421,6 +425,13 @@ public partial class Main : Node
             GetViewport().SetInputAsHandled();
             return;
         }
+        // the world map's own windows (event window, wait menu) take every key while open
+        if (e is InputEventKey { Pressed: true, Echo: false } wk && worldMap.Active && worldMap.WindowOpen && locations.Count == 0 && !UiOpen)
+        {
+            worldMap.WindowKey(wk.PhysicalKeycode);
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {
@@ -436,6 +447,7 @@ public partial class Main : Node
         {
             if (Keys.Is(mk, "SeaSailUp") || Keys.Is(mk, "SeaSailDown")) worldMap.SailKey(Keys.Is(mk, "SeaSailUp") ? 1 : -1);
             if (Keys.Is(mk, "SeaAction") || mk.PhysicalKeycode is Key.KpEnter or Key.Space) worldMap.Enter();
+            else if (Keys.Is(mk, "MapWait")) worldMap.OpenWaitMenu();
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
@@ -866,6 +878,8 @@ public partial class Main : Node
         }
         foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
         foreach (var m in mapTeleports.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt) { worldMap.Teleport(m.x, m.z, m.ay); mapTeleports.Remove(m); }
+        foreach (var f in mapMeets.ToArray()) if (frames >= f && frames % 10 == 0 && worldMap.IsBuilt && worldMap.Active && worldMap.TestMeet()) mapMeets.Remove(f);
+        foreach (var m in mapStorms.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt && worldMap.Active && worldMap.TestStorm(m.dx, m.dz)) mapStorms.Remove(m);
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);

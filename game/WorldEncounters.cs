@@ -41,6 +41,8 @@ public partial class WorldMapView
         if (!built) return V.Int(0);
         switch (msg)
         {
+            case 31000: return V.Int(CreateStorm(-1f) ? 1 : 0);
+            case 31001: return V.Int(CreateStorm(Math.Max(1f, Fl(1))) ? 1 : 0);
             case 31100: case 31101: return V.Int(Spawn(EncKind.Merchant, I(1), S(2), S(3), Fl(4), msg == 31101 ? Fl(5) : -1f) ? 1 : 0);
             case 31110: case 31111: return V.Int(Spawn(EncKind.Follow, I(1), S(2), "", Fl(3), msg == 31111 ? Fl(4) : -1f) ? 1 : 0);
             case 31120: case 31121: return V.Int(SpawnWar(I(1), S(2), I(3), S(4), msg == 31121 ? Fl(5) : -1f) ? 1 : 0);
@@ -85,12 +87,25 @@ public partial class WorldMapView
         return e;
     }
 
-    bool Spawn(EncKind kind, int type, string model, string island, float kSpeed, float life)
+    /// <summary>A birth point enemyshipBrnDistMin..Max from the player on open water (with room for a partner ship), or false when there is none.</summary>
+    bool BirthPoint(out float x, out float z)
     {
         var rnd = Rng;
         float brnMin = F(Root, "enemyshipBrnDistMin", 65f), brnMax = F(Root, "enemyshipBrnDistMax", 140f);
-        float a = (float)rnd.NextDouble() * MathF.Tau, r = brnMin + (float)rnd.NextDouble() * (brnMax - brnMin);
-        float x = shipX + MathF.Sin(a) * r, z = shipZ + MathF.Cos(a) * r;
+        for (int k = 0; k < 40; k++)
+        {
+            float a = (float)rnd.NextDouble() * MathF.Tau, r = brnMin + (float)rnd.NextDouble() * (brnMax - brnMin);
+            x = shipX + MathF.Sin(a) * r; z = shipZ + MathF.Cos(a) * r;
+            if (land == null || (!land.IsLand(x, z) && !land.IsLand(x + 7f, z + 5f) && !land.IsLand(x - 6f, z + 6f) && !land.IsLand(x + 6f, z - 6f))) return true;
+        }
+        x = z = 0f;
+        return false;
+    }
+
+    bool Spawn(EncKind kind, int type, string model, string island, float kSpeed, float life)
+    {
+        var rnd = Rng;
+        if (!BirthPoint(out float x, out float z)) return false;
         var e = Make(kind, type, model, x, z, PlayerMapSpeed() * kSpeed, life);
         if (kind == EncKind.Merchant)
         {
@@ -106,10 +121,7 @@ public partial class WorldMapView
 
     bool SpawnWar(int t1, string m1, int t2, string m2, float life)
     {
-        var rnd = Rng;
-        float brnMin = F(Root, "enemyshipBrnDistMin", 65f), brnMax = F(Root, "enemyshipBrnDistMax", 140f);
-        float a = (float)rnd.NextDouble() * MathF.Tau, r = brnMin + (float)rnd.NextDouble() * (brnMax - brnMin);
-        float x = shipX + MathF.Sin(a) * r, z = shipZ + MathF.Cos(a) * r;
+        if (!BirthPoint(out float x, out float z)) return false;
         var e1 = Make(EncKind.War, t1, m1, x, z, 0f, life); var e2 = Make(EncKind.War, t2, m2, x + 7f, z + 5f, 0f, life);
         e1.Partner = e2; e2.Partner = e1; e1.Attacker = true;
         e1.Ay = MathF.Atan2(e2.X - e1.X, e2.Z - e1.Z); e2.Ay = e1.Ay + MathF.PI * 0.5f;
@@ -160,19 +172,46 @@ public partial class WorldMapView
                     if (!land.LandAhead(e.X, e.Z, e.Ay + off, 40f)) { turn = off; break; }
                 e.Ay += (turn == 0f ? 1f : Math.Sign(turn) * Math.Min(MathF.Abs(turn), 1.2f * dt * 3f)) * (turn == 0f ? dt * 1.5f : 1f);
             }
-            e.X += MathF.Sin(e.Ay) * e.Speed * dt; e.Z += MathF.Cos(e.Ay) * e.Speed * dt;
+            float nx = e.X + MathF.Sin(e.Ay) * e.Speed * dt, nz = e.Z + MathF.Cos(e.Ay) * e.Speed * dt;
+            if (land == null || !land.IsLand(nx, nz)) { e.X = nx; e.Z = nz; }          // a move that would end on land is refused (the turn above finds the free side)
+            else e.Ay += 1.5f * dt;
             e.Node.Position = new Vector3(e.X, 0.5f, -e.Z); e.Node.Rotation = new Vector3(0, -e.Ay, 0);
             float d = MathF.Sqrt((e.X - shipX) * (e.X - shipX) + (e.Z - shipZ) * (e.Z - shipZ));
             if (d > kill * 1.2f) { RemoveEnc(e); continue; }
             if (d < 9f && !e.Reported)
             {
                 // the player's ship touched it: the ship (and its opponent) take part in the battle
-                e.Reported = true; e.Selected = true; if (e.Partner != null) e.Partner.Selected = true;
-                GD.Print($"[map] encounter with ship type {e.Type} ({e.Kind})");
-                it.FireEvent("WorldMap_ShipEncounter", new List<V> { V.Float(shipX), V.Float(shipZ), V.Float(shipAy), V.Int(encs.IndexOf(e)) });
+                e.Reported = true;
+                // the script may allow skipping the encounter (WorldMap_IsSkipEnable; the addon always says no): then the map asks first
+                if (Conv.ToInt(it.FireEvent("WorldMap_IsSkipEnable")) != 0)
+                {
+                    GD.Print($"[map] encounter with ship type {e.Type}: skip offered");
+                    ui.OpenEvent("Вітрила на обрії!# Можна ухилитися від зустрічі.", "Зустріти", "Ухилитися", r => { if (r == 0 && encs.Contains(e)) ShipEncounter(e); });
+                    return;
+                }
+                ShipEncounter(e);
                 return;      // the script may have deleted the map
             }
         }
+    }
+
+    void ShipEncounter(Enc e)
+    {
+        // the player's ship touched it: the ship (and its opponent) take part in the battle
+        e.Selected = true; if (e.Partner != null) e.Partner.Selected = true;
+        GD.Print($"[map] encounter with ship type {e.Type} ({e.Kind})");
+        it.FireEvent("WorldMap_ShipEncounter", new List<V> { V.Float(shipX), V.Float(shipZ), V.Float(shipAy), V.Int(encs.IndexOf(e)) });
+    }
+
+    /// <summary>Test hook --mapmeet@N: put the player's ship next to the first encounter ship (false while there is none yet).</summary>
+    public bool TestMeet()
+    {
+        if (!built || encs.Count == 0) return false;
+        var e = encs[0];
+        shipX = e.X + 4f; shipZ = e.Z + 4f;
+        GD.Print($"[map] test: ship moved next to encounter type {e.Type} at ({e.X:0},{e.Z:0})");
+        PublishShip();
+        return true;
     }
 
     /// <summary>Test hook: ask the script for a merchant ship next to the player.</summary>

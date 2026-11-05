@@ -30,6 +30,7 @@ public static class Keys
         new("SeaCamLeft", "На морі й карті", "Камера вліво", Key.Left), new("SeaCamRight", "На морі й карті", "Камера вправо", Key.Right),
         new("SeaCamUp", "На морі й карті", "Камера вгору", Key.Up), new("SeaCamDown", "На морі й карті", "Камера вниз", Key.Down),
         new("SeaZoomIn", "На морі й карті", "Наблизити камеру", Key.Pageup), new("SeaZoomOut", "На морі й карті", "Віддалити камеру", Key.Pagedown),
+        new("MapWait", "На морі й карті", "Карта: очікування (пропуск часу)", Key.T),
 
         new("QuickSave", "Загальні", "Швидке збереження", Key.F4), new("QuickLoad", "Загальні", "Швидке завантаження", Key.F6),
         new("Interface", "Загальні", "Екран персонажа / інтерфейс", Key.F2), new("MainMenu", "Загальні", "Головне меню", Key.F1),

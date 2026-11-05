@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 31 subsystems below): **68 %**
+* Overall (mean of the 31 subsystems below): **69 %**
 * Unit tests: **31** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **13798** lines of C# (`StormScript/` library + `game/`)
+* Port code: **14364** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -60,7 +60,7 @@ Layers (where the behaviour comes from):
 | Sea | Forts | APPROX | █████░░░░░ 55 % | V | cannons from locators, shooting, damage by script |
 | Sea | Boarding | SCRIPT | ███████░░░ 70 % | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
 | Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ███░░░░░░░ 35 % | V | telescope (Ctrl): mast-top view with the type zoom and eyepiece texture from telescope.ini; cabin and deck work as locations; sailors on deck (Lo_Man models) walk the script walk graphs, idle actions, run to the cannon points and reload in battle mode (my behaviour rules); no deck camera |
-| Map | World map scene, ship, zones, date | PORT | ███████░░░ 70 % | V | works; weather, sky, compass simplified |
+| Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; storm motion and wait items reconstructed; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; storms missing |
 | Effects | Particles (smoke, blast, splash) | APPROX | ██░░░░░░░░ 25 % | V | generic CPU particles, not the original particle ini |
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ███████░░░ 70 % | E | 3D positioning approximate; speech volume unused |
@@ -73,7 +73,7 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 
 | Layer | Count | Classes |
 |---|---|---|
-| PORT | 25 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (70%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
+| PORT | 25 | `fader` (90%), `Ship` (70%), `MODELR` (85%), `MODEL` (85%), `location` (85%), `Sound` (70%), `Island` (70%), `dialog` (90%), `battle_land_interface` (75%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `sea` (60%), `SEA_CAMERAS` (60%), `locationcamera` (80%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%) |
 | APPROX | 10 | `CharactersGroups` (70%), `Lightning` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `battle_interface` (20%), `particles` (25%), `sea_ai` (60%), `BallSplash` (60%), `PEOPLE_ON_SHIP` (50%) |
 | STUB | 23 | `ActivePerkShower`, `blast`, `scrshoter`, `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `Animals`, `ispyglass`, `CharacterAnimationKipper`, `AISeaGoods`, `SunGlow`, `WideScreen`, `artifact`, `blots`, `shippointer`, `touch`, `SINKEFFECT`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
 | MISSING | 9 | `Tornado`, `Rope`, `Flag`, `Vant`, `FREE_CAMERA`, `DECK_CAMERA`, `TELESCOPE`, `Sharks`, `Seafoam` |
