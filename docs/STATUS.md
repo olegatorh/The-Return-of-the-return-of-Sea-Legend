@@ -17,9 +17,9 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 35 subsystems below): **76 %**
-* Unit tests: **41** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **22829** lines of C# (`StormScript/` library + `game/`)
+* Overall (mean of the 35 subsystems below): **77 %**
+* Unit tests: **46** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
+* Port code: **23404** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
@@ -27,7 +27,7 @@ Layers (where the behaviour comes from):
 | SCRIPT | 3 | 91 % |
 | NATIVE | 1 | 90 % |
 | PORT | 23 | 78 % |
-| APPROX | 8 | 63 % |
+| APPROX | 8 | 65 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -60,7 +60,7 @@ Layers (where the behaviour comes from):
 | Sea | Cannons, balls, damage, sinking | PORT | ███████░░░ 75 % | T | AIShipCannonController / AICannon / AIBalls verified: ShpGetBortFireDelta spread, per-cannon CannGFTime delay, CalcHeightFireAngle, CalcMaxFireDistance, AI lead + CannGFHeight, ball time x AIBalls.SpeedMultiply, Shp_NotEnoughBalls "l" every frame; per-cannon state (game/SeaGuns.cs): every gun loads its own ball (CannLoad / CannUnload), own CannGRTime recharge, a bort fires when all its intact guns are loaded, charge change unloads and reloads each gun, unload at sea exit, damaged guns from Ship.Cannons.Borts.*.damages.cN, ChargeRatio / DamageRatio / MaxFireDistance for the HUD arcs |
 | Sea | Forts | PORT | ██████░░░░ 65 % | V | ai_fort.cpp: 1 s fire timer, range CalcMaxFireDistance(h, v0, 0.35), CannGFTime delay, height angle, full CannGRTime reload; damage by script; SeaAI.Update.Forts (idx, relation, Distance to the fort label x/z, d_ay) as in ai_ship.cpp, so a destroyed fort can be stormed (LandTroops) and entered: test fortland (-Stages3: Antigua with a French patent -> fort deck -> fortcapture -> town) |
 | Sea | Boarding | SCRIPT | ███████░░░ 72 % | T | player's own boarding with a patent (test boardpatent: Enter = Board at 25 m, decks, ransack: goods / crew / captain (prisoner) / swap / exit + confirm), whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
-| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██████░░░░ 60 % | V | telescope (Ctrl): from the mast top (ship camera) or the eye (deck camera), zoom and eyepiece of the equipped spyglass (MSG_TELESCOPE_SET_TYPE, multiplied over the picture); the ship in the middle raises SetTelescopeInfo and the ispyglass strip shows what the spyglass type allows; deck camera (Tab, Sea_CameraSwitch): first person, mouse look, RMB/MMB or Up/Down walk on the ship's path model; cabin and deck work as locations; sailors on deck walk the script walk graphs (my behaviour rules) |
+| Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ███████░░░ 75 % | V | telescope (Ctrl) works only in the deck camera (the control group Sailing1Pers; SEA_AI	elescope.c lets MSG_TELESCOPE_REQUEST through only then), TelescopeActive / BI_VISIBLE at once, tangent zoom over the activation time, eyepiece and zoom of the equipped spyglass, ispyglass strip per scope.show; deck camera first person (rocking by RockingX/Z, keeps place); free camera via the debug flag; cabin and deck work as locations; sailors climb the vants (crawl), men jump overboard when a mast falls |
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; day and night: the whole map is multiplied with a colour of the map hour (night blue, dawn pink, dusk orange; test mapnight), clock taken from worldMap.date.* when the script writes it (the original draws the day/night sky only in the date counter and the wind strip: not ported); storm motion and wait items reconstructed; weather, sky, compass simplified |
 | Map | Map encounters (merchant, follow, war) | PORT | ████████░░ 80 % | T | ported from wdm_enemy/merchant/follow/warring_ship.cpp: births ahead of the player (GeneratePosition), merchants sail between the ports of the islands along A* paths round the coast and fade out at the goal, follow ships (pirates, hunters, squadrons) steer for the player and attack within 16 units, merchants / warring pairs are met with Enter, lifetime 60-180 s, view-distance fade, island and ship pushes, cannon smoke of the war pair; tests maptraffic, mapfollow, mapmerchant; env SEADOGS_MAPLOG; the island walk patch of the later reference is replaced by the land mask; this game has no patrols / fleeing (docs/VERIFIED.md W1-W6) |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
@@ -78,11 +78,11 @@ The scripts talk to the engine only through `CreateEntity(&obj, "class")`, `Send
 | Layer | Count | Classes |
 |---|---|---|
 | PORT | 47 | `fader` (92%), `Ship` (75%), `MODELR` (85%), `Lights (lights.ini)` (75%), `shadow` (75%), `MODEL` (85%), `location` (88%), `Sound` (70%), `Island` (70%), `dialog` (90%), `scrshoter` (70%), `Animals` (65%), `battle_land_interface` (75%), `AISeaGoods` (85%), `SunGlow` (70%), `obj_strservice` (80%), `rain` (70%), `Sky` (70%), `Sail` (75%), `MAST` (70%), `Rope` (75%), `Flag` (75%), `Vant` (70%), `WideScreen` (85%), `blots` (55%), `sea` (60%), `SEA_CAMERAS` (60%), `battle_interface` (70%), `locationcamera` (88%), `particles` (75%), `ILogAndActions` (70%), `IBoardingStatus` (60%), `worldmap` (75%), `Weather` (60%), `SINKEFFECT` (70%), `Seafoam` (70%), `FINDFILESINTODIRECTORY` (80%), `FINDDIALOGNODES` (80%), `xinterface` (82%), `locator` (70%), `Sharks` (60%), `blots` (60%), `SunGlow` (80%), `blots` (70%), `Sharks` (70%), `BallSplash` (85%), `Ship (in locations)` (75%) |
-| APPROX | 15 | `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `Tornado` (50%), `AIBalls` (65%), `AIFort` (55%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (60%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (50%), `TELESCOPE` (65%) |
+| APPROX | 16 | `ActivePerkShower` (70%), `blast` (50%), `ispyglass` (75%), `CharactersGroups` (70%), `Lightning` (50%), `Tornado` (50%), `AIBalls` (65%), `AIFort` (55%), `FREE_CAMERA` (80%), `SHIP_CAMERA` (60%), `DECK_CAMERA` (75%), `shippointer` (70%), `sea_ai` (70%), `BallSplash` (55%), `PEOPLE_ON_SHIP` (65%), `TELESCOPE` (75%) |
 | STUB | 12 | `CAviPlayer`, `WMVideoPlay`, `HELPCHOOSER`, `InfoHandler`, `CharacterAnimationKipper`, `artifact`, `touch`, `SeaLocatorShow`, `TMPTELEPORT`, `controls_container`, `env`, `scriptscreen` |
-| MISSING | 2 | `FREE_CAMERA`, `Sharks` |
+| MISSING | 1 | `Sharks` |
 
-Classes with real behaviour: **62 of 77** (81 %); stubs: 12, missing: 2.
+Classes with real behaviour: **63 of 77** (82 %); stubs: 12, missing: 1.
 
 ## How accuracy is checked (and what is still unchecked)
 

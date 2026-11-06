@@ -4,7 +4,7 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests, [switch]$Rules)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests, [switch]$Rules, [switch]$Cameras)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -375,6 +375,21 @@ if ($Rules) {
         $fail += Invoke-Godot 'rules_pause' @('--ctl=Quick_Load@200', '--set=bWorldAlivePause=0@310', '--save=rulespause@320', '--set=bWorldAlivePause=1@400', '--load=rulespause@500', '--dump=bWorldAlivePause@900', '--shot-frame=950') 200 @('bWorldAlivePause = 0')
         Remove-Item "$root\saves\rulespause*" -ErrorAction SilentlyContinue
         Remove-Item Env:SEADOGS_CALLLOG, Env:SEADOGS_PLAYERHP
+    }
+}
+
+# docs/VERIFIED.md "Telescope, cameras, sailors": deck camera + telescope (the script gates it), the free camera (debug flag), sailors climbing the vants and jumping when a mast falls
+if ($Cameras) {
+    if (-not (Test-Path "$root\saves\quicksave.sdsave")) { Write-Host 'no saves\quicksave.sdsave: skip -Cameras' -ForegroundColor Yellow }
+    else {
+        $env:SEADOGS_PLAYERHP = '9000'; $env:SEADOGS_DECKCAM = '1.5708,0.0'; $env:SEADOGS_SCOPE = '1100'
+        $fail += Invoke-Godot 'cam_scope' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--ctl=Sea_CameraSwitch@800', '--shot-frame=1400') 300 @('[sea] camera: DECK_CAMERA', '[sea] telescope raised')
+        Remove-Item Env:SEADOGS_SCOPE
+        $fail += Invoke-Godot 'cam_free' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--set=locCameraEnableFree=1@790', '--ctl=Sea_CameraSwitch@800', '--ctl=Sea_CameraSwitch@850', '--shot-frame=1000') 300 @('[sea] camera: FREE_CAMERA')
+        Remove-Item Env:SEADOGS_DECKCAM
+        $env:SEADOGS_MASTCHANCE = '1'; $env:SEADOGS_SEACAM = '28,0.25,1.2'
+        $fail += Invoke-Godot 'cam_sailors' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--set=Characters[0].Ship.Type=94@305', '--set=Characters[0].Ship.Crew.Quantity=100@305', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--mastfall=me@1250', '--shot-frame=1500') 300 @('climbs up from point', 'men jumped overboard')
+        Remove-Item Env:SEADOGS_PLAYERHP, Env:SEADOGS_MASTCHANCE, Env:SEADOGS_SEACAM
     }
 }
 
