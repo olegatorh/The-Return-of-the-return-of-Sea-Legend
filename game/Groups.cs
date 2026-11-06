@@ -92,6 +92,9 @@ public static class GroupsState
 
     static bool Enemy(Attr a, Attr b) => Relation(GroupOf(a), GroupOf(b)) == "enemy";
 
+    /// <summary>Relation of the two characters' groups is "enemy" (or <paramref name="b"/> attacked <paramref name="a"/> a moment ago): the fight AI picks its victims among these.</summary>
+    public static bool AreEnemies(Attr a, Attr b) => Enemy(a, b) || IsRemembered(a, b);
+
     static CharacterView? View(Attr a) => CharacterView.All.TryGetValue(a, out var v) ? v : null;
 
     static CharacterView? Find(int index) => CharacterView.All.Values.FirstOrDefault(c => IndexOf(c.Ent.Root) == index);
@@ -157,6 +160,7 @@ public static class GroupsState
             {
                 if (d.Length < 3 || d[1].Attr is not { } chr) return V.Int(0);
                 int t = Target(chr);
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_GRPLOG") != null) GD.Print($"[grp] GetTrg {GroupOf(chr)} #{IndexOf(chr)} -> {t}");
                 if (t < 0) return V.Int(0);
                 it.WriteRef(d[2], V.Int(t));
                 return V.Int(1);

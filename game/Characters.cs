@@ -58,6 +58,7 @@ public partial class CharacterView : Node3D
         {
             if (fightMode == value) return;
             fightMode = value;
+            if (!value) { atkHitIn = -1f; atkTarget = null; queuedSwing = null; Blocking = false; blockUntil = 0f; }      // fgtCurType = fgt_none
             if (rig != null && Placed && rig.Play(value ? "Normal to fight" : "Fight to normal", false, true)) playing = "draw";
         }
     }
@@ -68,13 +69,15 @@ public partial class CharacterView : Node3D
     public bool Blocking
     {
         get => blocking;
-        set { if (value && !blocking) blockAge = 0f; blocking = value; }
+        set { if (value && !blocking) blockAge = 0f; if (!value) parryIntent = false; blocking = value; }
     }
-    float atkDamage = 1f;
+    float atkDamage = 1f, swingAy;
     (CharacterView enemy, Strike kind)? queuedSwing;
     float queuedUntil;
     ulong swingStartMs;
-    static readonly bool MeleeLog = System.Environment.GetEnvironmentVariable("SEADOGS_MELEELOG") != null;
+    static readonly bool FightLog = System.Environment.GetEnvironmentVariable("SEADOGS_FIGHTLOG") != null;
+    float fightLogT, dbgT;
+    static readonly bool MeleeLog =System.Environment.GetEnvironmentVariable("SEADOGS_MELEELOG") != null;
     public enum Strike { Normal, Strong, Fast }
     float blockUntil, hitUntil, gunCooldown, shotIn = -1f;
     CharacterView? shotTarget;
@@ -106,7 +109,7 @@ public partial class CharacterView : Node3D
     static readonly HashSet<string> paramsLogged = new();
     /// <summary>Test knob (env SEADOGS_NPCFIRE): multiplies the script's NPC fire rate, so a short test run sees an NPC shot.</summary>
     static readonly float FireRateScale = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_NPCFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr) ? fr : 1f;
-    public static int StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
+    public static int StatHeroHits, StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
     public static string FightStats() => $"npc swings={StatNpcSwings} blocks raised={StatReactBlocks}+{StatGuardBlocks} hits: blocked={StatBlocked} parried={StatParried} body={StatHits} npc shots={StatNpcShots} param queries={StatParamQueries} FightGo={StatFightGo} FightStay={StatFightStay} failures={StatFightFail} script-driven={StatParamQueries > 0 && StatFightStay > 0 && StatHits + StatBlocked + StatParried > 0}";
 
     float AskF(string ev, float def)
@@ -131,14 +134,6 @@ public partial class CharacterView : Node3D
             GD.Print(FormattableString.Invariant($"[fight] {Id} vs {target?.Id}: attack={npcAttack:0.###}/s defence={npcDefence:0.###}/s aggressive={npcAggressive:0.##} fire={npcFire:0.###}/s fireEnabled={npcFireEnable}"));
     }
 
-    /// <summary>An enemy begins a swing at this NPC: it may raise the block (chance = the script's defence activity, less when aggressive).</summary>
-    void OnIncomingSwing(CharacterView attacker)
-    {
-        if (IsPlayer || !fightMode || !IsAlive || atkHitIn >= 0f || shotIn >= 0f) return;
-        NpcParams();
-        float p = Math.Clamp(npcDefence * (1.2f - 0.6f * npcAggressive), 0f, 0.9f);
-        if (idleRng.NextDouble() < p) { blockUntil = 0.6f; Blocking = true; StatReactBlocks++; }
-    }
 
     void SetFightState(int s)
     {
@@ -175,37 +170,113 @@ public partial class CharacterView : Node3D
     public bool ToggleFightMode()
     {
         if (isSwim || isJump) return false;                    // character.cpp: no sword while swimming or in the air
+        if (rig != null && playing is "draw" or "Shot" or "Recoil" && !rig.Finished) return false;   // SetFightMode: ignored while a priority action plays
         if (!fightMode && !AskIsFight()) return false;
         FightMode = !fightMode;
         return true;
     }
 
-    /// <summary>Strike kind of an NPC: aggressive fighters wind up strong blows more often, the others cut fast.</summary>
-    Strike NpcStrike()
+    // np_character.cpp (UpdateFightCharacter / FightTick / DoFightAction*): every 0.2 s the NPC rolls its wishes against the script's values
+    // (wantToAttack = PrTest(attackCur), wantToDefence = PrTest(defenceCur), wantToFire = PrTest(fireCur): the values are chances per roll, so a fighter
+    // with attack 1.0 swings the moment its last blow is over). Free (no blow, no held guard) and an enemy in reach: a wish to defend while somebody
+    // swings at it becomes a block or a parry held for blockTime, otherwise a wish to attack picks the best enemy around and a blow by the engine's
+    // weights (fast 0.2, force 0.5, round 0.1, break 0.1, feint 0.1). The script's NPC_Event_GetAggresive (PotC only) decides when both are wanted.
+    float fightTickT;
+    bool wantAtk, wantDef, wantFire;
+    CharacterView? parryVs;               // the attacker whose blow is to be parried: the guard goes up just before the strike
+    bool parryIntent;                     // the raised guard is a parry (the attacker is thrown off balance)
+    Strike lastKind = Strike.Normal;
+
+    float FightLevel => Math.Clamp((npcAttack - 0.3f) / 0.7f, 0f, 1f);       // the script gives attack = 0.3 + 0.7 * fight level
+
+    void NpcFightTick(float dt)
     {
-        double r = idleRng.NextDouble();
-        if (r < 0.3 * npcAggressive) return Strike.Strong;
-        if (r < 0.3 * npcAggressive + 0.3) return Strike.Fast;
-        return Strike.Normal;
+        if ((fightTickT -= dt) > 0f) return;
+        fightTickT = 0.2f;
+        wantAtk = idleRng.NextDouble() < Math.Min(npcAttack, 1000f);
+        wantDef = idleRng.NextDouble() < Math.Min(npcDefence, 1000f);
+        wantFire = idleRng.NextDouble() < npcFire * FireRateScale;
     }
 
-    /// <summary>An NPC in reach of its enemy: attacks at the script's attack rate, holds a guard at the defence rate (both weighted by the aggressiveness).</summary>
-    void NpcFight(CharacterView enemy, float dt)
+    /// <summary>The blow by the engine's weights; the animations of man.ani stand in for the engine's fast / force / break actions.</summary>
+    Strike NpcStrike()
     {
-        ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
+        double r = idleRng.NextDouble() * 1.0;           // fast 0.2, force 0.5, break 0.1 (round needs 3+ enemies, feint has no animation here): normalised
+        if (r < 0.25) return Strike.Fast;
+        if (r < 0.88) return Strike.Normal;
+        return Strike.Strong;
+    }
+
+    /// <summary>DoFightBlock: the guard goes up for blockTime = min + rand * (max - min), min = 0.8 + (1 - level) * 0.8, max = min + (1.1 - level) * 2.5; block or parry (0.9 / 0.1).</summary>
+    void NpcBlock(bool needParry)
+    {
+        float fl = FightLevel, min = 0.8f + (1f - fl) * 0.8f, max = min + (1.1f - fl) * 2.5f;
+        blockUntil = min + (float)idleRng.NextDouble() * (max - min);
+        parryIntent = needParry || idleRng.NextDouble() * 1.0 > 0.9;
+        Blocking = true; StatGuardBlocks++;
+    }
+
+    /// <summary>An NPC in reach of its enemy (DoFightActionAnalysisNone).</summary>
+    void NpcFight(CharacterView enemy, float dist, float dt)
+    {
+        if (parryVs != null)                                  // a parry waits for the last moment of the blow
+        {
+            if (!parryVs.IsAlive || parryVs.atkTarget != this || parryVs.atkHitIn < 0f) parryVs = null;
+            else if (parryVs.atkHitIn <= 0.14f) { parryVs = null; NpcBlock(true); }
+        }
         if (atkHitIn >= 0f || shotIn >= 0f || blockUntil > 0f || (Busy && rig != null && !rig.Finished)) { PlayIdle(); return; }
-        float agg = npcAggressive;
-        if (atkCooldown <= 0f && idleRng.NextDouble() < npcAttack * (0.6f + 0.8f * agg) * dt) { StartSwing(enemy, NpcStrike()); return; }
-        if (idleRng.NextDouble() < npcDefence * (1.2f - agg) * 0.5f * dt) { blockUntil = 0.4f + (float)idleRng.NextDouble() * 0.6f; Blocking = true; StatGuardBlocks++; }
+        ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
+        if (!wantAtk && !wantDef) { PlayIdle(); return; }
+        // everybody around: the best victim (hurt, in front) and who is swinging at us
+        CharacterView? victim = null; float best = float.MinValue; int attackers = 0, enemies = 0; CharacterView? threat = null;
+        foreach (var c in All.Values)
+        {
+            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive || !GroupsState.AreEnemies(Ent.Root, c.Ent.Root)) continue;
+            float dx = c.x - x, dz = c.z - z, d = MathF.Sqrt(dx * dx + dz * dz);
+            if (d > 2.4f) continue;
+            enemies++;
+            float cs = d > 0.01f ? (MathF.Sin(ay) * dx + MathF.Cos(ay) * dz) / d : 0f;
+            float hp = Math.Clamp(c.HpNow / Math.Max(1f, c.HpMax), 0f, 1f);
+            float k = 0.1f / (hp + 0.05f) + 0.2f / 1.5f + (cs + 1f) * 0.5f;
+            if (k > best) { best = k; victim = c; }
+            if (c.atkTarget == this && c.atkHitIn >= 0f && cs > -0.3f) { attackers++; threat ??= c; }
+        }
+        if (victim == null) { victim = enemy; }
+        bool defend = wantDef && attackers > 0 && (!wantAtk || idleRng.NextDouble() >= npcAggressive);
+        if (defend)
+        {
+            wantDef = false;
+            float fl = FightLevel;
+            bool needParry = threat!.lastKind == Strike.Strong && idleRng.NextDouble() < fl * fl * 0.9;       // a piercing blow: recognised by the better fighters
+            // a step back instead of the guard (Character::Recoil, chance attacked^2 * 0.1 * (level + 0.3)), at most 0.9
+            if (idleRng.NextDouble() < Math.Min(0.9, attackers * attackers * 0.1 * (fl + 0.3))) { Recoil(); return; }
+            if (needParry || idleRng.NextDouble() * 1.0 > 0.9)
+            {
+                if (threat.atkHitIn > 0.14f) { parryVs = threat; PlayIdle(); return; }
+                NpcBlock(true);
+            }
+            else NpcBlock(false);
+            PlayIdle();
+            return;
+        }
+        if (wantAtk)
+        {
+            wantAtk = false;
+            if (atkCooldown <= 0f) StartSwing(victim, NpcStrike());
+            return;
+        }
+        wantDef = false;
         PlayIdle();
     }
 
-    /// <summary>An NPC with a pistol shoots at the script's fire rate when the template allows it (Location_CharacterIsFire: the gun is charged).</summary>
-    void NpcMaybeFire(CharacterView enemy, float dist, float dt)
+    /// <summary>An NPC with a pistol shoots when it wants to (the script's fire rate) and the template allows it (Location_CharacterIsFire: the gun is charged):
+    /// np_character.cpp fires only beyond NPC_FIGHT_GO_DIST (2.4 m) unless the fighter is good (level above 0.6), at most 25 m away.</summary>
+    void NpcMaybeFire(CharacterView enemy, float dist)
     {
-        if (!npcFireEnable || gunCooldown > 0f || shotIn >= 0f || atkHitIn >= 0f || dist > 20f) return;
+        if (!wantFire) return;
+        wantFire = false;
+        if (!npcFireEnable || gunCooldown > 0f || shotIn >= 0f || atkHitIn >= 0f || dist > 25f || (dist <= 2.4f && FightLevel <= 0.6f)) return;
         if (string.IsNullOrEmpty(Ent.Root.Find("equip.gun", false)?.Value)) return;
-        if (idleRng.NextDouble() >= npcFire * FireRateScale * dt) return;
         if (!AskIsFire()) return;
         if (TryFire(enemy)) StatNpcShots++;
     }
@@ -492,8 +563,14 @@ void fragment() {
         if (action == curMove) return;
         curMove = action;
         if (action.Length > 0 && rig?.MoveData(action) is { } m) { BlendSpeed(m.speed, m.blend); turnSpd = m.turn; }
-        else { BlendSpeed(0f, 0.4f); turnSpd = rig?.IdleTurnSpeed ?? 2f; }                  // standing: the idle's blend time, the file's "Turn speed"
+        else
+        {
+            BlendSpeed(0f, lockBlend > 0f ? lockBlend : 0.4f);                             // standing: the idle's blend time (a priority action: its own), the file's "Turn speed"
+            turnSpd = lockBlend > 0f && Blocking && fightMode ? 5f : rig?.IdleTurnSpeed ?? 2f;
+        }
     }
+    float lockBlend;
+    bool drawLogged, wasRunning;
 
     /// <summary>Character::Turn(ay): the heading to turn to (at the action's turn rate).</summary>
     void Turn(float want) { nay = want; hasNay = true; }
@@ -509,6 +586,23 @@ void fragment() {
         rig.SpeedMul = k;
         // which move action (UpdateAnimation): stairs when the floor is steeper than cos 0.9 and the character does not run
         string act = "";
+        // character.cpp UpdateAnimation / SetPriorityAction: the draw / sheathe animation (priority action), the blows, reactions, the block and the shot are set with
+        // move speed 0 (SetAction(name, blend, 0.0f, rot)) and StartMove / StopMove / SetRunMode are ignored while a priority action plays: the character stops
+        // where it stands (no running "on a skateboard" through the draw animation); a block can still turn (5 rad/s), the other actions cannot
+        bool actionLock = rig.ActionLocked(Busy), guardLock = Blocking && fightMode && !actionLock;
+        if (actionLock || guardLock)
+        {
+            isMove = false; wantRun = false;
+            if (actionLock) hasNay = false;
+            lockBlend = actionLock ? rig.MoveData(rig.ActionName)?.blend ?? 0.2f : 0.2f;
+        }
+        else lockBlend = 0f;
+        if (IsPlayer)                                                     // the log of the regression run 'drawrun'
+        {
+            bool drawing = actionLock && playing == "draw";
+            if (drawing && !drawLogged && Math.Abs(spd) > 1f) { drawLogged = true; wasRunning = true; GD.Print(FormattableString.Invariant($"[move] hero stopped for the draw animation: speed {spd:0.0} m/s, move input ignored until it ends")); }
+            else if (!drawing && drawLogged && !actionLock && isMove) { drawLogged = false; GD.Print("[move] hero moves again after the draw animation"); }
+        }
         if (runDisable) wantRun = false;                                  // no running in water above the ankles
         if (isMove)
         {
@@ -831,6 +925,7 @@ void fragment() {
     public void Tick(float dt)
     {
         if (!Placed || rig == null) return;
+        if (FightLog && task == Task.Fight && (dbgT -= dt) <= 0f) { dbgT = 1f; GD.Print($"[npc] {Id} tick: task={task} inDialog={inDialog} jump={isJump} target={target?.Id} fightAllowed={fightAllowed} fightState={fightState}"); }
         if (rig.Events.Count > 0) { var evs = rig.Events.ToArray(); rig.Events.Clear(); foreach (var e in evs) OnAnimEvent(e); }
         Detect(dt);
         UpdateEquipment();
@@ -905,7 +1000,12 @@ void fragment() {
             case Task.Fight:
             case Task.Escape:
             {
-                if (target == null || !target.Placed || (task == Task.Fight && !target.IsAlive)) { if (task == Task.Fight) FailFight(); PlayIdle(); break; }
+                if (target == null || !target.Placed || (task == Task.Fight && !target.IsAlive))
+                {
+                    if (FightLog && task == Task.Fight) GD.Print($"[npc] {Id}: fight task fails: target={target?.Id} placed={target?.Placed} alive={target?.IsAlive}");
+                    if (task == Task.Fight) FailFight();
+                    PlayIdle(); break;
+                }
                 float dx = target.x - x, dz = target.z - z, dist = MathF.Sqrt(dx * dx + dz * dz);
                 bool flee = task == Task.Escape;
                 exch = flee ? null : target;                                  // SetExCharacter: the followed / fought character does not push us away
@@ -951,8 +1051,14 @@ void fragment() {
                     NpcParams();
                     bool inReach = dist <= (fightState == 2 ? 2.4f : 2.0f);        // np_character.cpp: NPC_FIGHT_STOP_DIST 2.0 / NPC_FIGHT_GO_DIST 2.4
                     SetFightState(inReach ? 2 : 1);
-                    NpcMaybeFire(target, dist, dt);
-                    if (inReach) { Turn(Angle(dx, dz)); NpcFight(target, dt); break; }
+                    if (FightLog && (fightLogT -= dt) <= 0f)
+                    {
+                        fightLogT = 1f;
+                        GD.Print(FormattableString.Invariant($"[npc] {Id} -> {target.Id}: dist={dist:0.00} reach={inReach} state={playing} cooldown={atkCooldown:0.00} swinging={atkHitIn >= 0f} blocking={Blocking} atk={npcAttack:0.##} agg={npcAggressive:0.##} hp={HpNow:0}"));
+                    }
+                    NpcFightTick(dt);
+                    NpcMaybeFire(target, dist);
+                    if (inReach) { Turn(Angle(dx, dz)); NpcFight(target, dist, dt); break; }
                     // fight: run while farther than NPC_FIGHT_RUN_DIST (4 m), walk inside NPC_FIGHT_WALK_DIST (2.5 m), keep the gait in between
                     fightRun = dist > 4f || (fightRun && dist >= 2.5f);
                     arrived = false;
@@ -995,15 +1101,18 @@ void fragment() {
         if (atkTarget != null)
         {
             float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
-            if (atkTarget.IsAlive && IsAlive && d2 < 2.3f * 2.3f)
+            // character.cpp CheckAttackHit: reach 2.4 m, 60 degrees either side of the heading the blow was started with (the turn is locked meanwhile)
+            float ca = d2 > 1e-4f ? (MathF.Sin(swingAy) * (atkTarget.x - x) + MathF.Cos(swingAy) * (atkTarget.z - z)) / MathF.Sqrt(d2) : 1f;
+            if (atkTarget.IsAlive && IsAlive && d2 < 2.4f * 2.4f && ca >= 0.5f)
             {
                 bool blocked = atkTarget.Defends(this);
-                bool parried = blocked && atkTarget.blockAge < (atkTarget.IsPlayer ? BlockRaise + 0.3f : 0.3f);                 // a block raised just in time throws the attacker off balance
+                bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < BlockRaise + 0.3f : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
                 if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
                 atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
                 float hpBefore = atkTarget.HpNow;
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
                 if (IsPlayer) atkTarget.ShowHit(hpBefore - atkTarget.HpNow, blocked);
+                if (!IsPlayer && atkTarget.IsPlayer && StatHeroHits++ < 3) GD.Print(FormattableString.Invariant($"[fight] the hero was {(blocked ? "attacked (blocked)" : "hit")} by {Id}: hp {hpBefore:0.#} -> {atkTarget.HpNow:0.#}, kind={lastKind}"));
                 if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began, {(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
                 atkTarget.PlayReaction(blocked);
                 if (parried) Stagger();
@@ -1038,8 +1147,8 @@ void fragment() {
         if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
         if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
-        if (!IsPlayer) { StatNpcSwings++; atkCooldown += 0.4f; }         // the NPC's own attack rate (NpcFight) paces it, plus a short recovery
-        enemy.OnIncomingSwing(this);
+        lastKind = kind; swingAy = ay;
+        if (!IsPlayer) StatNpcSwings++;
         return true;
     }
 

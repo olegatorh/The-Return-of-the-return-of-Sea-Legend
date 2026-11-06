@@ -248,6 +248,9 @@ public partial class CharacterRig : Node3D
     /// <summary>True when a non-looping action has played to its end.</summary>
     public bool Finished => cur != null && !loop && time >= Math.Max(cur.End - cur.Start, 1);
 
+    /// <summary>A one-shot character action (draw, blow, reaction, shot) is still playing: the character does not move or turn meanwhile.</summary>
+    public bool ActionLocked(bool busyState) => busyState && !Finished;
+
     public bool Play(string action, bool looping, bool restart = false)
     {
         if (!ani.Actions.TryGetValue(action, out var a) || a.End <= a.Start) return false;

@@ -94,6 +94,14 @@ if ($Sea) {
                 '--call=LAi_group_MoveCharacter(#Gilles+Roche,TestA)@410', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(TestA,TestB,1)@420',
                 '--call=LAi_SetHP(#Gilles+Roche,400,400)@430', '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--key=F@450', '--shot-frame=1600')
         $fail += Invoke-Godot 'melee' $ml 300 @('[fight] Gilles Roche vs Terry  Snider: attack=1/s defence=0.65/s', '[fight] Terry  Snider vs Gilles Roche:', 'script-driven=True player fightMode=True')
+        # a hostile soldier against the HERO (group 'player' made enemy of TestB): he must run up, swing and wound the hero within the run (the NPC rolls its
+        # wishes every 0.2 s like np_character.cpp, so the attack rate of the script means a blow as soon as the last one is over). The hero is drawn while running:
+        # he stops for the draw animation (log "hero stopped for the draw") and runs on afterwards
+        $mh = @('--ctl=Quick_Load@200', '--call=LAi_SetWarriorType(#Terry++Snider)@400', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420',
+                '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Terry__Snider:7@440', '--key=F@460', '--shot-frame=1500')
+        $fail += Invoke-Godot 'meleehero' $mh 300 @('[fight] Terry  Snider vs Blaze:', '[fight] the hero was hit by Terry  Snider')
+        $dr = @('--ctl=Quick_Load@200', '--run', '--move=0,1@480-1100', '--key=F@560', '--shot-frame=1200')
+        $fail += Invoke-Godot 'drawrun' $dr 300 @('[move] hero stopped for the draw', '[move] hero moves again')
         # 'sail to' the port from the command menu: the squadron is moved next to the port's reload locator behind the fader, where mooring is offered
         $st = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--seapos=-500,-400,3.0@700', '--call=SeaAI_SailToLocator(reload_1)@800', '--act@1300', '--shot-frame=1500')

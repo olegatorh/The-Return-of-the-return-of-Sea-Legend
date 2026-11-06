@@ -116,6 +116,7 @@ public partial class Main : Node
             else if (a.StartsWith("--dump=")) { var p = a.Substring(7).Split('@'); dumps.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--at=")) { var p = a.Substring(5).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; atHooks.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci), float.Parse(v[3], ci))); }      // test hook: stand at x,y,z facing ay
             else if (a.StartsWith("--jump@")) jumpAtFrame = int.Parse(a.Substring(7));      // test hook: the hero jumps forward at frame N
+            else if (a == "--run") forceRun = true;                                         // test hook: the hero runs whenever he moves
             else if (a == "--classic") Keys.Classic = true;                                // the original land control scheme (see Keys.Classic)
             else if (a.StartsWith("--look@")) lookAtFrame = int.Parse(a.Substring(7));       // Tab (first-person view) at frame N
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
@@ -588,6 +589,7 @@ public partial class Main : Node
     WideScreenView? wideScreen;
     AnimalsView? animalsView;
     readonly List<int> swings = new();
+    bool forceRun;
     int animalsAt = -1;                   // test hook --animals@N: what animals.c sends in fine weather (seagulls over the player, butterflies)
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
     Vector3 camToPos;
@@ -738,7 +740,7 @@ public partial class Main : Node
             player.Classic = classic;
             player.TurnAdd += turnAdd;
             player.Blocking = free && player.FightMode && Keys.Down("LandBlock");
-            player.Run = classic ? !Keys.Down("LandRun") : Keys.Down("LandRun");
+            player.Run = forceRun || (classic ? !Keys.Down("LandRun") : Keys.Down("LandRun"));
             player.CameraYaw = camYaw;
         }
 
@@ -1053,7 +1055,7 @@ public partial class Main : Node
         }
         frames++;
 
-        foreach (var (f, id) in brings) if (f == frames && characters.Values.FirstOrDefault(c => c.IsPlayer) is { } bp && characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == id) is { } bn) bn.PlaceNear(bp, 1.6f);
+        foreach (var (f, id0) in brings) if (f == frames) { var ip = id0.Split(':'); string id = ip[0]; float bdist = ip.Length > 1 ? float.Parse(ip[1], System.Globalization.CultureInfo.InvariantCulture) : 1.6f; if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } bp && characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == id) is { } bn) bn.PlaceNear(bp, bdist); }       // --bring=Id@N or Id:metres@N
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
         foreach (var (f, n) in mouseClicks) if (f == frames) view?.MouseClick(n);
         foreach (var (f, k, v) in sets) if (f == frames) host.It.SetGlobal(k, v);
