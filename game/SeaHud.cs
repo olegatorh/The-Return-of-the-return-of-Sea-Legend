@@ -355,7 +355,7 @@ public partial class SeaHud : CanvasLayer
                 {
                     // the note: centred over the selected icon, 28 above its top (noteYOffset)
                     float nw = font.GetStringSize(it.Label, HorizontalAlignment.Left, -1, 16).X;
-                    var at = new Vector2(x + 32 - nw / 2f, Top - 12);
+                    var at = new Vector2(Math.Max(0f, x + 32 - nw / 2f), Top - 12);          // the note stays on the screen at the left end
                     DrawStringOutline(font, at, it.Label, HorizontalAlignment.Left, -1, 16, 6, Colors.Black);
                     DrawString(font, at, it.Label, HorizontalAlignment.Left, -1, 16, new Color(1f, 0.95f, 0.7f));
                 }
