@@ -109,6 +109,32 @@ if ($Sea) {
               '--mouse=SELL_BUTTON@920', '--key=Right@940', '--key=Right@950', '--mouse=OK_BUTTON@980', '--dump=Characters[0].Ship.Cargo.Goods.Balls@1000', '--dump=Characters[0].Money@1001', '--shot-frame=1005')
         # buy 60 balls (100 -> 160, money 5000 -> 4985), then sell 40 through the real SELL button / Right keys / OK (160 -> 120, money +4)
         $fail += Invoke-Godot 'trade' $t 200 @('Balls = "160"', 'money = "4985"', 'Balls = "120"', 'money = "4989"')
+        # store, no money: the quantity cannot grow, OK changes nothing (Balls 100, money 0); 3 gold buy only 12 balls (112, money 0)
+        $t0 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=0@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradenomoney' $t0 200 @('TradeQuantity = "0"', 'Balls = "100"', 'money = "0"')
+        $t3 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=3@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradepoor' $t3 200 @('TradeQuantity = "12"', 'Balls = "112"', 'money = "0"')
+        # store, hold nearly full (capacity 250): "buy all" stops at the free space (1500 balls), the free space ends at 0 and the quantity cannot grow any more
+        $tc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=100000@410', '--set=ShipsTypes[169].Capacity=250@411', '--call=LaunchStore(0)@500', '--key=Enter@600',
+                '--mouse=BUY_BUTTON@650', '--mouse=B_BUYALL@700', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=GameInterface.strings.OnShipSpaceQuantity@902',
+                '--mouse=BUY_BUTTON@950', '--key=Right@1000', '--dump=GameInterface.strings.TradeQuantity@1050', '--shot-frame=1060')
+        $fail += Invoke-Godot 'tradefull' $tc 200 @('TradeQuantity = "1500"', 'Balls = "1600"', 'OnShipSpaceQuantity = "0"', 'TradeQuantity = "0"')
+        # store, "sell all": every good the store trades leaves the hold at once (the planks are not on the list), the money grows
+        $ts = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=SELLEVERYTHING_BUTTON@700',
+                '--dump=Characters[0].Ship.Cargo.Goods.Balls@800', '--dump=Characters[0].Ship.Cargo.Goods.Powder@801', '--dump=Characters[0].Money@802', '--shot-frame=810')
+        $fail += Invoke-Godot 'tradesellall' $ts 200 @('Balls = "0"', 'Powder = "0"', 'money = "10230"')
+        # store, a companion: a lugger (William Blaker's Victoria) joins, Right in the ship choice selects it (the four-image attributes are GameInterface.FourImage), the purchase goes into ITS hold (900 -> 960), not the hero's
+        $tp = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@405', '"--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Id=William Blaker@410"',
+                '--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Remove=1@411', '--call=Character_into_companion()@420', '--call=LaunchStore(0)@500', '--key=Right@550', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.ShipName@750', '--mouse=OK_BUTTON@800', '--dump=Characters[659].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Ship.Cargo.Goods.Balls@901', '--dump=Characters[0].Money@902', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradecompanion' $tp 200 @('ShipName = "', 'Balls = "960"', 'Balls = "100"', 'money = "4985"')
+        # items trade (itemstrade.ini): the captain's potions: buy (Right +1, +1, Shift+Right +10 capped by the stock 5, Left -1 = 4: 5 -> 9, 4 x 139 gold), then sell: the quantity starts at everything (9), Left twice = 7 sold (9 -> 2, 7 x 75 gold)
+        $ti = @('--ctl=Quick_Load@200', '--set=Characters[0].Money=5000@405', '--call=LaunchItemsTrade(#William+Blaker)@500', '--key=Right@600', '--key=Right@610', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--dump=GameInterface.strings.TradeQuantity@710', '--key=Shift+Right@720', '--dump=GameInterface.strings.TradeQuantity@730', '--key=Left@740', '--dump=GameInterface.strings.TradeQuantity@750',
+                '--mouse=OK_BUTTON@800', '--dump=Characters[0].Items.potion1@900', '--dump=Characters[0].Money@901', '--mouse=SELL_BUTTON@950', '--key=Left@1000', '--key=Left@1005', '--mouse=OK_BUTTON@1050', '--dump=Characters[0].Items.potion1@1100', '--dump=Characters[0].Money@1101', '--shot-frame=1110')
+        $fail += Invoke-Godot 'itemstrade' $ti 200 @('TradeQuantity = "3"', 'TradeQuantity = "5"', 'TradeQuantity = "4"', 'potion1 = "9"', 'money = "4444"', 'potion1 = "2"', 'money = "4969"')
         # screens that must open without errors: ship hold and shipyard
         $fail += Invoke-Godot 'hold' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipHold()@500', '--shot-frame=700') 200
         $fail += Invoke-Godot 'yard' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipyard(#Esteban+Castillo)@500', '--shot-frame=700') 200
