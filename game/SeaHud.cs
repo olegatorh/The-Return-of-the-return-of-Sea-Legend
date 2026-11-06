@@ -329,7 +329,9 @@ public partial class SeaHud : CanvasLayer
     public void Update(HudData d)
     {
         lastOn = d.On;
+        float spyPrev = spyAlpha;
         spyAlpha = Math.Clamp(spyAlpha + (SpyVisible && scopeAmount > 0.5f ? 1f : -1f) * (float)GetProcessDeltaTime() / 0.5f, 0f, 1f);
+        if (spyAlpha > 0.01f || spyPrev > 0.01f) spyPanel.QueueRedraw();      // a Control draws only when asked: the panel follows the glass data and the fade
         // navigator
         nav.Set(d);
         // squadron

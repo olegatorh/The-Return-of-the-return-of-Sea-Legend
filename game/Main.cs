@@ -1080,7 +1080,8 @@ public partial class Main : Node
                 if (lp >= 0)
                     foreach (var x in fn.Substring(lp + 1).TrimEnd(')').Split(',', StringSplitOptions.RemoveEmptyEntries))
                         args.Add(x.StartsWith('#') ? host.It.CallTop("CharacterFromID", V.Str(x.Substring(1).Replace('+', ' '))) : int.TryParse(x, out int iv) ? V.Int(iv) : V.Str(x.Replace('+', ' ')));
-                host.It.CallTop(name, args.ToArray());
+                var callResult = host.It.CallTop(name, args.ToArray());
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_CALLLOG") == "1") GD.Print($"[call] {name}({string.Join(",", args.Select(a => a.ToString()))}) -> {callResult}");     // test hook: print what the script function returned
             }
         foreach (var (f, g) in killGroups)
             if (f == frames)

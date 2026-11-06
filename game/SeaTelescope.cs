@@ -28,6 +28,7 @@ public partial class SeaView
     bool scopeActiveSent;
     int scopeTarget = -1;                      // the character under the eyepiece
     bool scopeInfoShown;
+    string lastSpyKey = "";
     float scopeTimerMs;
 
     // ship pointer
@@ -58,11 +59,16 @@ public partial class SeaView
             int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
             if (msg == MSG_ISG_VISIBLE) hud.SpyVisible = d.Length > 1 && Conv.ToInt(d[1]) != 0;
             else if (msg == MSG_ISG_UPDATE && d.Length > 9)
+            {
                 hud.Spy = new SpyGlassInfo
                 {
                     Name = Conv.ToStr(d[1]), Type = Conv.ToStr(d[2]), Hull = Conv.ToInt(d[3]), Sail = Conv.ToInt(d[4]), Crew = Conv.ToInt(d[5]),
                     Speed = Conv.ToFloat(d[6]), Cannons = Conv.ToInt(d[7]), Charge = Conv.ToInt(d[8]), Nation = Conv.ToInt(d[9]),
                 };
+                var sp = hud.Spy;
+                string spKey = $"{sp.Hull}/{sp.Sail}/{sp.Crew}/{sp.Cannons}/{sp.Charge}";
+                if (spKey != lastSpyKey) { lastSpyKey = spKey; GD.Print($"[sea] spyglass panel: type '{sp.Type}' hull {sp.Hull} sails {sp.Sail} crew {sp.Crew} speed {sp.Speed:0.0} cannons {sp.Cannons} charge {sp.Charge} nation {sp.Nation} (-1 = hidden by the glass)"); }
+            }
             return V.Int(1);
         };
         i.EntityHandlers["shippointer"] = (e, fmt, d) =>
