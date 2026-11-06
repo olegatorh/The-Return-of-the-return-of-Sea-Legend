@@ -142,6 +142,7 @@ public partial class XView : Control
                 it.WriteRef(d[3], V.Str(DateTime.Now.ToString("dd.MM.yyyy")));
                 return V.Int(0);
             case 45038:                                                    // SET_FORMATEDTEXT: node, text
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[formatted] {S(1)}: {S(2)}");
                 if (nodes.TryGetValue(S(1), out var ft) && ft is Label fl) fl.Text = S(2).Replace("\\n", "\n");
                 return V.Int(0);
             case 45035: return FindSave(d);                                // SAVE_FILE_FIND (n, &name, &size)

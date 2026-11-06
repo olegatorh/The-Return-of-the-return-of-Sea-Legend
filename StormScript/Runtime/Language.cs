@@ -106,7 +106,12 @@ public sealed class LanguageService
             // drop comment lines that precede the key
             var lines = key.Split('\n').Select(l => l.TrimEnd('\r')).Where(l => !l.TrimStart().StartsWith(';') && l.Trim().Length > 0);
             key = string.Join(" ", lines).Trim();
-            if (key.Length > 0) into[key] = text.Substring(open + 1, close - open - 1);
+            if (key.Length > 0)
+            {
+                // str_service.cpp GetNextUsersString: blanks and line breaks on both sides of the data are cut (a value of blanks only keeps one character: the "newline" key is one line break)
+                string raw = text.Substring(open + 1, close - open - 1), val = raw.Trim(' ', '\t', '\r', '\n');
+                into[key] = val.Length == 0 && raw.Length > 0 ? "\n" : val;
+            }
             pos = close + 1;
         }
     }
