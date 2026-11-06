@@ -191,7 +191,7 @@ public partial class SeaView : Node3D
         ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); ClearFx(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
-        deckCam = false; LowerTelescope(); pointerChr = -1; lastSelectedShip = -2;
+        deckCam = false; freeCam = false; LowerTelescope(); pointerChr = -1; lastSelectedShip = -2;
         Cam.Current = false;
         hud.Update(new HudData());
     }
@@ -684,14 +684,6 @@ public partial class SeaView : Node3D
         for (int i = 0; i < 4; i++) d.Ammo[i] = (int)F(sh, "Cargo.Goods." + goods[i]);
         string act = it.Globals.TryGetValue("g_ActiveActionName", out var ga) ? Conv.ToStr(ga.Val) : "";
         d.Action = act switch { "Moor" => "Enter — зайти в порт", "Board" => "Enter — абордаж", "LandTroops" => "Enter — десант", "Map" => "Enter / M — карта світу", _ => "" };
-        // squadron: the player and the companions
-        int q = Math.Max(1, Conv.ToInt(it.CallTop("GetCompanionQuantity", V.A(p.Chr))));
-        for (int i = 0; i < q && i < 6; i++)
-        {
-            int idx = i == 0 ? p.Index : Conv.ToInt(it.CallTop("GetCompanionIndex", V.A(p.Chr), V.Int(i)));
-            var cs = ships.FirstOrDefault(x => x.Index == idx);
-            if (cs != null) d.Squadron.Add(MakeHudShip(cs));
-        }
         // the nearest foreign ship in front of the camera is the target; markers over all ships in view
         ShipRt? target = null; float best = float.MaxValue;
         var cam = Cam;
@@ -913,13 +905,29 @@ public partial class SeaView : Node3D
         // the telescope: from the mast top in the ship camera, from the eye in the deck camera
         // test hook: env SEADOGS_SCOPE=1 holds the telescope up all the time, SEADOGS_SCOPE=N (> 1) from process frame N on
         bool forced = System.Environment.GetEnvironmentVariable("SEADOGS_SCOPE") is { } fs && (!int.TryParse(fs, out var fromFrame) || fromFrame <= 1 || (long)Engine.GetProcessFrames() >= fromFrame);
-        bool scope = inputEnabled && (Keys.Down("SeaTelescope") || forced) && !CommandsOpen;
+        // the control group "Sailing1Pers" (TelescopeIn / TelescopeOut = Ctrl pressed / released) exists only in the deck camera (controls.c); the engine raises
+        // MSG_TELESCOPE_REQUEST and the script (SEA_AI\telescope.c) lets it through to the TELESCOPE entity only when SeaCameras.Camera is "SeaDeckCamera"
+        bool ctrl = inputEnabled && DeckCamera && !CommandsOpen && Keys.Down("SeaTelescope");
+        if (DeckCamera && !freeCam)
+        {
+            if (ctrl && !scopeCtrlWas) ScopeRequest(1);
+            else if (!ctrl && scopeCtrlWas && scopeOn) ScopeRequest(0);
+            else if (forced && !scopeOn && inputEnabled) ScopeRequest(1);
+        }
+        else if (scopeOn) { scopeOn = false; LowerTelescope(); }
+        scopeCtrlWas = ctrl;
+        bool scope = scopeOn && !CommandsOpen;
         float prev = scopeT;
         // the zoom grows during the spyglass's activation time (ISPYGLASS::UpdateCamera) and drops back at once when the key is released
         scopeT = scope ? Math.Clamp(scopeT + dt / Math.Max(0.1f, scopeActivateMs / 1000f), 0f, 1f) : 0f;
         if (scopeT > 0f && prev <= 0f) LoadScopeType(p);
         hud.ScopeTexture = scopeT > 0f ? scopeTex : "";
         hud.ScopeAmount = scopeT;
+        if (freeCam)
+        {
+            UpdateFreeCamera(dt, inputEnabled);
+            return;
+        }
         if (DeckCamera)
         {
             UpdateDeckCamera(p, dt, inputEnabled);
@@ -946,16 +954,6 @@ public partial class SeaView : Node3D
         float yaw = p.Ay + camYawOff;
         var target = new Vector3(p.X, p.Height * 0.55f, -p.Z);
         var behind = new Vector3(-MathF.Sin(yaw) * MathF.Cos(camPitch), MathF.Sin(camPitch), MathF.Cos(yaw) * MathF.Cos(camPitch));   // godot: forward = (sin, 0, -cos)
-        if (scopeT > 0f)
-        {
-            // from the top of the mast along the camera's heading; the zoom narrows the field of view
-            var eye = new Vector3(p.X, p.Height * 0.9f, -p.Z);
-            var fwdDir = new Vector3(MathF.Sin(yaw), 0f, -MathF.Cos(yaw));
-            Cam.GlobalPosition = target.Lerp(eye, scopeT);
-            Cam.LookAt(Cam.GlobalPosition + fwdDir * 200f + Vector3.Up * 200f * MathF.Tan((camPitch - 0.3f) * 0.6f));
-            Cam.Fov = 62f / Mathf.Lerp(1f, scopeZoom, scopeT);
-        }
-        else
         {
             var want = target + behind * camDist;
             // the camera must not sit inside the island or under the water: pull it in front of any island surface on the way and keep it above the waves

@@ -21,12 +21,13 @@ namespace SeaDogs;
 /// </summary>
 public partial class SeaView
 {
-    const int MSG_TELESCOPE_SET_TYPE = 77302, MSG_ISG_VISIBLE = 46201, MSG_ISG_UPDATE = 46202, MSG_SP_CHANGESHIP = 46301;
+    const int MSG_TELESCOPE_REQUEST = 77301, MSG_TELESCOPE_SET_TYPE = 77302, MSG_ISG_VISIBLE = 46201, MSG_ISG_UPDATE = 46202, MSG_SP_CHANGESHIP = 46301;
 
     bool scopeFromScript;                      // the script sent the spyglass type (77302): telescope.ini is not needed
     float scopeActivateMs = 500f, scopeUpdateMs = 150f;
     bool scopeActiveSent;
-    int scopeTarget = -1;                      // the character under the eyepiece
+    bool scopeOn, scopeCtrlWas;                // ISPYGLASS::m_bIsOn (set by MSG_TELESCOPE_REQUEST), the Ctrl state of the last frame
+    int scopeTarget = -1;                    // the character under the eyepiece
     bool scopeInfoShown;
     string lastSpyKey = "";
     float scopeTimerMs;
@@ -52,7 +53,12 @@ public partial class SeaView
                 scopeFromScript = true;
                 GD.Print($"[sea] telescope type: {scopeTex} zoom {scopeZoom} activate {scopeActivateMs} ms update {scopeUpdateMs} ms");
             }
-            return V.Int(1);                    // 77300 INIT_ARRAYS (the tables are read from the characters directly), 77301 REQUEST, 50301 SHIP_DELETE
+            if (msg == MSG_TELESCOPE_REQUEST)   // Telescope_Request (SEA_AI\telescope.c) sends only the code: the key press and release each flip the telescope (Ctrl = TelescopeIn / TelescopeOut)
+            {
+                bool want = d.Length > 1 ? Conv.ToInt(d[1]) != 0 : !scopeOn;
+                if (want != scopeOn) { scopeOn = want; scopeTimerMs = 1e6f; GD.Print($"[sea] telescope {(want ? "raised" : "lowered")} (MSG_TELESCOPE_REQUEST)"); }
+            }
+            return V.Int(1);                    // 77300 INIT_ARRAYS (the tables are read from the characters directly), 50301 SHIP_DELETE
         };
         i.EntityHandlers["ispyglass"] = (e, fmt, d) =>
         {
@@ -96,14 +102,17 @@ public partial class SeaView
             if (scopeInfoShown) it.FireEvent("ReleaseTelescopeInfo", new List<V>());
             GD.Print("[sea] telescope lowered: the sea is unloaded while it was up (script told TelescopeActive 0)");
         }
-        scopeT = 0f; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; lastSpyKey = "";
+        scopeT = 0f; scopeOn = false; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; lastSpyKey = "";
         hud.ScopeTexture = ""; hud.ScopeAmount = 0f; hud.SpyVisible = false; hud.Spy = null;
     }
 
     /// <summary>Per frame while the telescope is up: what is in the middle of the eyepiece, and the script events for it.</summary>
+    /// <summary>The engine side of the telescope key: raises the event, the script decides (only in the deck camera) and answers with the TELESCOPE message.</summary>
+    void ScopeRequest(int on) => it.FireEvent("MSG_TELESCOPE_REQUEST", new List<V> { V.Int(on) });
+
     void UpdateTelescopeInfo(ShipRt p, float dt)
     {
-        bool on = scopeT >= 0.99f;
+        bool on = scopeOn;                                   // TurnOnTelescope: TELESCOPE_ACTIVE and BI_VISIBLE go out at once, the zoom grows during the activation time
         if (on != scopeActiveSent)
         {
             scopeActiveSent = on;

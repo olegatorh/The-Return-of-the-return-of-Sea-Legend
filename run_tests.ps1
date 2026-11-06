@@ -357,15 +357,15 @@ if ($Rules) {
                 '--call=Ship_ApplyCrewHitpoints(#Cayman+Commander,99999)@320', '--dump=Characters[757].Ship.Crew.Quantity@321', '--call=SetCharacterGoods(#Blaze,6,0)@330', '--call=GetWeaponCrew(#Blaze,40)@331',
                 '--call=SetCharacterGoods(#Blaze,6,50)@350', '--call=GetWeaponCrew(#Blaze,40)@351', '--shot-frame=400')
         $fail += Invoke-Godot 'rules_crew' $r3 150 @('Quantity = "8"', 'GetWeaponCrew(<attr Characters[0]>,40) -> 20', 'GetWeaponCrew(<attr Characters[0]>,40) -> 40')
-        # rule 2: every spyglass shows what its scope.show flags say (the panel data is logged); the duel ship is 80 m abeam, the telescope is held up from frame 2600
-        $env:SEADOGS_PLAYERHP = '9000'; $env:SEADOGS_DUELDIST = '80'; $env:SEADOGS_SCOPE = '2600'; $env:SEADOGS_SEACAM = '40,0.3,1.5708'
+        # rule 2: every spyglass shows what its scope.show flags say (the panel data is logged); the duel ship is 80 m abeam, the deck camera (Tab, the telescope works only there) from 2550, the telescope is held up from frame 2600
+        $env:SEADOGS_PLAYERHP = '9000'; $env:SEADOGS_DUELDIST = '80'; $env:SEADOGS_SCOPE = '2600'; $env:SEADOGS_SEACAM = '40,0.3,1.5708'; $env:SEADOGS_DECKCAM = '1.5708,0.0'
         $r2 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_eng)@305', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
-                '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250', '--seapos=-110,100,0@2400', '--duel@2450', '--sail=-1@2460', '--sail=-1@2470')
+                '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250', '--seapos=-110,100,0@2400', '--duel@2450', '--sail=-1@2460', '--sail=-1@2470', '--ctl=Sea_CameraSwitch@2550')
         $f = 2700
         foreach ($n in 1..5) { $r2 += "--call=GiveItem2Character(#Blaze,spyglass$n)@$f"; $r2 += "--call=EquipCharacterbyItem(#Blaze,spyglass$n)@$f"; $f += 250 }
         $r2 += "--shot-frame=$f"
         $fail += Invoke-Godot 'rules_spyglass' $r2 300 @('spyglass panel: type ''1'' hull -1 sails -1 crew -1', 'hull 100 sails 100 crew -1 speed', 'crew 490 speed')
-        Remove-Item Env:SEADOGS_DUELDIST, Env:SEADOGS_SCOPE, Env:SEADOGS_SEACAM
+        Remove-Item Env:SEADOGS_DUELDIST, Env:SEADOGS_SCOPE, Env:SEADOGS_SEACAM, Env:SEADOGS_DECKCAM
         # rule 7: Antigua (French patent): the player's balls destroy the fort cannons through the script (--fortkill) -> Fort.Mode 1 (FORT_ABORDAGE); the garrison squadron is gone (Character_SetAbordageEnable) -> LandTroops -> fort deck
         $r7 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_fra)@305', '--call=EquipCharacterbyItem(#Blaze,patent_fra)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
                 '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-696,753,0@1200', '--act@1250', '--seapos=-60,-110,0@2400',

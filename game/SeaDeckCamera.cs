@@ -21,8 +21,11 @@ namespace SeaDogs;
 /// </summary>
 public partial class SeaView
 {
-    bool deckCam;
-    public bool DeckCamera => deckCam && HasPlayerShip;
+    bool deckCam, freeCam;
+    /// <summary>The first-person family (mouse captured, mouse look): the deck camera and the free camera.</summary>
+    public bool DeckCamera => (deckCam || freeCam) && HasPlayerShip;
+    ShipRt? deckLastShip;            // DECK_CAMERA::FindPath calls SetStartPos only when the path node changes: coming back to the same ship keeps place and view
+    float deckRockX = 0.8f;
     Vector3 deckPos;                 // ship model space of the engine (x right, y up, z forward): y = floor height under the eye
     float deckYaw, deckPitch, deckEyeY = float.NaN;
     float deckSensH = 0.0015f, deckSensV = 0.0015f, deckSensDist = 0.01f, deckEye = 1.6f, deckMaxPitch = 1.5f, deckMinPitch = -1.5f,
@@ -41,9 +44,16 @@ public partial class SeaView
         if (d.Length < 1 || d[0].Attr is not { } camAttr) return V.Int(1);
         var ent = it.Entities.FirstOrDefault(x => !x.Deleted && ReferenceEquals(x.Root, camAttr));
         string cls = ent?.Class ?? (camAttr.Get("h_def") != null ? "DECK_CAMERA" : "SHIP_CAMERA");
-        bool deck = cls.Equals("DECK_CAMERA", StringComparison.OrdinalIgnoreCase);
+        bool deck = cls.Equals("DECK_CAMERA", StringComparison.OrdinalIgnoreCase), free = cls.Equals("FREE_CAMERA", StringComparison.OrdinalIgnoreCase);
+        if (free != freeCam)
+        {
+            freeCam = free;
+            if (free) EnterFree();
+            GD.Print($"[sea] camera: {cls}");
+        }
         if (deck)
         {
+            deckRockX = F(camAttr, "RockingX", 0.8f);
             deckSensH = F(camAttr, "SensivityAzimuthAngle", 0.0015f); deckSensV = F(camAttr, "SensivityHeightAngle", 0.0015f); deckSensDist = F(camAttr, "SensivityDistance", 0.01f);
             deckHDef = F(camAttr, "h_def", 1.6f); deckHMin = F(camAttr, "h_min", 0.5f); deckHMax = F(camAttr, "h_max", 2f);
             deckMaxPitch = F(camAttr, "MaxAngleX", 1.5f); deckMinPitch = F(camAttr, "MinAngleX", -1.5f); deckStepUp = F(camAttr, "StepUp", 0.5f); deckRockZ = F(camAttr, "RockingZ", 0.8f);
@@ -111,6 +121,8 @@ public partial class SeaView
     void EnterDeck()
     {
         var p = ships.FirstOrDefault(s => s.IsPlayer);
+        if (p != null && p == deckLastShip && System.Environment.GetEnvironmentVariable("SEADOGS_DECKCAM") == null) { deckEyeY = float.NaN; return; }   // same ship as last time: place and view are kept
+        deckLastShip = p;
         deckYaw = 0f; deckPitch = 0f; deckEyeY = float.NaN; deckEye = deckHDef;
         if (System.Environment.GetEnvironmentVariable("SEADOGS_DECKCAM") is { } dc)          // test hook: "yaw,pitch" of the view (radians, 0 = ahead)
         {
@@ -150,6 +162,7 @@ public partial class SeaView
     /// <summary>Mouse look on the deck (DeckCamera_Turn_H / _V: Sensivity*Angle * 3 per mouse unit).</summary>
     void DeckLook(float dx, float dy)
     {
+        if (freeCam) { freeYaw -= dx * 0.0015f * 3f; freePitch = Math.Clamp(freePitch - dy * 0.0015f * 3f, -1.55f, 1.55f); return; }   // FreeCamera_Turn_H / _V
         deckYaw += dx * deckSensH * 3f;
         deckPitch = Math.Clamp(deckPitch - dy * deckSensV * 3f, deckMinPitch, deckMaxPitch);
     }
@@ -172,13 +185,19 @@ public partial class SeaView
         return best;
     }
 
-    /// <summary>One walking step on the path model; false when there is no floor within StepUp there.</summary>
+    /// <summary>
+    /// One walking step on the path model; false when there is no floor within StepUp there. The C++ slides along the triangle edge it meets; here the step is
+    /// retried turned away from the wall by growing angles (cos-scaled), which slides along straight rails and corners alike.
+    /// </summary>
     bool StepOnPath(DeckPath dp, Vector3 shift)
     {
-        foreach (var s in new[] { shift, new Vector3(shift.X, 0f, 0f), new Vector3(0f, 0f, shift.Z) })
+        if (shift.LengthSquared() < 1e-10f) return false;
+        foreach (float a in new[] { 0f, 0.35f, -0.35f, 0.75f, -0.75f, 1.2f, -1.2f, 1.5f, -1.5f })
         {
-            if (s.LengthSquared() < 1e-8f) continue;
-            if (FloorAt(dp, deckPos.X + s.X, deckPos.Z + s.Z, deckPos.Y) is { } y) { deckPos = new Vector3(deckPos.X + s.X, y, deckPos.Z + s.Z); return true; }
+            float c = MathF.Cos(a), s = MathF.Sin(a);
+            var v = new Vector3(shift.X * c + shift.Z * s, 0f, -shift.X * s + shift.Z * c) * Math.Max(0f, c);
+            if (v.LengthSquared() < 1e-10f) continue;
+            if (FloorAt(dp, deckPos.X + v.X, deckPos.Z + v.Z, deckPos.Y) is { } y) { deckPos = new Vector3(deckPos.X + v.X, y, deckPos.Z + v.Z); return true; }
         }
         return false;
     }
@@ -186,7 +205,7 @@ public partial class SeaView
     /// <summary>Places the camera on the deck of the player's ship (walking with the keys / mouse buttons); the telescope zooms from the same eye.</summary>
     void UpdateDeckCamera(ShipRt p, float dt, bool inputEnabled)
     {
-        if (inputEnabled && scopeT <= 0f)
+        if (inputEnabled)
         {
             if (Keys.Down("SeaCamLeft")) deckYaw -= deckSensH * 15f * dt * 60f;      // DeckCamera_Left / _Right: Sensivity * 15 per frame
             if (Keys.Down("SeaCamRight")) deckYaw += deckSensH * 15f * dt * 60f;
@@ -196,7 +215,7 @@ public partial class SeaView
             if (deckWalkTest > 0) { deckWalkTest--; walk = 1; }
             if (walk != 0)
             {
-                float dist = dt * 1000f * deckSensDist;                  // SensivityDistance metres per ms
+                float dist = dt * 1000f * deckSensDist * MathF.Cos(deckPitch);   // SensivityDistance metres per ms along (cos pitch * sin yaw, 0, cos pitch * cos yaw): looking up or down slows the walk
                 var shift = new Vector3(MathF.Sin(deckYaw), 0f, MathF.Cos(deckYaw)) * (Math.Sign(walk) * dist);
                 if (PathOf(p) is { } dp)
                 {
@@ -222,13 +241,45 @@ public partial class SeaView
         deckEyeY = float.IsNaN(deckEyeY) ? deckPos.Y : Mathf.Lerp(deckEyeY, deckPos.Y, Math.Min(1f, dt * 8f));
         var xf = p.Node.GlobalTransform;
         var eye = xf * new Vector3(deckPos.X, deckEyeY + deckEye, -deckPos.Z);
-        var dirLocal = new Vector3(MathF.Sin(deckYaw) * MathF.Cos(deckPitch), MathF.Sin(deckPitch), -MathF.Cos(deckYaw) * MathF.Cos(deckPitch));
-        var dir = (xf.Basis * dirLocal).Normalized();
-        var up = Vector3.Up.Lerp(xf.Basis.Y.Normalized(), Math.Clamp(deckRockZ, 0f, 1f)).Normalized();     // RockingZ: share of the ship's roll
+        // DECK_CAMERA::Move: heading = ship heading + view heading; pitch = view pitch + RockingX of the ship's pitch; roll = RockingZ of the ship's roll
+        var se = xf.Basis.Orthonormalized().GetEuler(EulerOrder.Yxz);
+        var cb = Basis.FromEuler(new Vector3(deckPitch + deckRockX * se.X, se.Y - deckYaw, Math.Clamp(deckRockZ, 0f, 1f) * se.Z), EulerOrder.Yxz);
         Cam.Near = 0.1f;
-        Cam.GlobalPosition = eye;
-        Cam.LookAt(eye + dir * 100f, up);
-        Cam.Fov = 62f / Mathf.Lerp(1f, scopeZoom, scopeT);
+        Cam.GlobalTransform = new Transform3D(cb, eye);
+        // ISPYGLASS::UpdateCamera: the perspective (tangent of the half angle) goes linearly from the normal to normal / zoom during the activation time
+        float tanHalf = MathF.Tan(Mathf.DegToRad(62f) * 0.5f) * Mathf.Lerp(1f, 1f / scopeZoom, scopeT);
+        Cam.Fov = Mathf.RadToDeg(2f * MathF.Atan(tanHalf));
+        Cam.Current = true;
+    }
+
+    // ---- FREE_CAMERA (free_camera.cpp): a flying camera for the debug menu (locCameraEnableFree); Tab goes deck -> free -> ship
+    float freeYaw, freePitch;
+    Vector3 freePos;
+
+    /// <summary>FREE_CAMERA::Execute copies the render camera into its own position and angles each frame, so it starts where the previous camera was.</summary>
+    void EnterFree()
+    {
+        freePos = Cam.GlobalPosition;
+        var e = Cam.GlobalTransform.Basis.Orthonormalized().GetEuler(EulerOrder.Yxz);
+        freeYaw = e.Y; freePitch = e.X;
+    }
+
+    /// <summary>FREE_CAMERA::Move: the mouse turns (FreeCamera_Turn_H / _V, DeckLook), the left button flies forward along the view, the right one back; Shift x4, Ctrl x8; 5 m/s.</summary>
+    void UpdateFreeCamera(float dt, bool inputEnabled)
+    {
+        if (inputEnabled)
+        {
+            float speed = 5f * dt;
+            if (Input.IsKeyPressed(Key.Shift)) speed *= 4f;
+            if (Input.IsKeyPressed(Key.Ctrl)) speed *= 8f;
+            var fwd = new Vector3(-MathF.Sin(freeYaw) * MathF.Cos(freePitch), MathF.Sin(freePitch), -MathF.Cos(freeYaw) * MathF.Cos(freePitch));
+            int dir = (Input.IsMouseButtonPressed(MouseButton.Left) || Keys.Down("DeckForward") ? 1 : 0) - (Input.IsMouseButtonPressed(MouseButton.Right) || Keys.Down("DeckBack") ? 1 : 0);
+            if (deckWalkTest > 0) { deckWalkTest--; dir = 1; }
+            freePos += fwd * (speed * dir);
+        }
+        Cam.Near = 0.3f;
+        Cam.GlobalTransform = new Transform3D(Basis.FromEuler(new Vector3(freePitch, freeYaw, 0f), EulerOrder.Yxz), freePos);
+        Cam.Fov = 62f;
         Cam.Current = true;
     }
 }
