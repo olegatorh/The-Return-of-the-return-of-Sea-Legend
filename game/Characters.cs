@@ -87,7 +87,7 @@ public partial class CharacterView : Node3D
 
     /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock: the script decides whether the blow pierces the block)
     /// or takes the damage (Location_CharacterAttack). NPCs raise the block through their fight AI (<see cref="OnIncomingSwing"/>, <see cref="NpcFight"/>).</summary>
-    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && (!IsPlayer || blockAge >= BlockRaise);
+    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && (!IsPlayer || (blockAge >= BlockRaise && atkHitIn < 0f && atkCooldown <= 0f));      // the hero cannot guard while his own blow is playing
 
     /// <summary>The sword takes the "Blend time" of the block action (0.2 s in man.ani) to come up: the hero's guard holds only after that; NPCs react through their AI timing.</summary>
     const float BlockRaise = 0.2f;
@@ -1127,8 +1127,8 @@ void fragment() {
         if (!IsAlive) return false;
         if (atkCooldown > 0f || atkHitIn >= 0f)
         {
-            // the hero may press the next attack a little before the previous one is over: it starts as soon as the animation ends (chained blows)
-            if (IsPlayer && atkCooldown < 0.5f) { queuedSwing = (enemy, kind); queuedUntil = 0.5f; }
+            // clicks made while a blow is still playing are NOT counted (no input queue): the next blow can only be started after the animation is over,
+            // and a block asked for meanwhile (held key) simply goes up when the animation ends
             return false;
         }
         ay = Angle(enemy.x - x, enemy.z - z);

@@ -19,15 +19,15 @@ public static class HitFx
         var l = new Label3D
         {
             Text = $"{dmg}/{Mathf.Max(0, Mathf.RoundToInt(hp))}",
-            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, PixelSize = 0.0045f, FontSize = 40, OutlineSize = 8, NoDepthTest = true,
+            Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, PixelSize = 0.0022f, FontSize = 40, OutlineSize = 6, NoDepthTest = true,
             Modulate = color, OutlineModulate = new Color(0, 0, 0, 0.85f), Position = new Vector3(0, 2.1f, 0), RenderPriority = 5, OutlineRenderPriority = 4,
         };
         target.AddChild(l);
         var tw = l.CreateTween();
         tw.SetParallel(true);
-        tw.TweenProperty(l, "position:y", 3.5f, 3.0f);
-        tw.TweenProperty(l, "modulate:a", 0f, 1.0f).SetDelay(2.0f);
-        tw.TweenProperty(l, "outline_modulate:a", 0f, 1.0f).SetDelay(2.0f);
+        tw.TweenProperty(l, "position:y", 3.0f, 1.0f);
+        tw.TweenProperty(l, "modulate:a", 0f, 0.55f).SetDelay(0.45f);
+        tw.TweenProperty(l, "outline_modulate:a", 0f, 0.55f).SetDelay(0.45f);
         tw.Chain().TweenCallback(Callable.From(l.QueueFree));
     }
 }
