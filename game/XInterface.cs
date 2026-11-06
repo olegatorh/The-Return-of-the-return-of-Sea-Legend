@@ -107,7 +107,7 @@ public partial class XView : Control
                         // the script's own images: GameInterface.pictures.<name>.{tex,pic} (check marks of the option screens ...)
                         if (!dynImages.TryGetValue(S(1), out var di))
                         {
-                            di = new TextureRect { Name = "img_" + S(1), MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, ZIndex = 20 };
+                            di = new TextureRect { Name = "img_" + S(1), MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, ZIndex = 3 };   // xinterface.cpp Realize: nodes, then the script's pictures, then the script's strings, then the modal nodes
                             dynImages[S(1)] = di; AddChild(di);
                         }
                         string tex = Ent.Root.Find("pictures." + S(1) + ".tex", false)?.Value ?? "", pic = Ent.Root.Find("pictures." + S(1) + ".pic", false)?.Value ?? "";
@@ -254,6 +254,10 @@ public partial class XView : Control
                 else if (bt.Position.X + bt.Size.X < x) half = Math.Min(half, x - bt.Position.X - bt.Size.X - 2);
             }
             room = Math.Max(60, 2 * half);
+            // a caption centred under / over a script picture (ship type under the ship picture of the ransack screen) must not be wider than the picture
+            foreach (var di in dynImages.Values)
+                if (di.Visible && di.Size.X > 20 && x > di.Position.X && x < di.Position.X + di.Size.X && y + 10 > di.Position.Y && y + 10 < di.Position.Y + di.Size.Y)
+                    room = Math.Max(60, Math.Min(room, di.Size.X - 4));
         }
         else
         {
@@ -289,7 +293,7 @@ public partial class XView : Control
         float scale = Conv.ToFloat(d[7]);
         if (!strings.TryGetValue(name, out var lab))
         {
-            lab = new Label { Name = "str_" + name, MouseFilter = MouseFilterEnum.Ignore };
+            lab = new Label { Name = "str_" + name, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 5 };
             strings[name] = lab;
             AddChild(lab);
         }
