@@ -31,7 +31,13 @@ public partial class ScrollBarView : Control
     TextureButton Arrow(Texture2D? t, Vector2 pos, Vector2 size, string cmd)
     {
         var b = new TextureButton { TextureNormal = t, Position = pos, Size = size, IgnoreTextureSize = true, StretchMode = TextureButton.StretchModeEnum.Scale, FocusMode = FocusModeEnum.None };
-        b.ButtonDown += () => { holding = cmd; held = 0; next = 0.35; Fire(cmd); };
+        b.ButtonDown += () =>
+        {
+            Fire(cmd);
+            // xi_scrollbar.cpp: holding the mouse button only repeats the bar's own ChangeValue (no ini command, no script event), so a SCROLLBAR (the quantity of the store screens) changes once per click;
+            // the key repeat (Left / Right held: every frame after RepeatDelay) is what runs the script's decreaseTrade / increaseTrade fast. The goods / crew changer repeats its click.
+            if (mouseClick != null) { holding = cmd; held = 0; next = 0.35; }
+        };
         b.ButtonUp += () => holding = null;
         return b;
     }
@@ -52,8 +58,8 @@ public partial class ScrollBarView : Control
     {
         if (e is InputEventKey { Pressed: true } k)
         {
-            if (k.Keycode == Key.Left) { run(node, "leftstep"); AcceptEvent(); }
-            else if (k.Keycode == Key.Right) { run(node, "rightstep"); AcceptEvent(); }
+            if (k.Keycode == Key.Left) { run(node, k.ShiftPressed ? "speedleft" : "leftstep"); AcceptEvent(); }       // Shift = the "speed" action (itemstrade: +-10)
+            else if (k.Keycode == Key.Right) { run(node, k.ShiftPressed ? "speedright" : "rightstep"); AcceptEvent(); }
         }
         else if (e is InputEventMouseButton { Pressed: true }) GrabFocus();
     }

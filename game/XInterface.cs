@@ -1018,6 +1018,10 @@ public partial class XView : Control
         {
             if (cmd.Equals("leftstep", StringComparison.OrdinalIgnoreCase)) sv.Move(-1);
             else if (cmd.Equals("rightstep", StringComparison.OrdinalIgnoreCase)) sv.Move(1);
+            // Shift + arrow: up to a page (the pictures shown) in one go. The ini's com:speedright:... of the arrow buttons only calls the strip's own CommandExecute,
+            // so it is a key action: a click on an arrow (nested commands) must not jump a page
+            else if (depth == 0 && cmd.Equals("speedleft", StringComparison.OrdinalIgnoreCase)) sv.Move(-sv.PageSize);
+            else if (depth == 0 && cmd.Equals("speedright", StringComparison.OrdinalIgnoreCase)) sv.Move(sv.PageSize);
         }
         if (!cmds.TryGetValue(node, out var list)) return;
         foreach (var c in list.Where(c => c.Name.Equals(cmd, StringComparison.OrdinalIgnoreCase)).ToList())
@@ -1246,10 +1250,11 @@ public partial class XView : Control
     {
         if (e is not InputEventKey { Pressed: true } k) return;
         if (GetChildCount() == 0) return;          // the view outlives its screens: with nothing shown it must not swallow the game's keys (Space, Enter, arrows)
-        if (k.Keycode == Key.Up) { Step("upstep"); GetViewport().SetInputAsHandled(); }
-        else if (k.Keycode == Key.Down) { Step("downstep"); GetViewport().SetInputAsHandled(); }
-        else if (k.Keycode == Key.Left) { Step("leftstep"); GetViewport().SetInputAsHandled(); }
-        else if (k.Keycode == Key.Right) { Step("rightstep"); GetViewport().SetInputAsHandled(); }
+        // xinterface.cpp: with Shift held (ILeftShift / IRightShift) the arrows are the "speed" actions (page jumps in the strips, +10 in the quantity bars)
+        if (k.Keycode == Key.Up) { Step(k.ShiftPressed ? "speedup" : "upstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Down) { Step(k.ShiftPressed ? "speeddown" : "downstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Left) { Step(k.ShiftPressed ? "speedleft" : "leftstep"); GetViewport().SetInputAsHandled(); }
+        else if (k.Keycode == Key.Right) { Step(k.ShiftPressed ? "speedright" : "rightstep"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode is Key.Enter or Key.KpEnter or Key.Space) { Step("activate"); GetViewport().SetInputAsHandled(); }
         else if (k.Keycode == Key.Escape) { it.FireEvent("InterfaceBreak"); }
     }

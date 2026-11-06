@@ -58,7 +58,7 @@ public partial class Main : Node
     readonly List<(int frame, string loc)> gotos = new();
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
-    readonly List<(int frame, Key key)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
+    readonly List<(int frame, Key key, bool shift)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
     readonly List<(int frame, string text)> typed = new();       // test hook --type=Text@N: real key presses with characters ('+' = space, %XXXX = Unicode hex: %0456 = і)
 
     static string TypedText(string s)
@@ -127,7 +127,7 @@ public partial class Main : Node
             else if (a.StartsWith("--mapmeet@")) mapMeets.Add(int.Parse(a.Substring(10)));
             else if (a.StartsWith("--mapstorm=")) { var p = a.Substring(11).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapStorms.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci))); }
             else if (a.StartsWith("--seapos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; seaTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
-            else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(p[0], true))); }
+            else if (a.StartsWith("--key=")) { var p = a.Substring(6).Split('@'); bool sh = p[0].StartsWith("Shift+", StringComparison.OrdinalIgnoreCase); keyPresses.Add((int.Parse(p[1]), Enum.Parse<Key>(sh ? p[0].Substring(6) : p[0], true), sh)); }      // --key=Shift+Right@N: with Shift held (speed actions)
             else if (a.StartsWith("--type=")) { int at = a.LastIndexOf('@'); typed.Add((int.Parse(a.Substring(at + 1)), TypedText(a.Substring(7, at - 7)))); }
             else if (a.StartsWith("--save=")) { var p = a.Substring(7).Split('@'); saveAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
@@ -1111,7 +1111,7 @@ public partial class Main : Node
             host.It.PostEventInternal("evntSave", 0, new List<V> { V.Str("SAVE\\" + nm), V.Str(nm.Replace('_', ' ')) });
         }
         foreach (var (f, s) in typed) if (f == frames) TypeText(s);
-        foreach (var (f, k) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down }); }
+        foreach (var (f, k, sh) in keyPresses) if (f == frames) { foreach (var down in new[] { true, false }) Godot.Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = k, Keycode = k, Pressed = down, ShiftPressed = sh }); }
         foreach (var m in mapTeleports.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt) { worldMap.Teleport(m.x, m.z, m.ay); mapTeleports.Remove(m); }
         foreach (var f in mapMeets.ToArray()) if (frames >= f && frames % 10 == 0 && worldMap.IsBuilt && worldMap.Active && worldMap.TestMeet()) mapMeets.Remove(f);
         foreach (var m in mapStorms.ToArray()) if (frames >= m.frame && frames % 10 == 0 && worldMap.IsBuilt && worldMap.Active && worldMap.TestStorm(m.dx, m.dz)) mapStorms.Remove(m);

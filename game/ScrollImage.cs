@@ -70,6 +70,9 @@ public partial class ScrollImageView : Control
 
     public int ListSize => (int)Conv.ParseFloatPrefix(Root?.Find("ListSize", false)?.Value);
 
+    /// <summary>How far Shift + arrow jumps (xi_scroll_image.cpp GetRightQuantity: the pictures of the visible chain): the pictures that fit the strip, at least 2.</summary>
+    public int PageSize => Math.Max(2, (int)(Size.X / (itemW + 6)) - 1);
+
     public void Move(int delta)
     {
         int n = ListSize;
