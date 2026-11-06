@@ -54,6 +54,7 @@ public partial class Main : Node
     readonly List<(int frame, string name)> ctls = new();
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
     Queue<string>? fuzzQueue;
+    readonly HashSet<int> fuzzList = new();
     readonly List<(int frame, string loc)> gotos = new();
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
@@ -120,7 +121,7 @@ public partial class Main : Node
             else if (a == "--classic") Keys.Classic = true;                                // the original land control scheme (see Keys.Classic)
             else if (a.StartsWith("--look@")) lookAtFrame = int.Parse(a.Substring(7));       // Tab (first-person view) at frame N
             else if (a.StartsWith("--camdist=")) camDist = float.Parse(a.Substring(10), System.Globalization.CultureInfo.InvariantCulture);
-            else if (a.StartsWith("--fuzz@")) fuzzAt = int.Parse(a.Substring(7));
+            else if (a.StartsWith("--fuzz@")) fuzzList.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--ctl=")) { var p = a.Substring(6).Split('@'); ctls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--mappos=")) { var p = a.Substring(9).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; mapTeleports.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci))); }
             else if (a.StartsWith("--mapmeet@")) mapMeets.Add(int.Parse(a.Substring(10)));
@@ -1077,6 +1078,7 @@ public partial class Main : Node
                 foreach (var c in characters.Values.ToList())
                     if (!c.IsPlayer && c.IsAlive && c.Ent.Root.Find("chr_ai.group", false)?.Value == g) host.It.CallTop("LAi_KillCharacter", V.A(c.Ent.Root));
         if (controlAt == frames) host.It.CallTop("LAi_SetPlayerType", host.It.CallTop("GetMainCharacter"));    // test hook: end the scripted intro
+        if (fuzzList.Contains(frames)) { fuzzAt = frames; fuzzQueue = null; }       // several --fuzz@N: every one restarts the round in the current location
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
         foreach (var (f, n) in ctls) if (f == frames) { if (landHud?.Command(n) != true) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) }); }

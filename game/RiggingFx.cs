@@ -110,11 +110,11 @@ void fragment() {
     {
         if (ropeMat != null) return;
         ropeMat = new ShaderMaterial { Shader = new Shader { Code = RopeShader } };
-        ropeMat.SetShaderParameter("tex", GameAssets.Texture("ships\\" + RopeTex()) ?? GameAssets.Texture(RopeTex()));
+        ropeMat.SetShaderParameter("tex", GameAssets.Texture(RopeTex()) ?? GameAssets.Texture("ships\\" + RopeTex()));
         ropeMat.SetShaderParameter("spd", new Vector4(RopePar("fDeepChangeSpeed", 0.15f) * 20f, RopePar("fRotateSpeed", 0.08f) * 20f, RopePar("fMinDeepMul", 1f), RopePar("fVarDeepMul", 0.7f)));
         ropeMat.SetShaderParameter("rot_ang", RopePar("fRotateAng", 0.5f));
         vantMat = new ShaderMaterial { Shader = new Shader { Code = VantShader } };
-        vantMat.SetShaderParameter("tex", GameAssets.Texture("ships\\vant.tga") ?? GameAssets.Texture("vant.tga"));
+        vantMat.SetShaderParameter("tex", GameAssets.Texture("vant.tga") ?? GameAssets.Texture("ships\\vant.tga"));
         if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)
             foreach (var n in new[] { "sail_rope.tga", "vant.tga", "flagall.tga", "rope.tga" })
                 try { var im = (GameAssets.Texture("ships\\" + n) ?? GameAssets.Texture(n))?.GetImage(); if (im != null) { im.SavePng("review/tex_" + n + ".png"); GD.Print($"[rig] {n} {im.GetWidth()}x{im.GetHeight()}"); } } catch (Exception) { }
@@ -319,7 +319,7 @@ void fragment() {
     /// <summary>Flags at the mast tops: the labels f1..f4 of every "flag*" group are the corners of one flag. Each flag hangs on its model part (a falling mast takes it along).</summary>
     public static IEnumerable<(Node3D host, Node3D flag)> BuildFlags(IEnumerable<Part> parts, int nation)
     {
-        var tex = GameAssets.Texture("ships\\flagall.tga") ?? GameAssets.Texture("flagall.tga");
+        var tex = GameAssets.Texture("flagall.tga") ?? GameAssets.Texture("ships\\flagall.tga");
         flagShader ??= new Shader { Code = FlagShader };
         // the tile of the nation comes from the script: flag.cpp raises "GetRiggingData" ("GetFlagTexNum", triangle, nation) -> BattleInterface.c
         // procGetRiggingData (England 1, France 2, Spain 4, pirate 5, Holland 0, anything else 0); the table is the fallback without a script

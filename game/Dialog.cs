@@ -77,6 +77,25 @@ public partial class DialogView : Control
 
     static string Display(string s) => s.Replace("\\n", "\n");
 
+    /// <summary>Test aid (env SEADOGS_LANGLOG=1): every shown dialog line / answer is logged and tagged RU (Russian-only letters) or EN (Latin words, no Cyrillic) when it looks untranslated.</summary>
+    public static readonly bool LangLog = System.Environment.GetEnvironmentVariable("SEADOGS_LANGLOG") == "1";
+    public static string Suspect(string s)
+    {
+        string body = s.Contains(": ") ? s[(s.IndexOf(": ", StringComparison.Ordinal) + 2)..] : s;
+        bool cyr = false; int latinWords = 0;
+        foreach (var w in System.Text.RegularExpressions.Regex.Matches(body, @"[A-Za-z]{3,}")) latinWords++;
+        foreach (char ch in body) if (ch >= 'Ѐ' && ch <= 'ӿ') { cyr = true; break; }
+        if (body.IndexOfAny(new[] { 'ы', 'э', 'ъ', 'ё', 'Ы', 'Э', 'Ъ', 'Ё' }) >= 0) return "RU";
+        if (!cyr && latinWords >= 2) return "EN";
+        return "";
+    }
+    public static void LogShown(string kind, string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return;
+        string sus = Suspect(s);
+        GD.Print($"[lang] {kind}{(sus != "" ? " " + sus : "")}: {s.Replace("\n", " ")}");
+    }
+
     string Speaker()
     {
         var chr = it.Globals.TryGetValue("CharacterRef", out var s) ? s.Val.Attr : null;
@@ -124,6 +143,11 @@ public partial class DialogView : Control
 
         for (int i = 0; i < items.Count; i++)
             if (string.IsNullOrWhiteSpace(items[i].text)) GD.Print($"[dialog] EMPTY answer {i + 1} (go='{items[i].go}') in node '{Ent.Root.Get("CurrentNode")?.Value}' of {Speaker()}");
+        if (LangLog)
+        {
+            LogShown("line", Speaker() + ": " + t);
+            foreach (var it2 in items) LogShown("answer", it2.text);
+        }
         nameLabel.Text = Speaker();
         text.Text = Display(t);
         foreach (var c in links.GetChildren()) c.QueueFree();

@@ -4,7 +4,7 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -40,6 +40,22 @@ if ($Intro) {
     $a = @('--click=B_NEWGAME@200', '--click=RUNGAME@400')
     foreach ($i in 0..12) { $a += "--answer=1@$(2700 + 100 * $i)" }
     $fail += Invoke-Godot 'intro' ($a + @('--shot-frame=9500')) 600
+}
+
+# first quest chain from a NEW game (docs/playtest_runs.md, stage Q): intro -> port -> tavern: Ines "who hires a crew?" -> William Blaker -> night in the port ->
+# peaceful way to the ship (Ship_deck) -> the 3 mutineers (hero immortal, group killed by a hook) -> sailor in the port -> Sailor_Blaker gives the Lugger and
+# location.from_sea = QC_port. Also checks the Abracham Gray branch of the tutorial deck (start2 -> start3 -> start4: fight) in the same run
+if ($Quest) {
+    $q = @('--click=B_NEWGAME@200', '--click=RUNGAME@400')
+    foreach ($i in 0..7) { $q += "--answer=1@$(2700 + 100 * $i)" }
+    $q += @('--answer=1@3400', '--answer=1@3500')       # Abracham: "Not the first time" -> game_begin (the fighting branch is covered by the 'deckfight' run of docs/playtest_runs.md)
+    $q += @('--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@4400', '--dialog=Ines_Diaz@4800', '--answer=1@4900', '--answer=1@5000', '--answer=2@5100', '--answer=1@5200', '--answer=1@5300',
+            '--dialog=William_Blaker@5700', '--answer=1@5800', '--answer=1@5900', '--answer=1@6000', '--answer=2@6700', '--answer=1@7500', '--answer=1@7700', '--call=LAi_SetImmortal(#Blaze,1)@7650',
+            '--killgroup=TmpEnemy@8300', '--killgroup=TmpEnemy@8400')
+    foreach ($f in 8800, 9000, 9200, 9400, 9600) { $q += "--answer=1@$f" }
+    $q += @('--dump=Characters[0].Ship.Type@10000', '--dump=Characters[0].location.from_sea@10000', '--shot-frame=10100')
+    $fail += Invoke-Godot 'firstquest' $q 600 @('answer 1 -> node ''Talk_about_Blaker''', 'answer 1 -> node ''Take_Ship_3''', 'answer 2 -> node ''Take_Ship_6''', 'answer 1 -> node ''Take_Ship_8''',
+                                               'node ''node1''', 'Type = "26"', 'from_sea = "QC_port"')
 }
 
 if ($Sea) {
