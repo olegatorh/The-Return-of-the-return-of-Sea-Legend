@@ -65,6 +65,21 @@ public partial class SeaView
         return V.Int(1);
     }
 
+    /// <summary>Test hook --fortkill: the player's balls land on every cannon of the fort nearest to the ship (AI_MESSAGE_FORT_HIT -> script FortCDamage) until the script switches the fort off its normal mode.</summary>
+    public void FortKill()
+    {
+        if (ships.FirstOrDefault(s => s.IsPlayer) is not { } p || forts.Count == 0) return;
+        var f = forts.OrderBy(x => (x.X - p.X) * (x.X - p.X) + (x.Z - p.Z) * (x.Z - p.Z)).First();
+        int hits = 0;
+        foreach (var c in f.Cannons)
+            for (int k = 0; k < 400 && !c.Dead; k++)
+            {
+                if (Conv.ToInt(V.Str(f.Chr.Find("Fort.Mode", false)?.Value ?? "0")) != 0) break;
+                FortHit(new[] { V.Int(0), V.Int(p.Index), V.Float(c.Pos.X), V.Float(c.Pos.Y), V.Float(c.Pos.Z) }); hits++;
+            }
+        GD.Print($"[sea] fortkill: fort {f.Chr.Get("id")?.Value} after {hits} balls: {f.Cannons.Count(c => c.Dead)}/{f.Cannons.Count} cannons destroyed, Fort.Mode = {f.Chr.Find("Fort.Mode", false)?.Value}");
+    }
+
     /// <summary>True when the point is close to a fort cannon (balls that land there hit the fort, not the bare island).</summary>
     bool NearFort(float x, float z) => forts.Any(f => f.Cannons.Any(c => MathF.Abs(c.Pos.X - x) < 40f && MathF.Abs(c.Pos.Z - z) < 40f));
 

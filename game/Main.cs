@@ -58,6 +58,7 @@ public partial class Main : Node
     readonly List<(int frame, string loc)> gotos = new();
     readonly List<(int frame, float x, float z, float ay)> seaTeleports = new();      // test hook --seapos=x,z,ay@N
     readonly List<int> seaFires = new();                      // test hook --fire@N: broadside
+    readonly List<int> fortKills = new();                     // test hook --fortkill@N: hit every cannon of the nearest fort with player balls through the script (FortCDamage) until the script opens it for landing
     readonly List<(int frame, Key key, bool shift)> keyPresses = new();      // test hook --key=Escape@N: a real key press through the input system
     readonly List<(int frame, string text)> typed = new();       // test hook --type=Text@N: real key presses with characters ('+' = space, %XXXX = Unicode hex: %0456 = і)
 
@@ -136,6 +137,7 @@ public partial class Main : Node
             else if (a.StartsWith("--load=")) { var p = a.Substring(7).Split('@'); loadAt.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--duel@")) seaDuels.Add(int.Parse(a.Substring(7)));
             else if (a.StartsWith("--fire@")) seaFires.Add(int.Parse(a.Substring(7)));
+            else if (a.StartsWith("--fortkill@")) fortKills.Add(int.Parse(a.Substring(11)));
             else if (a.StartsWith("--swing@")) swings.Add(int.Parse(a.Substring(8)));       // test hook: the hero strikes the nearest person (a quick click of the left button)
             else if (a.StartsWith("--animals@")) animalsAt = int.Parse(a.Substring(10));
             else if (a.StartsWith("--act@")) { int fr = int.Parse(a.Substring(6)); seaActions.Add(fr); actRetryUntil = Math.Max(actRetryUntil, fr + 400); }
@@ -992,12 +994,14 @@ public partial class Main : Node
     /// </summary>
     void SeaTestHooks()
     {
-        if (seaTeleports.Count == 0 && seaDuels.Count == 0 && seaFires.Count == 0) return;
+        if (seaTeleports.Count == 0 && seaDuels.Count == 0 && seaFires.Count == 0 && fortKills.Count == 0) return;
         bool atSea = sea.HasPlayerShip && !worldMap.Active && locations.Count == 0;
         foreach (var m in seaTeleports.ToArray())
             if (frames >= m.frame && atSea) { sea.Teleport(m.x, m.z, m.ay); worldMap.Teleport(m.x, m.z, m.ay); seaTeleports.Remove(m); }
         foreach (var f in seaDuels.ToArray())
             if (frames >= f && atSea && !seaTeleports.Any(t => t.frame <= f) && (sea.Duel(frames < f + 600) || frames >= f + 600)) seaDuels.Remove(f);
+        foreach (var f in fortKills.ToArray())
+            if (frames >= f && atSea && !seaTeleports.Any(t => t.frame <= f) && !seaDuels.Any(du => du <= f)) { sea.FortKill(); fortKills.Remove(f); }
         foreach (var f in seaFires.ToArray())
             if (frames >= f && atSea && !seaTeleports.Any(t => t.frame <= f) && !seaDuels.Any(d => d <= f)) { sea.FireAtNearest(); seaFires.Remove(f); }
     }

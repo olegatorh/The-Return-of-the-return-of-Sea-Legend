@@ -496,6 +496,7 @@ public partial class SeaView : Node3D
     }
 
     /// <summary>Height of the island surface under the engine point (x, z), or -1000 when there is none.</summary>
+    static readonly bool OldRay = System.Environment.GetEnvironmentVariable("SEADOGS_OLDRAY") != null;     // perf comparison: a new query object per ray as before
     PhysicsRayQueryParameters3D? landQuery;
     float LandHeight(float x, float z)
     {
@@ -503,7 +504,7 @@ public partial class SeaView : Node3D
         var space = GetWorld3D()?.DirectSpaceState;
         if (space == null) return -1000f;
         // one query object for all rays (a new RefCounted per call piled up tens of thousands of objects between garbage collections)
-        var q = landQuery ??= new PhysicsRayQueryParameters3D { CollisionMask = 1u << 4, HitBackFaces = true };
+        var q = OldRay ? new PhysicsRayQueryParameters3D { CollisionMask = 1u << 4, HitBackFaces = true } : landQuery ??= new PhysicsRayQueryParameters3D { CollisionMask = 1u << 4, HitBackFaces = true };
         q.From = new Vector3(x, 600f, -z); q.To = new Vector3(x, -60f, -z);
         var hit = space.IntersectRay(q);
         return hit.Count > 0 ? ((Vector3)hit["position"]).Y : -1000f;
