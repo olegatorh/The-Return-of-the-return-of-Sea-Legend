@@ -184,6 +184,7 @@ public partial class LocationView : Node3D
     {
         string file = ModelFile(name, ".gm");
         if (!File.Exists(file)) { GD.PrintErr("[location] model not found: " + file); return false; }
+        long tModel = System.Diagnostics.Stopwatch.GetTimestamp(); double texBefore = GameAssets.DecodeMs;
         GmFile g;
         try { g = GmFile.Parse(File.ReadAllBytes(file)); }
         catch (Exception e) { GD.PrintErr($"[location] {name}: {e.Message}"); return false; }
@@ -202,6 +203,7 @@ public partial class LocationView : Node3D
         GD.Print($"[location] model {name}: {g.Objects.Count} objects, {g.Labels.Count} labels, {g.TotalVertices} vertices, light={(cols != null)}");
         GD.Print($"[location] paths: textures='{texturesPath}' light='{lightPath}' shadow='{shadowPath}'");
         var node = ModelFactory.Build(g, name, texturesPath, cols, shadowPath.Length > 0 ? "lighting" + (char)92 + shadowPath.Trim((char)92) + (char)92 + modelsPath.Trim((char)92) : null);
+        if (GameAssets.Prof) GD.Print($"[load] model {name}: {(System.Diagnostics.Stopwatch.GetTimestamp() - tModel) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms (textures {GameAssets.DecodeMs - texBefore:0} ms; textures so far {GameAssets.DecodeCount}, {GameAssets.DecodeMs:0} ms)");
         if (IsFoamModel(name)) node.Visible = false;       // shore/sea-bottom mesh for the sea shader's foam: not drawn on its own
         AddChild(node);
         // collision for the follow camera (it must not look through walls): triangle meshes of the visible parts, no characters

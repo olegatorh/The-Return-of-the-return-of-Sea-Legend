@@ -36,6 +36,7 @@ public static class TxDecoder
         b = (byte)((bb << 3) | (bb >> 2));
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]       // hot loops: no tier-0 code for the first big textures
     static byte[] Dxt(ReadOnlySpan<byte> d, int w, int h, int kind)
     {
         var o = new byte[w * h * 4];
@@ -94,6 +95,7 @@ public static class TxDecoder
         return o;
     }
 
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     static byte[] Raw(ReadOnlySpan<byte> d, int w, int h, int fmt)
     {
         var o = new byte[w * h * 4];

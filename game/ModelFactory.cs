@@ -8,11 +8,14 @@ namespace SeaDogs;
 /// <summary>Turns a .gm file into Godot meshes. Direct3D is left-handed: z is negated on the way.</summary>
 public static class ModelFactory
 {
+    public static double TotalBuildMs; public static int BuildCount;       // SEADOGS_PROF: all ModelFactory.Build calls so far
     public static float LightGain = 2.0f;   // the original modulates vertex lighting x2 (128 = neutral)
 
     public static Node3D Build(GmFile g, string name, string? texturesPath, Color[]? vertexColors, string? shadowPath = null)
     {
+        long tB = System.Diagnostics.Stopwatch.GetTimestamp();
         var root = new Node3D { Name = name };
+        PrefetchTextures(g, texturesPath, shadowPath);
         var matCache = new Dictionary<int, StandardMaterial3D>();
         for (int oi = 0; oi < g.Objects.Count; oi++)
         {
@@ -56,6 +59,7 @@ public static class ModelFactory
             if (System.Environment.GetEnvironmentVariable("SEADOGS_NOSHADOWHIDE") == null && IsShadowMaterial(g, o.Material) && string.IsNullOrEmpty(shadowPath)) mi.Visible = false;
             root.AddChild(mi);
         }
+        if (GameAssets.Prof) { TotalBuildMs += (System.Diagnostics.Stopwatch.GetTimestamp() - tB) * 1000.0 / System.Diagnostics.Stopwatch.Frequency; BuildCount++; }
         return root;
     }
 
@@ -72,6 +76,28 @@ public static class ModelFactory
                 any = true;
             }
         return r;
+    }
+
+    /// <summary>The texture of a material (same lookup as MakeMaterial).</summary>
+    static string? TextureOf(GmFile g, int index, string? texturesPath, string? shadowPath)
+    {
+        string? file = index >= 0 && index < g.Materials.Count ? g.Materials[index].Textures[0] : null;
+        if (file == null) return null;
+        if (file.Equals("shadow.tga", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(shadowPath))
+        {
+            string cand = shadowPath.TrimEnd((char)92) + (char)92 + file;
+            if (System.IO.File.Exists(GameAssets.Resource("Textures" + (char)92 + cand + ".tx"))) return cand;
+        }
+        return GameAssets.FindTexture(file, string.IsNullOrEmpty(texturesPath) ? null : texturesPath);
+    }
+
+    static void PrefetchTextures(GmFile g, string? texturesPath, string? shadowPath)
+    {
+        var names = new List<string>();
+        var seen = new HashSet<int>();
+        foreach (var o in g.Objects)
+            if (seen.Add(o.Material) && TextureOf(g, o.Material, texturesPath, shadowPath) is { } rel) names.Add(rel);
+        GameAssets.Prefetch(names);
     }
 
     /// <summary>"shadow.tga" materials are the engine's shadow-blob layer (drawn blended by a special technique): not shown as opaque geometry.</summary>

@@ -1135,6 +1135,7 @@ public partial class Main : Node
         if (shotPath != null && frames == shotAtFrame)
         {
             GetViewport().GetTexture().GetImage().SavePng(shotPath);
+            if (GameAssets.Prof) GD.Print($"[load] ModelFactory.Build total: {ModelFactory.TotalBuildMs:0} ms in {ModelFactory.BuildCount} models; main-thread texture work {GameAssets.DecodeCount} textures, {GameAssets.DecodeMs:0} ms; startup to screenshot {Time.GetTicksMsec()} ms");
             GD.Print("[main] screenshot saved: " + shotPath + $" (fps {Engine.GetFramesPerSecond():0})");
             foreach (var kv in host.It.MessageStats.Where(k => !host.It.EntityHandlers.ContainsKey(k.Key.Split('|')[0].Trim())).OrderByDescending(k => k.Value).Take(40)) GD.Print($"[nohandler] {kv.Value}x {kv.Key}");
             GD.Print($"[main] TimeScale={host.It.TimeScale}, locations={locations.Count}, entities alive: " + string.Join(", ", host.It.Entities.Where(en => !en.Deleted).GroupBy(en => en.Class).Select(g => g.Key + "x" + g.Count())));

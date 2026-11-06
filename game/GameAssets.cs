@@ -9,6 +9,8 @@ namespace SeaDogs;
 public static class GameAssets
 {
     public static string GameDir = "";
+    public static readonly bool Prof = System.Environment.GetEnvironmentVariable("SEADOGS_PROF") != null;
+    public static double DecodeMs; public static int DecodeCount;
     static readonly Dictionary<string, ImageTexture?> cache = new(System.StringComparer.OrdinalIgnoreCase);
 
     public static string Resource(string rel) => Path.Combine(GameDir, "RESOURCE", rel.Replace('\\', Path.DirectorySeparatorChar));
@@ -19,22 +21,49 @@ public static class GameAssets
         if (string.IsNullOrWhiteSpace(name)) return null;
         if (cache.TryGetValue(name, out var t)) return t;
         ImageTexture? tex = null;
-        string p = Resource("Textures\\" + name + ".tx");
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         try
         {
-            if (File.Exists(p))
-            {
-                var d = TxDecoder.Decode(File.ReadAllBytes(p));
-                for (int i = 3; i < d.Rgba.Length; i += 4) if (d.Rgba[i] < 250) { alphaTex.Add(name); break; }
-                var img = Image.CreateFromData(d.Width, d.Height, false, Image.Format.Rgba8, d.Rgba);
-                if (d.Width >= 16 && d.Height >= 16 && !name.StartsWith("interfaces", System.StringComparison.OrdinalIgnoreCase)) img.GenerateMipmaps();       // no shimmering at a distance
-                tex = ImageTexture.CreateFromImage(img);
-            }
+            if (!prefetched.TryRemove(name, out var pre)) pre = DecodeImage(name);          // decoded ahead on worker threads (Prefetch) or here
+            if (pre.img != null) { if (pre.alpha) alphaTex.Add(name); tex = ImageTexture.CreateFromImage(pre.img); }
             else GD.PrintErr("texture not found: " + name);
         }
         catch (System.Exception e) { GD.PrintErr($"texture {name}: {e.Message}"); }
         cache[name] = tex;
+        DecodeMs += (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency; DecodeCount++;
         return tex;
+    }
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (Image? img, bool alpha)> prefetched = new(System.StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>File read + .tx decode + mipmaps: no scene or shared state is touched, so it may run on any thread.</summary>
+    static (Image? img, bool alpha) DecodeImage(string name)
+    {
+        string p = Resource("Textures\\" + name + ".tx");
+        if (!File.Exists(p)) return (null, false);
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        var d = TxDecoder.Decode(File.ReadAllBytes(p));
+        long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+        bool alpha = false;
+        for (int i = 3; i < d.Rgba.Length; i += 4) if (d.Rgba[i] < 250) { alpha = true; break; }
+        var img = Image.CreateFromData(d.Width, d.Height, false, Image.Format.Rgba8, d.Rgba);
+        if (d.Width >= 16 && d.Height >= 16 && !name.StartsWith("interfaces", System.StringComparison.OrdinalIgnoreCase)) img.GenerateMipmaps();       // no shimmering at a distance
+        if (Prof) GD.Print($"[load] texture {name} {d.Width}x{d.Height}: decode {(t1 - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms, image+mips {(System.Diagnostics.Stopwatch.GetTimestamp() - t1) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms");
+        return (img, alpha);
+    }
+
+    /// <summary>Decodes the textures that are not loaded yet on all cores; Texture() then only uploads them. Call from the main thread (a model's materials before it is built).</summary>
+    public static void Prefetch(IEnumerable<string> names)
+    {
+        var todo = new List<string>();
+        foreach (var n in names) if (!string.IsNullOrWhiteSpace(n) && !cache.ContainsKey(n) && !prefetched.ContainsKey(n) && !todo.Contains(n)) todo.Add(n);
+        if (todo.Count < 2 || System.Environment.GetEnvironmentVariable("SEADOGS_NOPREFETCH") != null) return;
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        System.Threading.Tasks.Parallel.ForEach(todo, n =>
+        {
+            try { prefetched[n] = DecodeImage(n); } catch (System.Exception e) { GD.PrintErr($"texture {n}: {e.Message}"); }
+        });
+        if (Prof) GD.Print($"[load] prefetched {todo.Count} textures in {(System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms");
     }
 
     static Dictionary<string, string>? texIndex;
