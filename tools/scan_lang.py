@@ -96,8 +96,56 @@ def scan():
                 res.append(dict(file=base, ru=ru, uk=tr, src=src, kind=kind, words=words))
     return res
 
+
+# ---- heuristic report of suspicious machine-translated fragments (scan_lang.py --suspicious [N]) ----
+SUS_WORDS = set(w.lower() for w in """что это который которая которые которое чтобы чтоб спроси спросить красавица пойдіть пойдите пойди
+всего всё хорошо сейчас только очень тоже теперь здесь сюда туда почему зачем потому нужно надо можно деньги пожалуйста спасибо
+згоднаен доберему теснити заодно вобще вообще наверное конечно кстати ладно слушай слушайте смотри смотрите 
+потом тогда сегодня вчера всегда никогда иногда много сколько какой какая какие такой такая этот эта эти этого
+привет здравствуйте извините простите проходи проходите садись садитесь""".split())
+UKL = "А-Яа-яІіЇїЄєҐґ'"
+SUS_RE = [
+    (re.compile('[ыэъёЫЭЪЁ]'), 'ru-letters'),
+    (re.compile(r"\b(?:щоб|можна|треба|потрібно|хочу|хочеш|хоче|можу|можеш|може|повинен|повинна|мусиш|мушу|став|почав|почала|встиг|вирішив|збираюсь|збираєшся|йти|вміє|вмію|вмієш|бажаєш|бажаю)\s+(?:не\s+)?[" + UKL + r"]+(?:ать|ять|еть|ить|ыть)\b"), 'ru-infinitive'),
+    (re.compile(r"\b(?:Всего|Спасибо|Пожалуйста|Здравствуй|Извини|Дорогой|Милый|Дорогая)\b"), 'ru-phrase'),
+    (re.compile('[А-Яа-яІіЇїЄє][A-Za-z]|[A-Za-z][А-Яа-яІіЇїЄє]'), 'mixed-script'),
+    (re.compile(r"\b[" + UKL + r"]{4,}(?:аен|ыен|оен|еен)\b"), 'junk-ending'),
+    (re.compile(r"\b([" + UKL + r"]{3,}) \1\b", re.I), 'repeat'),
+    (re.compile(r"\b(?:я|ти|він|вона|ми|ви|вони)\s+(?:є|був|була|були)\s+(?:не\s+)?(?:ты|мы|вы)\b"), 'ru-pron'),
+    (re.compile(r"\b(?:Всього|Вcього)\s+добре\b|\bдоберу\b"), 'known-slip'),
+]
+def suspicious(uk):
+    """list of flag names for a Ukrainian string (empty = nothing suspicious)"""
+    f = []
+    for w in re.findall("[" + UKL + "ЁёЫыЭэЪъ]+", uk):
+        if w.lower() in SUS_WORDS and w.lower() not in SHARED: f.append('ru-word:' + w.lower()); break
+    uk = uk.replace('\\n', ' ')
+    for rx, name in SUS_RE:
+        if rx.search(uk): f.append(name)
+    return f
+
+def suspicious_report(res, lst=0, srcs=('mt',)):
+    from collections import Counter
+    tot = Counter(); n = 0; bad = []
+    for r in res:
+        if r['src'] not in srcs or not r['uk']: continue
+        n += 1
+        fl = suspicious(r['uk'])
+        if fl:
+            bad.append((r, fl))
+            for x in set(k.split(':')[0] for k in fl): tot[x] += 1
+    print(f'machine-translated literals in use: {n}, suspicious: {len(bad)}', dict(tot))
+    for r, fl in bad[:lst]:
+        print(f"{r['file']}\t{','.join(fl)}\t{r['ru']}\t{r['uk']}")
+    return len(bad)
+
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding='utf-8')
     res = scan()
+    if '--suspicious' in sys.argv:
+        i = sys.argv.index('--suspicious')
+        suspicious_report(res, int(sys.argv[i + 1]) if len(sys.argv) > i + 1 and sys.argv[i + 1].isdigit() else 0)
+        sys.exit(0)
     from collections import Counter
     c = Counter(r['kind'] for r in res)
     sent = Counter(r['kind'] for r in res if r['words'] >= 3)
