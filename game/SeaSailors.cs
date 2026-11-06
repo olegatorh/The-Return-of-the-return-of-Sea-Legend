@@ -12,8 +12,8 @@ namespace SeaDogs;
 /// (SEA_AI\walk\*_walk.c): vertex count, verts[3n] (ship model space), graph[] = edges packed as a*256+b (-1 = unused) and types[n].
 /// The original dll holds the model names (Lowcharacters\Lo_Man_1..3, Lo_Man_Kamzol_1..3), the animation "Lo_Man" (walk, run, reload, action1..4,
 /// crawl, turn_left/right), and reads ship.crew.quantity, ship.POS.mode (SHIP_SAIL / SHIP_WAR / SHIP_STORM), isNight, IsOnDeck and HidePeopleOnDeck.
-/// Point types (by their placement in the graphs): 0 = deck, 1 = beside a cannon, 2 = at a mast, 3 = a hatch / work spot.
-/// Here: a few sailors per ship walk the graph, stop for a while with one of the work animations, and in battle mode run to the cannon points and reload.
+/// Point types (checked against the walk scripts and sailors.cpp): 0 = deck, 1 = a side cannon, 2 = bow gun, 3 = stern gun, 4..6 = the rigging (feet at the rail, tops): the men climb there with the clip "crawl" (down: "crawl_down").
+/// Here: a few sailors per ship walk the graph to free deck points, now and then climb to a top, and in battle mode run to the cannon points and reload. A fallen mast makes the men aloft jump overboard.
 /// They are children of the ship node, so they ride its movement and rocking. Far from the camera they are hidden and not animated.
 /// </summary>
 public partial class SeaView
@@ -24,20 +24,28 @@ public partial class SeaView
     static readonly string[] SailorModels = ["Lo_Man_1", "Lo_Man_2", "Lo_Man_3", "Lo_Man_1", "Lo_Man_2", "Lo_Man_Kamzol_1", "Lo_Man_Kamzol_2", "Lo_Man_Kamzol_3"];
     static readonly string[] SailorIdle = ["action1", "action2", "action3", "action4", "stand"];
 
+
     sealed class DeckWalk
     {
         public Vector3[] P = [];          // engine space of the ship model (x right, y up, z forward)
         public int[] Type = [];
+        public bool[] Off = [];           // points taken out of the graph (a fallen mast): SailorsPoints disabled
         public List<int>[] Next = [];
     }
+
+    // point types of the PotC graphs (SEA_AI\walk\*_walk.c, the dll's PointType): 0 = deck, 1 = a side cannon, 2 = the bow gun, 3 = the stern gun, 4..6 = the rigging
+    // (the shroud feet at the rail, then the tops): the C++ IsMast() is "type >= first mast type", IsCannon() the cannon types
+    static bool IsMastPt(int type) => type >= 4;
+    static bool IsCannonPt(int type) => type is >= 1 and <= 3;
 
     sealed class Sailor
     {
         public CharacterRig Rig = null!;
         public int At, To, Prev = -1;
         public float T, Wait, Yaw;
-        public bool Moving, Working;
-        public List<int> Route = new();     // battle: the way to the cannon point
+        public bool Moving, Working, Climbing, Falling;
+        public Vector3 FallPos, FallVel;
+        public List<int> Route = new();     // the way to the target point (a cannon in battle, a mast point or a deck point in peace)
     }
 
     sealed class Deck
@@ -48,6 +56,11 @@ public partial class SeaView
         public readonly List<Sailor> Crew = new();
         public bool Shown = true;
     }
+
+    // MOVE_SPEED / RUN_SPEED / CLIMB_SPEED of sailors.cpp are per 100 ms: 1.5, 3 and 0.65 m/s; at war and in a storm the men run and climb twice as fast
+    const float SailorRunSpeed = 3f, SailorClimbSpeed = 0.65f;
+    /// <summary>The share of walks that go aloft (the C++: 1 in 30); env SEADOGS_MASTCHANCE raises it for tests.</summary>
+    static readonly double MastChance = double.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_MASTCHANCE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mc) ? mc : 1.0 / 30.0;
 
     readonly List<Deck> decks = new();
     Entity? peopleEnt;
@@ -80,7 +93,7 @@ public partial class SeaView
     static DeckWalk? ReadWalk(int count, Slot[]? verts, Slot[]? graph, Slot[]? types)
     {
         if (count <= 1 || verts == null || graph == null || verts.Length < count * 3) return null;
-        var w = new DeckWalk { P = new Vector3[count], Type = new int[count], Next = new List<int>[count] };
+        var w = new DeckWalk { P = new Vector3[count], Type = new int[count], Off = new bool[count], Next = new List<int>[count] };
         for (int i = 0; i < count; i++)
         {
             w.P[i] = new Vector3(Conv.ToFloat(verts[i * 3].Val), Conv.ToFloat(verts[i * 3 + 1].Val), Conv.ToFloat(verts[i * 3 + 2].Val));
@@ -107,7 +120,7 @@ public partial class SeaView
         decks.Add(deck);
         // how many: the crew size of the ship (Ship.Crew.Quantity) - one sailor per five men, a handful at most; fewer at night
         float crew = F(ship.Chr, "Ship.Crew.Quantity", 20f);
-        var usable = Enumerable.Range(0, walk.P.Length).Where(i => walk.Next[i].Count > 0).ToList();
+        var usable = Enumerable.Range(0, walk.P.Length).Where(i => walk.Next[i].Count > 0 && !IsMastPt(walk.Type[i])).ToList();
         int n = crew <= 0f ? 0 : Math.Clamp((int)MathF.Ceiling(crew / 5f), 1, Math.Min(MaxSailorsPerShip, Math.Max(1, usable.Count / 3)));
         if (peopleEnt != null && F(peopleEnt.Root, "isNight") != 0f) n = (n + 1) / 2;
         var free = usable.OrderBy(_ => sailorRnd.Next()).ToList();
@@ -124,7 +137,10 @@ public partial class SeaView
         GD.Print($"[sea] deck crew of {ship.Chr.Get("id")?.Value}: {deck.Crew.Count} sailors (crew {crew:0}) on a walk graph of {walk.P.Length} points");
     }
 
-    /// <summary>A mast went over the side: its mast points (type 2 near the foot) leave the walk graph and the men there run to the nearest other point.</summary>
+    /// <summary>
+    /// A mast went over the side (ShipWalk::SetMastBroken): its rigging points leave the graph, and the men on or heading for them jump overboard (MAN_JUMP).
+    /// The PotC graphs mark the rigging by layers (feet at the rail, tops), not by mast, so the points within a few metres of the fallen mast's axis go.
+    /// </summary>
     void MastFallOnDeck(Deck deck, int mastNum)
     {
         var m = deck.Ship.Masts.FirstOrDefault(x => x.Num == mastNum);
@@ -132,20 +148,24 @@ public partial class SeaView
         var w = deck.Walk;
         var gone = new HashSet<int>();
         for (int i = 0; i < w.P.Length; i++)
-            if (w.Type[i] == 2 && new Vector2(w.P[i].X - m.Base.X, w.P[i].Z - m.Base.Z).Length() < 5f) gone.Add(i);
+            if (IsMastPt(w.Type[i]) && !w.Off[i] && new Vector2(w.P[i].X - m.Base.X, w.P[i].Z - m.Base.Z).Length() < 6f) gone.Add(i);
         if (gone.Count == 0) return;
-        foreach (int i in gone) { foreach (int n in w.Next[i]) w.Next[n].Remove(i); w.Next[i].Clear(); }
+        foreach (int i in gone) { w.Off[i] = true; foreach (int n in w.Next[i]) w.Next[n].Remove(i); w.Next[i].Clear(); }
+        int jumped = 0;
         foreach (var s in deck.Crew)
         {
-            if (!gone.Contains(s.At) && !(s.Moving && gone.Contains(s.To))) continue;
+            if (s.Falling) continue;
+            bool onMast = gone.Contains(s.At) || (s.Moving && gone.Contains(s.To)) || s.Route.Any(gone.Contains);
+            if (!onMast) continue;
             var here = s.Moving ? w.P[s.At].Lerp(w.P[s.To], s.T) : w.P[s.At];
-            int best = Enumerable.Range(0, w.P.Length).Where(i => !gone.Contains(i) && w.Next[i].Count > 0).OrderBy(i => w.P[i].DistanceTo(here)).DefaultIfEmpty(-1).First();
-            if (best < 0) continue;
-            if (s.Moving && gone.Contains(s.To)) { s.At = s.To; s.T = 0f; }
-            s.Working = false; s.Route.Clear(); s.Prev = -1;
-            Go(s, best, true);
+            // JUMP_SPEED_X_MASTFALL 3 per 350 ms, away from where the man looks (ang.y + PI): over the rail
+            float side = here.X >= 0f ? 1f : -1f;
+            s.Falling = true; s.Moving = false; s.Working = false; s.Route.Clear();
+            s.FallPos = here; s.FallVel = new Vector3(side * 5f, 1f, 0f);
+            s.Rig.Play("stand", true);
+            jumped++;
         }
-        GD.Print($"[sea] mast {mastNum} fell on the deck of {deck.Ship.Chr.Get("id")?.Value}: {gone.Count} mast points closed");
+        GD.Print($"[sea] mast {mastNum} fell on the deck of {deck.Ship.Chr.Get("id")?.Value}: {gone.Count} rigging points closed, {jumped} men jumped overboard");
     }
 
     void ClearSailors() { decks.Clear(); }        // the nodes go with the ship nodes
@@ -165,27 +185,36 @@ public partial class SeaView
                 foreach (var s in deck.Crew) s.Rig.ProcessMode = show ? ProcessModeEnum.Inherit : ProcessModeEnum.Disabled;
             }
             if (!show) continue;
-            bool war = (int)F(deck.Ship.Chr, "Ship.POS.Mode") == 1;
-            foreach (var s in deck.Crew) StepSailor(deck, s, war, dt);
+            int mode = (int)F(deck.Ship.Chr, "Ship.POS.Mode");          // SHIP_SAIL 0, SHIP_WAR 1, SHIP_STORM 2
+            foreach (var s in deck.Crew.ToList()) StepSailor(deck, s, mode, dt);
         }
     }
 
-    void StepSailor(Deck deck, Sailor s, bool war, float dt)
+    void StepSailor(Deck deck, Sailor s, int mode, float dt)
     {
         var w = deck.Walk;
+        bool war = mode == 1, hurry = mode != 0;
+        if (s.Falling)
+        {
+            s.FallVel.Y -= 30f * dt;
+            s.FallPos += s.FallVel * dt;
+            s.Rig.Position = new Vector3(s.FallPos.X, s.FallPos.Y, -s.FallPos.Z);
+            if (s.FallPos.Y < -3f) { s.Rig.QueueFree(); deck.Crew.Remove(s); }      // into the sea: the C++ lets him swim a while, then he drowns
+            return;
+        }
         if (s.Moving)
         {
             float len = Math.Max(0.05f, w.P[s.At].DistanceTo(w.P[s.To]));
-            float speed = war ? 3.2f : s.Rig.ActionSpeed("walk", 1.3f);
+            float speed = s.Climbing ? SailorClimbSpeed * (hurry ? 2f : 1f) : hurry ? SailorRunSpeed : s.Rig.ActionSpeed("walk", 1.3f);
             s.T += speed * dt / len;
-            if (s.T >= 1f) { s.Prev = s.At; s.At = s.To; s.T = 0f; s.Moving = false; Arrive(deck, s, war); }
+            if (s.T >= 1f) { s.Prev = s.At; s.At = s.To; s.T = 0f; s.Moving = false; s.Climbing = false; Arrive(deck, s, war); }
             PlaceSailor(deck, s);
             return;
         }
         if (s.Working)
         {
             // at a cannon in battle the reload loops; when the battle is over (or a work animation ended) walk on
-            if (war && w.Type[s.At] == 1) { if (s.Rig.Finished) s.Rig.Play("reload", false, true); return; }
+            if (war && IsCannonPt(w.Type[s.At])) { if (s.Rig.Finished) s.Rig.Play("reload", false, true); return; }
             s.Wait -= dt;
             bool done = s.Rig.ActionName == "stand" ? s.Wait <= 0f : s.Rig.Finished || s.Wait <= 0f;
             if (!done && !war) return;
@@ -193,63 +222,76 @@ public partial class SeaView
         }
         s.Wait -= dt;
         if (s.Wait > 0f && !war) return;
-        // battle: the way to the nearest free cannon point; peace: a random neighbour, not straight back if there is another way
-        if (war)
-        {
-            if (s.Route.Count == 0 && w.Type[s.At] != 1) s.Route = RouteToCannon(deck, s);
-            if (s.Route.Count > 0) { Go(s, s.Route[0], true); s.Route.RemoveAt(0); return; }
-            if (w.Type[s.At] == 1) { s.Working = true; s.Rig.Play("reload", false, true); return; }
-        }
-        var next = w.Next[s.At].Where(x => x != s.Prev).ToList();
-        if (next.Count == 0) next = w.Next[s.At];
-        if (next.Count == 0) { s.Wait = 5f; return; }
-        Go(s, next[sailorRnd.Next(next.Count)], war);
+        if (s.Route.Count == 0) s.Route = PickRoute(deck, s, war);
+        if (s.Route.Count > 0) { Go(deck, s, s.Route[0], hurry); s.Route.RemoveAt(0); return; }
+        if (war && IsCannonPt(w.Type[s.At])) { s.Working = true; s.Rig.Play("reload", false, true); return; }
+        s.Wait = 3f;
     }
 
-    void Go(Sailor s, int to, bool run)
+    /// <summary>
+    /// ShipMan::FindRandomPoint: in battle (or when the guns need loading) the nearest free cannon; in peace now and then (1 in 30) a free rigging point to climb to,
+    /// otherwise a free deck point. The way there is a breadth-first search over the graph.
+    /// </summary>
+    List<int> PickRoute(Deck deck, Sailor me, bool war)
     {
-        s.To = to; s.T = 0f; s.Moving = true;
-        s.Rig.Play(run ? "run" : "walk", true);
+        var w = deck.Walk;
+        var taken = new HashSet<int>(deck.Crew.Where(c => c != me && !c.Falling).Select(c => c.Route.Count > 0 ? c.Route[^1] : c.Moving ? c.To : c.At));
+        if (war) { if (IsCannonPt(w.Type[me.At])) return new List<int>(); return RouteTo(w, me.At, v => IsCannonPt(w.Type[v]) && !taken.Contains(v), null); }
+        bool mast = sailorRnd.NextDouble() < MastChance && !IsMastPt(w.Type[me.At]);
+        float deckY = Enumerable.Range(0, w.P.Length).Where(i => w.Type[i] == 0).Select(i => w.P[i].Y).DefaultIfEmpty(0f).Min();
+        var cands = Enumerable.Range(0, w.P.Length).Where(i => !w.Off[i] && w.Next[i].Count > 0 && i != me.At && !taken.Contains(i) && (mast ? IsMastPt(w.Type[i]) && w.P[i].Y > deckY + 4f : w.Type[i] == 0)).ToList();
+        if (cands.Count == 0) return new List<int>();
+        int target = cands[sailorRnd.Next(cands.Count)];
+        return RouteTo(w, me.At, v => v == target, null);
     }
 
-    /// <summary>At a point: in peace sometimes stop and do something (pull a rope, look around...), longer at the cannon, mast and hatch points.</summary>
+    /// <summary>Breadth-first way from a point to the nearest one the predicate accepts; the point itself is not part of the result.</summary>
+    static List<int> RouteTo(DeckWalk w, int from, Func<int, bool> goal, Func<int, bool>? skip)
+    {
+        var prev = new int[w.P.Length];
+        Array.Fill(prev, -2);
+        var q = new Queue<int>();
+        q.Enqueue(from); prev[from] = -1;
+        while (q.Count > 0)
+        {
+            int v = q.Dequeue();
+            if (v != from && goal(v))
+            {
+                var path = new List<int>();
+                for (int x = v; x != from; x = prev[x]) path.Add(x);
+                path.Reverse();
+                return path;
+            }
+            foreach (var n in w.Next[v]) if (prev[n] == -2 && !w.Off[n] && (skip == null || !skip(n))) { prev[n] = v; q.Enqueue(n); }
+        }
+        return new List<int>();
+    }
+
+    /// <summary>NewAction: onto a rigging point = "crawl" up, off one = "crawl_down" (the same clip backwards); else walk, run in battle and storm.</summary>
+    void Go(Deck deck, Sailor s, int to, bool run)
+    {
+        var w = deck.Walk;
+        s.To = to; s.T = 0f; s.Moving = true;
+        s.Climbing = IsMastPt(w.Type[to]) || IsMastPt(w.Type[s.At]);
+        if (IsMastPt(w.Type[to]) && !IsMastPt(w.Type[s.At])) GD.Print($"[sea] sailor of {deck.Ship.Chr.Get("id")?.Value} climbs up from point {s.At} (type {w.Type[s.At]}) to {to} (type {w.Type[to]}, height {w.P[to].Y:0.0})");
+        s.Rig.Play(IsMastPt(w.Type[to]) ? "crawl" : IsMastPt(w.Type[s.At]) ? "crawl_down" : run ? "run" : "walk", true);
+    }
+
+    /// <summary>At the end of a way: in peace stop and do something (pull a rope, look around...), longer aloft; the route goes on while there is one.</summary>
     void Arrive(Deck deck, Sailor s, bool war)
     {
-        if (war) return;
+        if (war || s.Route.Count > 0) return;
         int type = deck.Walk.Type[s.At];
-        double chance = type == 0 ? 0.25 : 0.6;
+        double chance = IsMastPt(type) ? 1.0 : type == 0 ? 0.3 : 0.6;
         if (sailorRnd.NextDouble() < chance)
         {
             string act = SailorIdle[sailorRnd.Next(SailorIdle.Length)];
             s.Working = true;
             s.Rig.Play(act, act == "stand", true);
-            s.Wait = act == "stand" ? 2f + (float)sailorRnd.NextDouble() * 4f : 8f;
+            s.Wait = act == "stand" ? 2f + (float)sailorRnd.NextDouble() * 4f : IsMastPt(type) ? 4f : 8f;
+            if (IsMastPt(type) && act != "stand") s.Wait = 5f + (float)sailorRnd.NextDouble() * 5f;
         }
         else s.Rig.Play("stand", true);
-    }
-
-    /// <summary>Breadth-first way over the walk graph to the nearest cannon point that no other sailor of the deck has taken.</summary>
-    static List<int> RouteToCannon(Deck deck, Sailor me)
-    {
-        var w = deck.Walk;
-        var taken = new HashSet<int>(deck.Crew.Where(c => c != me).Select(c => c.Route.Count > 0 ? c.Route[^1] : c.Moving ? c.To : c.At));
-        var from = new int[w.P.Length];
-        Array.Fill(from, -2);
-        var q = new Queue<int>();
-        q.Enqueue(me.At); from[me.At] = -1;
-        while (q.Count > 0)
-        {
-            int v = q.Dequeue();
-            if (w.Type[v] == 1 && !taken.Contains(v) && v != me.At)
-            {
-                var path = new List<int>();
-                for (int x = v; x != me.At; x = from[x]) path.Add(x);
-                path.Reverse();
-                return path;
-            }
-            foreach (var n in w.Next[v]) if (from[n] == -2) { from[n] = v; q.Enqueue(n); }
-        }
-        return new List<int>();
     }
 
     static void PlaceSailor(Deck deck, Sailor s)
@@ -260,8 +302,11 @@ public partial class SeaView
         if (s.Moving)
         {
             var dir = w.P[s.To] - a;
-            float want = MathF.Atan2(dir.X, dir.Z);
-            s.Yaw = Mathf.LerpAngle(s.Yaw, want, 0.25f);
+            if (new Vector2(dir.X, dir.Z).LengthSquared() > 1e-4f)                // straight up a ladder: keep the heading
+            {
+                float want = MathF.Atan2(dir.X, dir.Z);
+                s.Yaw = Mathf.LerpAngle(s.Yaw, want, 0.25f);
+            }
         }
         s.Rig.Position = new Vector3(p.X, p.Y, -p.Z);                     // engine -> Godot: z flips; the node is a child of the ship
         s.Rig.Rotation = new Vector3(0f, -s.Yaw, 0f);
