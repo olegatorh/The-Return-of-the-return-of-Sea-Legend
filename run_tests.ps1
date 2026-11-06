@@ -27,7 +27,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
     if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
     $text = (Get-Content $log, "$log.err" -Encoding UTF8 -ErrorAction SilentlyContinue) -join "`n"
-    $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception' }
+    $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception|^ERROR: Invalid polygon data' }
     if (-not (Test-Path $shot)) { Write-Host 'no screenshot was produced (the run did not reach the end)' -ForegroundColor Red; return 1 }
     foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "expected in the log: $m" -ForegroundColor Red; return 1 } }
     if ($bad) { Write-Host 'problems:' -ForegroundColor Red; $bad | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }; return 1 }
@@ -77,6 +77,27 @@ if ($Sea) {
         $sm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--mapstorm=0,0@1200', '--dump=WeatherParams.Storm@1800', '--shot-frame=2000')
         $fail += Invoke-Godot 'storm' $sm 300 @('[map] storm created', '[map] the ship sailed into storm 0', 'Storm = "1"')
+        # map traffic: the player's ship stands still near Quebradas Costillas, the script's war / pirate encounters are off, two merchants are asked to sail to the island Sent (260 units away);
+        # the engine sails them round the coast (A* on the land mask) and removes them at the port ("arrived at Sent"); the map runs 4 steps per frame, the clock is slowed so the quests do not interfere
+        $env:SEADOGS_MAPLOG = '1'; $env:SEADOGS_MAPSPEED = '4'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_MAPNOKILL = '1'; $env:SEADOGS_SEED = '7'
+        $tr = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=1@1010',
+                '--call=wdmCreateMerchantShip(0,Sent,0)@1300', '--call=wdmCreateMerchantShip(0,Sent,0)@1350', '--shot-frame=5000')
+        $fail += Invoke-Godot 'maptraffic' $tr 400 @('merchant type 0', 'bound for Sent', 'arrived at Sent', 'travelled ')
+        Remove-Item Env:SEADOGS_MAPNOKILL
+        # a pursuer (follow ship = pirate / hunter / war squadron) sails to the player and attacks within the action radius: the script gets WorldMap_ShipEncounter and leaves the map
+        $env:SEADOGS_MAPSAIL = '0'
+        $fo = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
+                '--call=wdmCreateFollowShip(1,0)@1300', '--shot-frame=3500')
+        $fail += Invoke-Godot 'mapfollow' $fo 300 @('+follow type 1', 'encounter with ship type 1 (Follow')
+        # a merchant never attacks: the player has to come close and press Enter (WdmPlayerShip::ExitFromMap); without it the ship only sails by
+        $me = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=1@1010',
+                '--call=wdmCreateMerchantShip(0,Sent,0)@1300', '--mapmeet@1400', '--key=Enter@1410', '--shot-frame=2000')
+        $env:SEADOGS_MAPSPEED = '1'
+        $fail += Invoke-Godot 'mapmerchant' $me 300 @('+merchant type 0', 'encounter with ship type 0 (Merchant')
+        Remove-Item Env:SEADOGS_MAPLOG, Env:SEADOGS_MAPSPEED, Env:SEADOGS_MAPSAIL, Env:SEADOGS_SEED
         # Martinique: the French squadron is placed abeam and shot at; the script must apply the damage (a perfect gunner for this shot: the per-ball
         # dispersion of Ball_AddBall grows with 1.2 - TmpSkill.Accuracy and the tutorial gunner would miss now and then)
         $c = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',

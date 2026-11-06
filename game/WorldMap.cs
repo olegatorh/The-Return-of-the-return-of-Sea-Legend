@@ -22,7 +22,7 @@ public partial class WorldMapView : Node3D
     Entity? ent;
     Node3D? scene, shipNode;
     bool built;
-    float shipX, shipZ, shipAy, sail = 0.5f, camYawOff, camElasticAy, shipVel, shipTurn, mapTime;
+    float shipX, shipZ, shipAy, sail = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_MAPSAIL"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var msl) ? msl : 0.5f, camYawOff, camElasticAy, shipVel, shipTurn, mapTime;
     bool camInit;
     // wdm_camera.cpp: the pitch (ang.x) is fixed at 1.0 rad, the height runs WDM_CAMERA_HEIGHT_MIN..MAX = 50..300 (the script's wdmCameraY = 750 is clamped to 300),
     // the distance to the point looked at is height / sin(pitch)
@@ -80,6 +80,7 @@ public partial class WorldMapView : Node3D
 
     void Clear()
     {
+        if (encCreated > 0) GD.Print($"[map] encounter stats: {encCreated} created, {encArrived} merchants arrived, {encExpired} expired, {encFar} left behind, {encMet} met");
         encs.Clear(); encHooked = false;
         ClearStorms(); ui.Close();
         scene?.QueueFree(); scene = null; shipNode = null; ent = null; built = false; inside = "";
@@ -202,6 +203,7 @@ public partial class WorldMapView : Node3D
 
     // ------------------------------------------------------------------ per frame
     public float TestTurn;
+    static readonly int MapSpeed = int.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_MAPSPEED"), out var msp) ? Math.Max(1, msp) : 1;
 
     public void Tick(float dt, bool input)
     {
@@ -222,6 +224,8 @@ public partial class WorldMapView : Node3D
         }
         // an open interface screen or the map's own window freezes the map (the original freezes the execute layers: EngineLayersOffOn)
         bool run = input && !ui.IsOpen;
+        for (int rep = 0, reps = run ? MapSpeed : 1; rep < reps; rep++)         // SEADOGS_MAPSPEED=N: N map steps per frame (long-run tests)
+        {
         if (run && dt > 0f)
         {
             mapTime += dt;
@@ -252,6 +256,7 @@ public partial class WorldMapView : Node3D
         {
             it.FireEvent("WorldMap_EncounterCreate", new List<V> { V.Float(encTimer), V.Float(shipX), V.Float(shipZ), V.Float(shipAy) });
             encTimer = 0f;
+        }
         }
 
         // camera: behind and above the ship
@@ -455,6 +460,7 @@ public partial class WorldMapView : Node3D
     /// <summary>Enter / Space: leave the map to the sea (at the island when the ship is in its zone).</summary>
     public void Enter()
     {
+        if (MeetNearShip()) return;                // Enter next to a ship meets it (WdmPlayerShip::ExitFromMap)
         GD.Print("[map] exit to sea" + (inside.Length > 0 ? " at " + inside : " (open sea)"));
         it.FireEvent("ExitFromWorldMap");
     }
