@@ -125,3 +125,21 @@ Setup shared by the runs (Antigua): `--ctl=Quick_Load@200 --set=Characters[0].Mo
 * Town fuzz: for each of `Antigua_port Antigua_town Antigua_Store Antigua_shipyard Antigua_townhall Antigua_Tavern Antigua_UsurerHouse Antigua_church`: `--call=DoReloadCharacterToLocation(<id>,reload,reload1)@f --fuzz@f+100`, f += 1100, `SEADOGS_LANGLOG=1`.
 * Antigua people: store Lainell_Maxwell (answers 1,1 -> trade; Space or Enter picks the ship), shipyard Johrje_Samelter (1,1,1), tavern Ronald_Shorter (1 = crew, 3 = room), usurer "Antigua Usurer", governor Major_Antigua.
 * Encounter: `SEADOGS_MAPLOG=1 SEADOGS_MAPSPEED=1 SEADOGS_MAPSAIL=0 SEADOGS_SEED=3`, `--set=worldMap.date.hourPerSec=0.05@1010 --set=Characters[0].worldmapencountersoff=0@1010 --mapmeet@1500 --key=Enter@1510 --key=Enter@1700` (= run_tests `mapencounter`).
+
+## Part 3 - patent, boarding, loot, yard, officers, fort landing
+
+Launcher: `run.ps1`-style, `--position 9000,9000`; the env vars that matter: `SEADOGS_PLAYERHP=9000` (keeps the test ship afloat in the cannon duel), `SEADOGS_DUELDIST=25` (enemy 25 m abeam), `SEADOGS_LANGLOG=1`.
+Common prefix (English patent, from the town quicksave): `--ctl=Quick_Load@200 --call=initTutMainCharacterShip()@300 --call=GiveItem2Character(#Blaze,patent_eng)@305 --call=EquipCharacterbyItem(#Blaze,patent_eng)@310`
+(France: `patent_fra`; with it Antigua becomes hostile). Arguments with spaces are quoted as one element (`"--set=...Id=William Blaker@305"`).
+
+* Martinique (English patent): `... --call=SetPlayerShipLocation(184)@320 --goto=reload.reload1@400 --ctl=ChrAction@450 --sail=+1@700 --seapos=-600,-101,4.71@720 --ctl=BI_MapEnter@1000 --ctl=BI_MapEnter@1100 --mappos=-193,768,0@1200 --act@1250 --seapos=-110,100,0@2400`,
+  then `--duel@2450 --sail=-1@2460 --sail=-1@2470 --key=Enter@2600` (= `boardpatent`); after boarding `--killgroup=brdenemy@N --ctl=ChrAction@N+50` every 100 frames from 3200, `--call=SetCrewQuantityOverMax(#Blaze,300)@6250`,
+  ransack screen: `--click=GOODS_BUTTON` / `CREW_BUTTON` / `CHARACTERS_BUTTON` / `SWAP_BUTTON` / `EXIT_BTN` + `CONFIRM_YES_BUTTON`, `Escape` returns from the goods / crew screens.
+* Ransack screens without a fight: `--call=LaunchRansackMain(#Blaze,#Cayman+Commander,)@400`, `LaunchRansackCaptain(#Blaze,#Cayman+Commander)` + `--mouse=CAPTURE_BUTTON`.
+* Command menu at sea: key `C` (`--key=C@N`), digits pick an item (`--key=Key2@N`); with a companion (`Character_into_companion`) the first level lists the ships.
+* Yard: `--call=LaunchShipyard(#Esteban+Castillo)@400 --key=Enter@450` (opens the choice menu) then `--mouse=REPAIR_BUTTON / SELLSHIP_BUTTON / CHANGE_CAPTAIN / BUY_BUTTON`, `--mouse=FIXALL_BUTTON`, `--mouse=OK_BUTTON`; companion slot = `--key=Right@N` first.
+* Tavern officer (Antigua): `--set=bBettaTestMode=1@256 --call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300 --dialog=Ronald_Shorter@600 --answer=1@700 --answer=2@800 --answer=3@900 --answer=1@1000 --answer=1@1100`, the officer is the fantom
+  `--dialog=Location_fantom_character_<1>@1300` then answers 1 x5; `--call=LaunchPassengers(#Blaze)`. Sleep: answers 1, 3, 1, 1 (`room_night_wait`).
+* Time: `--call=SetCurrentTime(21,59)`, `--call=WaitDate(nopost,0,0,3,0,0)`; salary: `--set=NullCharacter.SalayPayMonth=7 --call=WaitDate(nopost,0,0,1,0,0)` then `--mouse=B_OK`.
+* Fort landing (Antigua, French patent): `--mappos=-696,753,0` ... `--seapos=-60,-110,0@2400 --call=Fort_SetAbordageMode(#Blaze,#Antigua+Commander)@2450 --call=Character_SetAbordageEnable(#Antigua+Commander,1)@2455 --sail=-1@2460 --set=bWeatherIsStorm=0@2500 --act@2700`,
+  then the `killgroup` cycle from 3600, `--click=GOODS`, `SLAVES`, `ENTER_BATTLE` of the fortcapture screen (= `fortland`).
