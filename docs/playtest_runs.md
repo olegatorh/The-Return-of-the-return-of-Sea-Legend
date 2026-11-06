@@ -143,3 +143,14 @@ Common prefix (English patent, from the town quicksave): `--ctl=Quick_Load@200 -
 * Time: `--call=SetCurrentTime(21,59)`, `--call=WaitDate(nopost,0,0,3,0,0)`; salary: `--set=NullCharacter.SalayPayMonth=7 --call=WaitDate(nopost,0,0,1,0,0)` then `--mouse=B_OK`.
 * Fort landing (Antigua, French patent): `--mappos=-696,753,0` ... `--seapos=-60,-110,0@2400 --call=Fort_SetAbordageMode(#Blaze,#Antigua+Commander)@2450 --call=Character_SetAbordageEnable(#Antigua+Commander,1)@2455 --sail=-1@2460 --set=bWeatherIsStorm=0@2500 --act@2700`,
   then the `killgroup` cycle from 3600, `--click=GOODS`, `SLAVES`, `ENTER_BATTLE` of the fortcapture screen (= `fortland`).
+
+## Part 4 - quests (also `run_tests.ps1 -Quests`, scenarios `q_*`)
+
+Env for exploration: `SEADOGS_TRACE=QuestComplete,...`, `SEADOGS_LANGLOG=1`. Sea prefix with the English patent:
+`--ctl=Quick_Load@200 --call=initTutMainCharacterShip()@300 --call=GiveItem2Character(#Blaze,patent_eng)@305 --call=EquipCharacterbyItem(#Blaze,patent_eng)@310 --call=SetPlayerShipLocation(184)@320 --goto=reload.reload1@400 --ctl=ChrAction@450 --sail=+1@700 --seapos=-600,-101,4.71@720`.
+
+* Probe quest: `--set=Characters[0].quest.NAME.win_condition.l1=KIND@N`, `...l1.KEY=VALUE@N`, then `--set=Characters[0].quest.NAME.win_condition=pr_NAME@N` (the last assignment is the quest function name).
+* English line 1: governor `eng_guber` answers x7 (`q_eng1`); sea: probe `fight_withSpanish_Albermal` (`location = Oxbay`), `--ctl=BI_MapEnter@1000 --ctl=BI_MapEnter@1100 --mappos=341.9,739.2,0@1200 --act@1250`, `--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3200` (`q_engsea`); townhall: probe `goto_Oxbay_Albermal`, reload `Oxbay_townhall` (`q_albermal`).
+* Pirate line: `q_pirate` (Jurcksen 6 answers; Ford 5 answers; `Fort_Orange_exit`; damage hook; answers), `q_fordshore` (`CompleteQuestName(People_Ford)`, `--killgroup=PIRATE_FORD`).
+* Necronomicon: `q_necro`. Hunters: `q_hunters` (answer 3 = "I will follow you"; a 4th link exists only with the sneak skill). Black Pearl: `q_pearl` (env `SEADOGS_MAPSPEED=1 SEADOGS_MAPSAIL=0 SEADOGS_SEED=3 SEADOGS_MEETFOLLOW=1 SEADOGS_PLAYERHP=90000`).
+* Whole-script checks (Python in the pass scratchpad, not committed): literal locator triples -> `--dump=loadedLocation.locators.G.L` after each reload; dialog fuzz: one character per dialog file placed with `ChangeCharacterAddressGroup(#Id,QC_town,goto,gotoN)` and `--fuzz@700`.

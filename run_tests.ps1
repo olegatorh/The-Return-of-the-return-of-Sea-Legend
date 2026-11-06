@@ -4,7 +4,7 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -267,6 +267,69 @@ if ($Stages3) {
             '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--dialog=Ronald_Shorter@600', '--answer=1@700', '--answer=3@800', '--answer=1@900', '--answer=1@1000',
             '--dump=Characters[0].Money@1600', '--dump=Characters[0].location@1600', '--shot-frame=1700')
         $fail += Invoke-Godot 'tavernsleep' $sl 200 @("answer 1 -> node 'room_night_wait'", 'money = "49995"', 'location = "Antigua_tavern_upstairs"')
+    }
+}
+
+# playtest part 4 (docs/PLAYTEST.md "Part 4"): the quest machinery driven from the quicksave (town port): win_condition kinds (location, locator, NPC_Death, Timer, item, MapEnter ...),
+# LAi actor tasks with quest callbacks, the English line (governor -> Albermal -> Spanish flute at Oxbay), the Pirate line (Jurcksen -> James Ford -> fight -> captive -> shore gang),
+# the necronomicon locator, quest map encounters (Black Pearl), head hunters -> prison cell, quest delays across save / load
+if ($Quests) {
+    if (-not (Test-Path "$root\saves\quicksave.sdsave")) { Write-Host 'no saves\quicksave.sdsave' -ForegroundColor Yellow }
+    else {
+        $env:SEADOGS_TRACE = 'QuestComplete,SetActorDialogAny2Pchar,Encounter_SetQuestMapEncounter,Group_SetAddress'
+        $pat = @('--call=GiveItem2Character(#Blaze,patent_eng)@252', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@254')
+        $fail += Invoke-Godot 'q_eng1' (@('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250') + $pat + @('--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300', '--dialog=eng_guber@600') +
+            @(700, 800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--dump=Characters[0].questTemp.State@1500', '--dump=Characters[0].QuestInfo.Eng_Line_1_Albermal@1500', '--shot-frame=1600')) 200 @("answer 1 -> node 'Step_1_3'", 'State = "to_Albermal"', '@1"')
+        # the Spanish flute: location condition "Oxbay" at sea -> Group_SetAddress -> ship at the island -> NPC_Death of its captain (hull destroyed) -> next condition registered
+        $seaq = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300') + $pat + @('--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
+            '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition.l1=location@900', '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition.l1.location=Oxbay@900', '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition=fight_withSpanish_Albermal@900',
+            '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=341.9,739.2,0@1200', '--act@1250', '--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3200', '--dump=Characters[0].quest.goto_Oxbay_Albermal@3800', '--shot-frame=4000')
+        $fail += Invoke-Godot 'q_engsea' $seaq 400 @('CALL Group_SetAddress(Spa_Attack, Oxbay', '[sea] CaptainAttack_1 task: attack Blaze', '[sea] CaptainAttack_1 is dead: the ship sinks', 'win_condition = "goto_Oxbay_Albermal"')
+        # entering the townhall of Oxbay: Albermal walks up to the hero and talks by himself (SetActorDialogAny2Pchar + LAi_ActorFollow)
+        $fail += Invoke-Godot 'q_albermal' (@('--ctl=Quick_Load@200', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1=location@250', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1.location=Oxbay_townhall@250',
+            '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition=goto_Oxbay_Albermal@250', '--call=DoReloadCharacterToLocation(Oxbay_townhall,reload,reload1)@300', '--answer=1@1200', '--answer=1@1300', '--shot-frame=1700')) 200 @('CALL SetActorDialogAny2Pchar(Albermal', "node 'Albermal_go_out'")
+        # Pirate line: Jurcksen -> James Ford in the tavern of Fort Orange -> escort fight (Story_Battle_Ford..5) -> Ford beaten (LAi_SetCheckMinHP) -> captured -> the passengers
+        $pl = @('--ctl=Quick_Load@200', '--set=Characters[0].questTemp.Begin_Quests_Pirate=1@250', '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@300', '--dialog=Isenbrandt_Jurcksen@700') +
+            @(800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--call=DoReloadCharacterToLocation(Orange_Tavern,reload,reload1)@1500', '--dialog=James_Ford@1900') + @(2000, 2100, 2200, 2300, 2400 | ForEach-Object { "--answer=1@$_" }) +
+            @('--call=DoReloadCharacterToLocation(Fort_Orange_exit,reload,reload2)@3100', '--answer=1@4400', '--answer=1@4800', '--call=LAi_ApplyCharacterDamage(#James+Ford,70.0)@5400', '--answer=1@6000', '--answer=1@6200', '--dump=Characters[0].QuestInfo.Pirate_line@7200', '--shot-frame=7300')
+        $fail += Invoke-Godot 'q_pirate' $pl 500 @("node 'Story_find_Ford3'", "node 'battle1'", 'QuestComplete(Story_Battle_Ford2)', 'QuestComplete(Story_Battle_Ford5)', 'QuestComplete(Story_Set_Ford)', "node 'Captive'", 'QuestComplete(Ford_captive2)', 'QuestComplete(People_Ford)', '@3,')
+        # the three pirates on the shore (l1..l3 NPC_Death conditions) fight and are killed by a hook -> Pirate_Ford_Deads
+        $fail += Invoke-Godot 'q_fordshore' @('--ctl=Quick_Load@200', '--call=LAi_SetImmortal(#Blaze,1)@250', '--call=CompleteQuestName(People_Ford)@260', '--call=DoReloadCharacterToLocation(Redmond_shore_02,reload,reload1)@300', '--answer=1@1500', '--answer=1@1700',
+            '--answer=1@1900', '--killgroup=PIRATE_FORD@2600', '--killgroup=PIRATE_FORD@2700', '--shot-frame=3200') 200 @('QuestComplete(People_Ford_Talk2)', 'QuestComplete(People_Ford_Battle)', 'Characters[0].quest.Pirate_Ford_Deads.win_condition>')
+        # locator condition (necronomicon in the dungeon of Port Royal), reached by walking onto randitem1
+        $fail += Invoke-Godot 'q_necro' @('--ctl=Quick_Load@200', '--set=Characters[0].quest.Story_Necronomicon.win_condition.l1=locator@250', '--set=Characters[0].quest.Story_Necronomicon.win_condition.l1.location=Redmond_Dungeon_03@250',
+            '--set=Characters[0].quest.Story_Necronomicon.win_condition.l1.locator_group=randitem@250', '--set=Characters[0].quest.Story_Necronomicon.win_condition.l1.locator=randitem1@250', '--set=Characters[0].quest.Story_Necronomicon.win_condition=Story_Necronomicon@250',
+            '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(Redmond_Dungeon_03,reload,reload1)@300', '--goto=randitem.randitem1@900', '--dump=Characters[0].QuestInfo.Necronomicon@1300', '--shot-frame=1400') 150 @('@13"')
+        # win_condition kinds on land: ExitFromLocation, location, location_port, Location_Coast, Timer (WaitDate), Goods
+        $pr = @(); foreach ($p in @(@('pexit', 'ExitFromLocation', 'location=QC_port'), @('pport', 'location_port'), @('pcoast', 'Location_Coast'), @('ptimer', 'Timer', 'date.year=1665', 'date.month=1', 'date.day=2'),
+                                    @('pgoods', 'Goods', 'goods=0', 'quantity=1', 'operation=>'), @('ploc', 'location', 'location=QC_town'))) {
+            $pr += "--set=Characters[0].quest.$($p[0]).win_condition.l1=$($p[1])@300"
+            foreach ($kv in $p[2..($p.Count - 1)]) { if ($p.Count -gt 2) { $pr += "--set=Characters[0].quest.$($p[0]).win_condition.l1.$kv@300" } }
+            $pr += "--set=Characters[0].quest.$($p[0]).win_condition=pr_$($p[0])@300"
+        }
+        $fail += Invoke-Godot 'q_cond_land' (@('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250') + $pr + @('--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@500', '--call=DoReloadCharacterToLocation(QC_port,reload,reload1)@800',
+            '--call=WaitDate(nopost,0,0,2,0,0)@1100', '--shot-frame=1300')) 200 @('quest.pexit.win_condition>', 'quest.ploc.win_condition>', 'quest.pport.win_condition>', 'quest.pcoast.win_condition>', 'quest.ptimer.win_condition>', 'quest.pgoods.win_condition>')
+        # at sea / map: MapEnter, Ship_location, Crew_Space
+        $pm = @('--set=Characters[0].quest.pmap.win_condition.l1=MapEnter@900', '--set=Characters[0].quest.pmap.win_condition=pr_pmap@900', '--set=Characters[0].quest.pship.win_condition.l1=Ship_location@900', '--set=Characters[0].quest.pship.win_condition.l1.location=QC_port@900',
+                '--set=Characters[0].quest.pship.win_condition=pr_pship@900', '--set=Characters[0].quest.pcrew.win_condition.l1=Crew_Space@900', '--set=Characters[0].quest.pcrew.win_condition.l1.quantity=5@900', '--set=Characters[0].quest.pcrew.win_condition.l1.operation=>@900',
+                '--set=Characters[0].quest.pcrew.win_condition=pr_pcrew@900')
+        $fail += Invoke-Godot 'q_cond_sea' (@('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720') + $pm +
+            @('--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--shot-frame=1500')) 300 @('quest.pmap.win_condition>', 'quest.pship.win_condition>', 'quest.pcrew.win_condition>')
+        # LAi actor tasks with quest callbacks: animation, follow, run / go to a locator, go to a location (the hero stands on the reload: the template timeout teleports and still completes)
+        $fail += Invoke-Godot 'q_actors' @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@300', '--call=LAi_SetActorType(#Filosof)@500', '--call=LAi_ActorGoToLocator(#Filosof,goto,goto1,probe_goto,20.0)@501',
+            '--call=LAi_SetActorType(#Luisa+Drake)@500', '--call=LAi_ActorRunToLocator(#Luisa+Drake,goto,goto2,probe_run,20.0)@501', '--call=LAi_SetActorType(#Blaze)@500', '--call=LAi_ActorAnimation(#Blaze,attack_2,probe_anim,1.5)@501',
+            '--call=LAi_SetActorType(#Natan+Bueno)@500', '--call=LAi_ActorFollow(#Natan+Bueno,#Blaze,probe_follow,10.0)@501', '--call=LAi_SetActorType(#Hamund+Verret)@500', '--call=LAi_ActorGoToLocation(#Hamund+Verret,reload,reload1,none,x,x,probe_gl,20.0)@501',
+            '--shot-frame=3500') 200 @('QuestComplete(probe_anim)', 'QuestComplete(probe_follow)', 'QuestComplete(probe_run)', 'QuestComplete(probe_goto)', 'QuestComplete(probe_gl)')
+        # delay timers survive a save / load (DoQuestCheckDelay -> PostEventQuest.questDelay -> QuestsInit)
+        $fail += Invoke-Godot 'q_delay' @('--ctl=Quick_Load@200', '--call=DoQuestCheckDelay(pdl,15.0)@300', '--save=q_dl@500', '--load=q_dl@700', '--shot-frame=4500') 200 @('CALL QuestComplete(pdl)')
+        # head hunters (map-less land generator): "I will follow you" -> prison of the nation -> money and weapons taken -> the cell dialog
+        $fail += Invoke-Godot 'q_hunters' @('--ctl=Quick_Load@200', '--set=Characters[0].enghunter=40@250', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@300', '--call=CompleteQuestName(Land_HuntersBegin)@600', '--answer=1@1400', '--answer=3@1600',
+            '--answer=1@4300', '--answer=1@4500', '--dump=Characters[0].money@5400', '--shot-frame=5500') 300 @("node 'ToPrison'", 'QuestComplete(Hunters_GoToPrison_2)', 'QuestComplete(MoveToPrison_Cell)', 'QuestComplete(Prison_Cell_WaitTalk)', 'money = "0"')
+        # quest map encounter: the Black Pearl is registered with Encounter_SetQuestMapEncounter, the pursuer of the map is the quest group; it fights at sea
+        $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_SEED = '3'; $env:SEADOGS_MEETFOLLOW = '1'; $env:SEADOGS_PLAYERHP = '90000'
+        $fail += Invoke-Godot 'q_pearl' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
+            '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--call=BlackPearlOnMap()@1150', '--set=worldMap.date.hourPerSec=0.05@1160', '--set=Characters[0].worldmapencountersoff=0@1160', '--mapmeet@1700', '--key=Enter@1710', '--key=Enter@1900', '--shot-frame=3000') 300 @('Encounter_SetQuestMapEncounter(Black_Pearl', '[sea] Barbossa task: attack Blaze')
+        foreach ($v in 'SEADOGS_MAPSPEED', 'SEADOGS_MAPSAIL', 'SEADOGS_SEED', 'SEADOGS_MEETFOLLOW', 'SEADOGS_PLAYERHP', 'SEADOGS_TRACE') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
     }
 }
 

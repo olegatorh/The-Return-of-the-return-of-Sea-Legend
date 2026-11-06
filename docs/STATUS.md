@@ -17,14 +17,14 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 33 subsystems below): **74 %**
+* Overall (mean of the 34 subsystems below): **75 %**
 * Unit tests: **41** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **22389** lines of C# (`StormScript/` library + `game/`)
+* Port code: **22787** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
-| SCRIPT | 2 | 86 % |
+| SCRIPT | 3 | 91 % |
 | NATIVE | 1 | 90 % |
 | PORT | 22 | 77 % |
 | APPROX | 8 | 63 % |
@@ -68,6 +68,7 @@ Layers (where the behaviour comes from):
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
 | Language | Quest book (RESOURCE/QUESTSTEXT) in Ukrainian | PORT | ██████░░░░ 60 % | E | 371 of 422 missing entries machine-translated + 59 titles by hand (docs/PLAYTEST.md); 51 long entries still Russian |
+| Core | Quest machinery (win_condition kinds, DoQuestCheckDelay, LAi actor tasks with quest callbacks, quest ships, map quest encounters, prison / hunters generator) | SCRIPT | ██████████ 100 % | T | driven by run_tests -Quests (English line steps 1, Pirate line to the captured Ford, necronomicon locator, Black Pearl map encounter, head hunters -> cell, delays across save/load); 244 dialog files fuzzed, 273 of 274 scripted locators exist |
 
 ## Engine classes that the scripts create (77)
 
