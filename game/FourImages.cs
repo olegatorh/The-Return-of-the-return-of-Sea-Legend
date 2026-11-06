@@ -29,7 +29,7 @@ public partial class FourImagesView : Control
         Name = nodeName;
     }
 
-    Attr? Root => gi.Root.Find(node, false);
+    Attr? Root => gi.Root.Find("FourImage", false);       // the attribute class is always "FourImage" (xi_four_img.cpp), whatever the node is called (SHIPSLIST of ship.ini)
 
     public int Current
     {
