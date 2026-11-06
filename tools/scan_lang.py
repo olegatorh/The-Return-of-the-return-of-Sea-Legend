@@ -12,7 +12,7 @@ CYR = re.compile('[А-Яа-яЁё]')
 LIT = re.compile(r'"([^"\n]*)"')
 RU_LETTERS = re.compile('[ыэъЫЭЪёЁ]')
 # Russian words that must not survive in Ukrainian text (whole-word, lower-case match)
-RU_WORDS = set('''и но что это как он она они мы вы ты уже еще или если когда только тоже очень
+RU_WORDS = set('''и но что это как он она они мы вы ты   еще или если когда только тоже очень
 спроси красавица пойдите пойди     хорошо   деньги капитан корабль город человек всё
 меня тебя его её их мне мной тобой свой мой твой   
 здесь где куда откуда почему зачем потому чтобы чтоб был была были есть будет будешь
@@ -92,7 +92,7 @@ def scan():
                 if ru.lower().startswith('voice'): continue   # voice file names are not text
                 if tr is None: kind = 'missing'
                 elif tr == ru: kind = 'same'
-                elif russian_score(tr) > 0: kind = 'ru'
+                elif russian_score(tr) > 0 and src != 'polish': kind = 'ru'
                 res.append(dict(file=base, ru=ru, uk=tr, src=src, kind=kind, words=words))
     return res
 

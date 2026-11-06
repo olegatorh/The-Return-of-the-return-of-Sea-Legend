@@ -13,7 +13,7 @@ def overlap(r):
     return 0 if len(b) < 3 else sum(1 for w in b if w in a) / len(b)
 def bad(r):
     if r['src'] == 'polish': return False
-    return r['words'] >= 3 and r['ru'].count(',') < 4 and not r['ru'].lower().startswith('voice') and \
+    return r['words'] >= 3 and not (r['ru'].count(',') >= 4 and len(r['ru'].split()) <= r['ru'].count(',') * 1.5 + 3) and not r['ru'].lower().startswith('voice') and \
         (r['kind'] in ('missing', 'ru', 'same') or (r['uk'] and overlap(r) >= 0.34))
 def uniq():
     seen = {}
