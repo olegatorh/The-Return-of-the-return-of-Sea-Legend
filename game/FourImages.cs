@@ -105,7 +105,10 @@ public partial class FourImagesView : Control
                 string? txt = pic.Find("str" + (s + 1), false)?.Value;
                 if (string.IsNullOrEmpty(txt)) continue;
                 var (font, off) = ParseStyle(strStyle[s]);
-                var l = new Label { Text = txt.TrimStart('#'), Position = off, Size = new Vector2(slots[i].Size.X - off.X, 30), MouseFilter = MouseFilterEnum.Ignore };
+                // xi_four_img.cpp: the string's anchor is the CENTRE of the slot + off.x; off.x < 0 = left-aligned from the anchor, > 0 = right-aligned to it, 0 = centred on it
+                float anchor = slots[i].Size.X / 2 + off.X, w = slots[i].Size.X;
+                var l = new Label { Text = txt.TrimStart('#'), Position = new Vector2(off.X < 0 ? anchor : off.X > 0 ? anchor - w : anchor - w / 2, off.Y), Size = new Vector2(w, 30), MouseFilter = MouseFilterEnum.Ignore,
+                    HorizontalAlignment = off.X < 0 ? HorizontalAlignment.Left : off.X > 0 ? HorizontalAlignment.Right : HorizontalAlignment.Center, ClipText = false };
                 l.AddThemeFontSizeOverride("font_size", Px(font));
                 l.AddThemeColorOverride("font_outline_color", Colors.Black);
                 l.AddThemeConstantOverride("outline_size", 3);
