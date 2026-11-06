@@ -37,12 +37,13 @@ public partial class SeaView
     readonly List<BiLocator> biLocators = new();
     // the icon texture list: BattleInterface.CommandTextures.list t0..t12 (SetParameterData), then what BI_MSG_ADD_NEWTEXTURE appends
     readonly List<(string file, int xs, int ys)> biTextures = new();
+    readonly Dictionary<(int chr, int rel), (Texture2D? back, Texture2D? flag)> biGerald = new();
     bool biVisible = true, biNotEnoughBalls;
     int biCommandMode, biCommandChar = -1, biCommandState = -1;
 
     void ResetBattleInterface()
     {
-        biShips.Clear(); biLocators.Clear(); biTextures.Clear();
+        biShips.Clear(); biLocators.Clear(); biTextures.Clear(); biGerald.Clear();
         for (int i = 0; i < 13; i++) biTextures.Add(("battle_interface\\" + CmdTex[i].file, CmdTex[i].xs, CmdTex[i].ys));
         biVisible = true; biNotEnoughBalls = false; biCommandMode = 0; biCommandChar = -1;
     }
@@ -73,7 +74,8 @@ public partial class SeaView
                     bool my = Conv.ToInt(d[4]) != 0;
                     var bs = new BiShip { Index = idx, My = my, Transferable = d.Length > 7 ? Conv.ToInt(d[7]) != 0 : my, Relation = Conv.ToInt(d[5]) };
                     var pic = it.FireEvent("BI_GetData", new List<V> { V.Int(0), V.Int(idx) });          // BIDT_SHIPPICTURE
-                    bs.Pic = RetInt(pic, 0, 0); bs.SelPic = RetInt(pic, 1, 0); bs.Tex = RetInt(pic, 2, -1); bs.Dead = RetInt(pic, 3, 0) != 0;
+                    // this game's BI_GetData(BIDT_SHIPPICTURE) returns int[3] = picture, texture, dead (the highlighted picture is the right half of the same cell)
+                    bs.Pic = RetInt(pic, 0, 0); bs.SelPic = bs.Pic; bs.Tex = RetInt(pic, 1, -1); bs.Dead = RetInt(pic, 2, 0) != 0;
                     biShips.Add(bs);
                 }
                 break;
@@ -123,6 +125,19 @@ public partial class SeaView
             biLocators.Add(l);
         }
         GD.Print($"[sea] battle interface: island {isl.Get("id")?.Value}, {biLocators.Count} places ({biLocators.Count(l => l.Type == BiLocFort)} forts)");
+    }
+
+    /// <summary>The picture of a ship in the command list (BI_GetData BIDT_SHIPPICTURE at BI_IN_CREATE_SHIP), highlighted = the right half of the cell.</summary>
+    Texture2D? ShipPicture(int chr, bool highlighted) => biShips.FirstOrDefault(b => b.Index == chr) is { } b ? BiIcon(b.Tex, b.Pic, highlighted) : null;
+
+    /// <summary>The nation shield of a ship (BI_GetData BIDT_GERALD_DATA: int[4] = texture, relation shield picture, texture, nation picture), asked once per relation.</summary>
+    (Texture2D? back, Texture2D? flag) Gerald(int chr, int relation)
+    {
+        if (biGerald.TryGetValue((chr, relation), out var g)) return g;
+        var v = it.FireEvent("BI_GetData", new List<V> { V.Int(1), V.Int(chr) });
+        g = (BiIcon(RetInt(v, 0, -1), RetInt(v, 1, -1), false), BiIcon(RetInt(v, 2, -1), RetInt(v, 3, -1), false));
+        biGerald[(chr, relation)] = g;
+        return g;
     }
 
     /// <summary>An icon of the battle interface texture list (textures appended by BI_MSG_ADD_NEWTEXTURE included).</summary>

@@ -15,6 +15,9 @@ public sealed class HudMenuItem
     public string Id = "";            // command event / sail state / ...
     public int Target = -1;           // character index or charge number
     public string Loc = "";
+    public HudShip? Ship;             // a ship icon: its state strip and nation shield are drawn with it
+    public string Count = "";         // a quantity printed on the icon (charge)
+    public bool Cancel;
 }
 
 public sealed class HudMenu
@@ -22,6 +25,7 @@ public sealed class HudMenu
     public bool Open;
     public string Title = "";
     public List<HudMenuItem> Items = new();
+    public List<HudMenuItem> Passive = new();     // shown while the menu is closed: the ships of the squadron (the first level of the command list)
     public int Selected;
 }
 
@@ -95,7 +99,7 @@ public partial class SeaView
     {
         if (!Active || ships.FirstOrDefault(s => s.IsPlayer) is not { } p) return;
         var squad = Companions(p);
-        if (squad.Count > 1) { ShowShips(squad, "Оберіть корабель"); menuLevel = MenuLevel.Ship; }
+        if (squad.Count > 1) { ShowShips(squad, "Оберіть корабель"); AddCancel(); menuLevel = MenuLevel.Ship; }
         else ShowCommands(p.Index);
     }
 
@@ -116,14 +120,34 @@ public partial class SeaView
     HudMenuItem ShipItem(ShipRt s, float? dist = null)
     {
         var hs = MakeHudShip(s, dist);
-        var icon = Atlas.Get("SHIPS16", hs.Type) ?? Atlas.Get("Ships16", hs.Type);
-        return new HudMenuItem { Icon = icon, IconSelected = icon, Label = dist is { } d ? $"{hs.Name}  {d:0} м" : hs.Name, Id = "ship", Target = s.Index };
+        var pl = ships.FirstOrDefault(x => x.IsPlayer);
+        (hs.GeraldBack, hs.GeraldFlag) = Gerald(s.Index, pl == null || ReferenceEquals(pl, s) ? 0 : Relation(pl.Index, s.Index));
+        var icon = ShipPicture(s.Index, false) ?? Atlas.Get("SHIPS16", hs.Type) ?? Atlas.Get("Ships16", hs.Type);
+        var sel = ShipPicture(s.Index, true) ?? icon;
+        return new HudMenuItem { Icon = icon, IconSelected = sel, Label = dist is { } d ? $"{hs.Name}  {d:0} м" : hs.Name, Id = "ship", Target = s.Index, Ship = hs };
     }
 
     void ShowShips(IEnumerable<ShipRt> list, string title)
     {
         menuItems.Clear(); menuSel = 0; menuTitle = title;
         foreach (var s in list) menuItems.Add(ShipItem(s, ships.FirstOrDefault(x => x.IsPlayer) is { } pl && !ReferenceEquals(pl, s) ? Dist(pl, s) : null));
+    }
+
+    /// <summary>BIShipCommandList::AddCancelIcon: every list ends with Commands.Cancel (cicons_command picture 7, the note of the script); it steps one level back.</summary>
+    void AddCancel()
+    {
+        var c = BI?.Find("Commands.Cancel", false);
+        int tex = (int)F(c, "texNum", 1), pic = (int)F(c, "picNum", 7);
+        menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = c?.Get("note")?.Value ?? "Скасувати", Id = "Cancel", Cancel = true });
+    }
+
+    /// <summary>The ships of the squadron shown by the bar while no menu is open (BI_COMMODE_MY_SHIP_SELECT is the first level of the command list).</summary>
+    List<HudMenuItem> PassiveShips()
+    {
+        var r = new List<HudMenuItem>();
+        if (ships.FirstOrDefault(s => s.IsPlayer) is { } p)
+            foreach (var s in Companions(p)) r.Add(ShipItem(s));
+        return r;
     }
 
     // ------------------------------------------------------------------ levels
@@ -145,6 +169,7 @@ public partial class SeaView
                 menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = c.Get("note")?.Value ?? c.Name, Id = c.Get("event")!.Value ?? "" });
             }
         if (menuItems.Count == 0) menuNote = "Немає доступних команд";
+        AddCancel();
     }
 
     public void CommandKey(Key k)
@@ -168,7 +193,7 @@ public partial class SeaView
         switch (menuLevel)
         {
             case MenuLevel.Command:
-                if (ships.FirstOrDefault(s => s.IsPlayer) is { } p && Companions(p).Count > 1) { ShowShips(Companions(p), "Оберіть корабель"); menuLevel = MenuLevel.Ship; }
+                if (ships.FirstOrDefault(s => s.IsPlayer) is { } p && Companions(p).Count > 1) { ShowShips(Companions(p), "Оберіть корабель"); AddCancel(); menuLevel = MenuLevel.Ship; }
                 else CloseCommands();
                 break;
             case MenuLevel.Ship: CloseCommands(); break;
@@ -180,6 +205,7 @@ public partial class SeaView
     {
         if (i < 0 || i >= menuItems.Count || !menuItems[i].Enabled) return;
         var item = menuItems[i];
+        if (item.Cancel) { Back(); return; }
         switch (menuLevel)
         {
             case MenuLevel.Ship: ShowCommands(item.Target); break;
@@ -213,8 +239,9 @@ public partial class SeaView
             for (int c = 0; c < kinds; c++)
             {
                 int have = RetInt(q, c + 1, 0);
-                menuItems.Add(new HudMenuItem { Icon = ChargeIcon(c, false), IconSelected = ChargeIcon(c, true), Label = $"{names[c]} ({have})", Enabled = have > 0, Target = c + 1 });
+                menuItems.Add(new HudMenuItem { Icon = ChargeIcon(c, false), IconSelected = ChargeIcon(c, true), Label = names[c], Count = have.ToString(), Enabled = have > 0, Target = c + 1 });
             }
+            AddCancel();
             return;
         }
         if ((mode & ModeUser) != 0)
@@ -228,6 +255,7 @@ public partial class SeaView
                 int tex = (int)F(u, "tex", 5), pic = (int)F(u, "pic", c);
                 menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = c < cap.Length ? cap[c] : u.Name, Loc = u.Get("name")?.Value ?? "" });
             }
+            AddCancel();
             return;
         }
         if ((mode & ModeAbility) != 0)
@@ -240,9 +268,10 @@ public partial class SeaView
                 var a = ab.ChildAt(c)!;
                 if ((int)Conv.ParseFloatPrefix(a.Get("enable")?.Value) == 0) continue;
                 int tex = (int)F(a, "texNum", 6), pic = (int)F(a, "picNum", 0);
-                menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = a.Name, Id = a.Get("event")?.Value ?? "" });
+                menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = AbilityNote(a), Id = a.Get("event")?.Value ?? "" });
             }
             if (menuItems.Count == 0) { menuNote = "Немає доступних здібностей"; ShowCommands(menuChar); }
+            else AddCancel();
             return;
         }
         // a target: ships of the allowed kinds
@@ -281,6 +310,7 @@ public partial class SeaView
         var pl = p!;
         ShowShips(cand.OrderBy(s => Dist(pl, s)), label);
         menuItems.AddRange(places);
+        AddCancel();
         menuLevel = MenuLevel.Target;
     }
 
@@ -292,9 +322,17 @@ public partial class SeaView
         it.FireEvent("BI_LaunchCommand", new List<V> { V.Int(ch), V.Str(ev), V.Int(target), V.Str(loc) });
     }
 
+    /// <summary>The abilities carry no note in this game's script: the caption is the perk's name (translated here).</summary>
+    static string AbilityNote(Attr a) => a.Get("note")?.Value is { Length: > 0 } n ? n : a.Name switch
+    {
+        "Brander" => "Брандер", "Aboard" => "Абордаж", "ImmediateReload" => "Миттєве перезаряджання", "InstantBoarding" => "Миттєвий абордаж", "LightRepair" => "Легкий ремонт",
+        "InstantRepair" => "Екстрений ремонт", "Turn180" => "Розворот на 180", "SandbankManeuver" => "Маневр на мілині", "Troopers" => "Десант", _ => a.Name,
+    };
+
     HudMenu BuildMenu() => new()
     {
         Open = menuLevel != MenuLevel.None, Title = menuNote != null ? menuTitle + "  —  " + menuNote : menuTitle,
         Items = menuItems.ToList(), Selected = Math.Clamp(menuSel, 0, Math.Max(0, menuItems.Count - 1)),
+        Passive = menuLevel == MenuLevel.None ? PassiveShips() : new(),
     };
 }

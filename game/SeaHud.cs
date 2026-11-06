@@ -11,7 +11,8 @@ public sealed class HudShip
     public float Hull = 1f, Sails = 1f, Crew = 1f;
     public int CrewCount;
     public float Distance;
-    public bool Own;
+    public bool Own, Dead;
+    public Texture2D? GeraldBack, GeraldFlag;          // BI_GetData BIDT_GERALD_DATA: the relation shield and the nation flag (small_nations.tga)
 }
 
 /// <summary>What the spyglass shows of a ship (MSG_ISG_UPDATE); -1 / "" = the spyglass type does not show it.</summary>
@@ -65,18 +66,9 @@ public partial class SeaHud : CanvasLayer
     const string Dir = "battle_interface\\";
     readonly Control root = new() { Name = "SeaHudRoot", MouseFilter = Control.MouseFilterEnum.Ignore };
     readonly NavigatorView nav = new() { Name = "Navigator" };
-    readonly Label actionText = new();
-    readonly VBoxContainer squad = new() { Name = "Squadron" };
-    readonly Control targetPanel = new() { Name = "Target" };
-    readonly Label targetName = new(), targetInfo = new();
-    readonly ColorRect targetHull = new(), targetHullBack = new();
-    readonly TextureRect targetFlag = new();
-    readonly Control commands = new() { Name = "Commands" };
     readonly Control menuBox = new() { Name = "CommandMenu", MouseFilter = Control.MouseFilterEnum.Ignore };
+    readonly BarView bar = new() { Name = "CommandBar" };
     readonly Control markers = new() { Name = "Markers", MouseFilter = Control.MouseFilterEnum.Ignore };
-    readonly List<Control> commandIcons = new();
-    readonly Label[] ammoText = new Label[4];
-    readonly TextureRect[] chargeIcon = new TextureRect[4];
     readonly Label debug = new() { Name = "SeaHudText" };
 
     public SeaHud()
@@ -85,9 +77,6 @@ public partial class SeaHud : CanvasLayer
         root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(root);
         BuildNavigator();
-        BuildSquadron();
-        BuildTarget();
-        BuildCommands();
         root.AddChild(markers);
         scopeRect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         scopeRect.Visible = false;
@@ -106,6 +95,8 @@ public partial class SeaHud : CanvasLayer
         // BattleInterface.CommandShowParam: icons 64 x 64, 4 apart, left 16, top = bottom - 80, the note 28 above (800 x 600 pixels at UiLayout.Hud scale)
         menuBox.OffsetLeft = 16 * UiLayout.Hud; menuBox.OffsetTop = -(80 + 28) * UiLayout.Hud; menuBox.OffsetRight = (16 + 560) * UiLayout.Hud; menuBox.OffsetBottom = -16 * UiLayout.Hud;
         menuBox.Scale = new Vector2(UiLayout.Hud, UiLayout.Hud);
+        bar.Hud = this; bar.Size = new Vector2(560, 108);
+        menuBox.AddChild(bar);
         root.AddChild(menuBox);
         debug.Visible = false;
         root.AddChild(debug);
@@ -136,94 +127,7 @@ public partial class SeaHud : CanvasLayer
         root.AddChild(nav);
     }
 
-    void BuildSquadron()
-    {
-        squad.Position = new Vector2(10, 10);
-        squad.AddThemeConstantOverride("separation", 4);
-        squad.MouseFilter = Control.MouseFilterEnum.Ignore;
-        root.AddChild(squad);
-    }
-
-    void BuildTarget()
-    {
-        targetPanel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
-        targetPanel.OffsetLeft = -150; targetPanel.OffsetRight = 150; targetPanel.OffsetTop = 10; targetPanel.OffsetBottom = 70;
-        targetPanel.MouseFilter = Control.MouseFilterEnum.Ignore;
-        var back = new Panel { Size = new Vector2(300, 60), MouseFilter = Control.MouseFilterEnum.Ignore };
-        back.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(0.02f, 0.03f, 0.12f, 0.6f), BorderColor = new Color(0.85f, 0.7f, 0.3f, 0.9f), BorderWidthBottom = 1, BorderWidthTop = 1, BorderWidthLeft = 1, BorderWidthRight = 1, CornerRadiusBottomLeft = 4, CornerRadiusBottomRight = 4, CornerRadiusTopLeft = 4, CornerRadiusTopRight = 4 });
-        targetPanel.AddChild(back);
-        targetFlag.Position = new Vector2(8, 8); targetFlag.Size = new Vector2(32, 32); targetFlag.ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize; targetFlag.StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered;
-        targetPanel.AddChild(targetFlag);
-        targetName.Position = new Vector2(48, 4); targetName.Size = new Vector2(244, 24);
-        foreach (var l in new[] { targetName, targetInfo }) { l.AddThemeFontSizeOverride("font_size", 15); l.AddThemeColorOverride("font_color", new Color(1f, 0.95f, 0.8f)); l.AddThemeColorOverride("font_outline_color", Colors.Black); l.AddThemeConstantOverride("outline_size", 3); l.MouseFilter = Control.MouseFilterEnum.Ignore; }
-        targetInfo.Position = new Vector2(48, 32); targetInfo.Size = new Vector2(244, 20);
-        targetInfo.AddThemeFontSizeOverride("font_size", 13);
-        targetHullBack.Position = new Vector2(48, 28); targetHullBack.Size = new Vector2(244, 4); targetHullBack.Color = new Color(0, 0, 0, 0.6f);
-        targetHull.Position = new Vector2(48, 28); targetHull.Size = new Vector2(244, 4); targetHull.Color = new Color(0.85f, 0.15f, 0.12f);
-        targetPanel.AddChild(targetName); targetPanel.AddChild(targetHullBack); targetPanel.AddChild(targetHull); targetPanel.AddChild(targetInfo);
-        targetPanel.Visible = false;
-        root.AddChild(targetPanel);
-    }
-
-    readonly (string key, string icon, Rect2 rect, string label)[] slots =
-    {
-        ("W/S", "", new Rect2(0, 192, 64, 64), "Вітрила"),
-    };
-
-    void BuildCommands()
-    {
-        commands.SetAnchorsPreset(Control.LayoutPreset.BottomRight);
-        commands.OffsetLeft = -330; commands.OffsetRight = -10; commands.OffsetTop = -118; commands.OffsetBottom = -10;
-        commands.MouseFilter = Control.MouseFilterEnum.Ignore;
-        root.AddChild(commands);
-        // the four kinds of ammunition: 1 balls, 2 grape, 3 knippels, 4 bombs (cicons_charge: one column per state, four rows)
-        for (int i = 0; i < 4; i++)
-        {
-            var ic = Tex("cicons_charge.tga", new Vector2(i * 78, 50), new Vector2(60, 60), new Rect2(0, i * 64, 64, 64));
-            commands.AddChild(ic); chargeIcon[i] = ic;
-            var l = MakeLabel(14); l.Position = new Vector2(i * 78 + 2, 94); l.Size = new Vector2(60, 18); l.HorizontalAlignment = HorizontalAlignment.Right; commands.AddChild(l); ammoText[i] = l;
-            var key = MakeLabel(13, new Color(1f, 0.85f, 0.4f)); key.Text = (i + 1).ToString(); key.Position = new Vector2(i * 78 + 2, 48); commands.AddChild(key);
-        }
-        actionText.AddThemeFontSizeOverride("font_size", 22);
-        actionText.AddThemeColorOverride("font_color", new Color(1f, 0.9f, 0.4f));
-        actionText.AddThemeColorOverride("font_outline_color", Colors.Black);
-        actionText.AddThemeConstantOverride("outline_size", 6);
-        actionText.MouseFilter = Control.MouseFilterEnum.Ignore;
-        actionText.SetAnchorsPreset(Control.LayoutPreset.CenterBottom);
-        actionText.OffsetLeft = -300; actionText.OffsetRight = 300; actionText.OffsetTop = -150; actionText.OffsetBottom = -100;
-        actionText.HorizontalAlignment = HorizontalAlignment.Center;
-        root.AddChild(actionText);
-    }
-
     // ------------------------------------------------------------------ per frame
-    readonly List<(Control row, ColorRect hull, ColorRect sails, ColorRect crew, Label name, TextureRect icon, TextureRect flag)> rows = new();
-
-    Control Row(out ColorRect hull, out ColorRect sails, out ColorRect crew, out Label name, out TextureRect icon, out TextureRect flag)
-    {
-        var row = new Control { CustomMinimumSize = new Vector2(250, 54), MouseFilter = Control.MouseFilterEnum.Ignore };
-        var back = new Panel { Size = new Vector2(250, 54), MouseFilter = Control.MouseFilterEnum.Ignore };
-        back.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(0.02f, 0.03f, 0.12f, 0.55f), BorderColor = new Color(0.85f, 0.7f, 0.3f, 0.7f), BorderWidthBottom = 1, BorderWidthTop = 1, BorderWidthLeft = 1, BorderWidthRight = 1 });
-        row.AddChild(back);
-        icon = new TextureRect { Position = new Vector2(3, 3), Size = new Vector2(48, 48), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = Control.MouseFilterEnum.Ignore };
-        row.AddChild(icon);
-        flag = new TextureRect { Position = new Vector2(34, 30), Size = new Vector2(20, 20), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered, MouseFilter = Control.MouseFilterEnum.Ignore };
-        row.AddChild(flag);
-        name = MakeLabel(14); name.Position = new Vector2(58, 2); name.Size = new Vector2(188, 20); row.AddChild(name);
-        ColorRect Bar(float y, Color c)
-        {
-            row.AddChild(new ColorRect { Position = new Vector2(60, y), Size = new Vector2(180, 6), Color = new Color(0, 0, 0, 0.6f), MouseFilter = Control.MouseFilterEnum.Ignore });
-            var b = new ColorRect { Position = new Vector2(60, y), Size = new Vector2(180, 6), Color = c, MouseFilter = Control.MouseFilterEnum.Ignore };
-            row.AddChild(b); return b;
-        }
-        hull = Bar(26, new Color(0.85f, 0.15f, 0.12f));
-        sails = Bar(34, new Color(0.9f, 0.9f, 0.8f));
-        crew = Bar(42, new Color(0.95f, 0.75f, 0.2f));
-        return row;
-    }
-
-    static Texture2D? NationFlag(HudShip s) => s.NationGroup == "" ? null : Atlas.Get(s.NationGroup, s.NationName);
-    static Texture2D? ShipIcon(HudShip s) => Atlas.Get("SHIPS16", s.Type) ?? Atlas.Get("Ships16", s.Type);
-
     bool suspended;
     bool lastOn;
     public bool Suspended { get => suspended; set { suspended = value; Visible = lastOn && !suspended; } }
@@ -334,58 +238,11 @@ public partial class SeaHud : CanvasLayer
         if (spyAlpha > 0.01f || spyPrev > 0.01f) spyPanel.QueueRedraw();      // a Control draws only when asked: the panel follows the glass data and the fade
         // navigator
         nav.Set(d);
-        // squadron
-        while (rows.Count < d.Squadron.Count)
-        {
-            var row = Row(out var h, out var s, out var c, out var n, out var ic, out var fl);
-            squad.AddChild(row); rows.Add((row, h, s, c, n, ic, fl));
-        }
-        for (int i = 0; i < rows.Count; i++)
-        {
-            bool on = i < d.Squadron.Count;
-            rows[i].row.Visible = on;
-            if (!on) continue;
-            var sh = d.Squadron[i];
-            rows[i].name.Text = sh.Name;
-            rows[i].hull.Size = new Vector2(180 * Math.Clamp(sh.Hull, 0f, 1f), 6);
-            rows[i].sails.Size = new Vector2(180 * Math.Clamp(sh.Sails, 0f, 1f), 6);
-            rows[i].crew.Size = new Vector2(180 * Math.Clamp(sh.Crew, 0f, 1f), 6);
-            rows[i].icon.Texture = ShipIcon(sh);
-            rows[i].flag.Texture = NationFlag(sh);
-        }
-        // target
-        // as in the original: a foreign ship is described (name, hull, crew, distance) only through the telescope; by eye there is no target panel
-        targetPanel.Visible = d.Target != null && scopeAmount > 0.5f;
-        if (d.Target is { } t)
-        {
-            // a foreign ship's name and characteristics (hull, crew) are read only through the telescope (the ispyglass panel); by eye it is just a flag and a distance
-            bool spy = scopeAmount > 0.5f;
-            targetName.Text = spy ? t.Name : "";
-            targetHull.Visible = spy;
-            targetHull.Size = new Vector2(244 * Math.Clamp(t.Hull, 0f, 1f), 4);
-            targetInfo.Text = spy ? $"{t.Distance:0} м   екіпаж {t.CrewCount}" : $"{t.Distance:0} м";
-            targetFlag.Texture = NationFlag(t);
-        }
-        // ammunition bar
-        for (int i = 0; i < 4; i++)
-        {
-            ammoText[i].Text = d.Ammo[i].ToString();
-            bool sel = i == d.Charge;
-            chargeIcon[i].Texture = ChargeTex(i, sel);
-            chargeIcon[i].Modulate = d.Ammo[i] <= 0 ? new Color(1, 1, 1, 0.35f) : Colors.White;
-        }
-        actionText.Text = "";            // the hint with the key comes from the script (ILogAndActions)
-        BuildMenuUi(d.Menu);
-        commands.Visible = (d.Menu == null || !d.Menu.Open) && spyAlpha <= 0.01f;     // the spyglass strip takes the bottom of the screen
+        // the command bar: the ships of the squadron (the first level of the command list, always shown) or the active menu
+        bar.Set(d.Menu);
+        bar.Visible = spyAlpha <= 0.01f;                     // the spyglass strip takes the bottom of the screen
         // BI_SET_VISIBLE (the script's BI_CommandVisible, e.g. under the spyglass): the battle interface parts disappear, the eyepiece / spyglass strip stay
-        nav.Visible = squad.Visible = markers.Visible = menuBox.Visible = d.BiVisible;
-        if (!d.BiVisible) { targetPanel.Visible = false; commands.Visible = false; }
-        // BI_MSG_NOT_ENOUGH_BALLS_FLAG: the navigator's charge picture blinks red when a broadside cannot be loaded (BattleNavigator::SetEnoughBalls)
-        if (d.NotEnoughBalls && d.Charge >= 0 && d.Charge < 4)
-        {
-            float blink = (float)(Time.GetTicksMsec() % 1000) / 1000f;
-            chargeIcon[d.Charge].Modulate = blink < 0.5f ? new Color(1f, 0.3f, 0.3f) : new Color(1f, 1f, 1f, 0.5f);
-        }
+        nav.Visible = markers.Visible = menuBox.Visible = d.BiVisible;
         // markers over ships
         foreach (var c in markers.GetChildren()) c.QueueFree();
         // by eye the ships carry no markers (the original shows only the arrow of the ship chosen in the command menu, see 'pointer');
@@ -400,44 +257,115 @@ public partial class SeaHud : CanvasLayer
         }
     }
 
-    static Texture2D? ChargeTex(int i, bool selected)
-    {
-        var tex = GameAssets.Texture(Dir + "cicons_charge.tga");
-        if (tex == null) return null;
-        return new AtlasTexture { Atlas = tex, Region = new Rect2(selected ? 64 : 0, i * 64, 64, 64) };
-    }
-
     // ------------------------------------------------------------------ command menu
-    string menuSig = "";
     Action<int>? pick;
     public void SetPickHandler(Action<int> a) => pick = a;
 
-    void BuildMenuUi(HudMenu? m)
+    /// <summary>
+    /// The icon row at the bottom left (BattleInterface.CommandShowParam): 64 x 64 icons 4 apart, left 16, top = bottom - 80, up to 8 shown with the left / right
+    /// buttons (lr_buttons.tga, 8 x 64) at the ends when the list goes on, the note of the selected icon 28 above, the state strip of a ship (indicators.tga:
+    /// sails white, crew blue, hull red above the dark empty part; 64 x 16) right under its icon, its nation shield (BI_GetData: back + flag, 32 x 32) over the corner,
+    /// quantities (charge) printed in the lower part of the icon. All coordinates are pixels of the 800 x 600 screen (the parent is scaled by UiLayout.Hud).
+    /// </summary>
+    sealed partial class BarView : Control
     {
-        string sig = m == null || !m.Open ? "" : m.Title + "|" + m.Selected + "|" + string.Join(",", m.Items.ConvertAll(i => i.Label + i.Enabled));
-        if (sig == menuSig) return;
-        menuSig = sig;
-        foreach (var c in menuBox.GetChildren()) c.QueueFree();
-        if (m == null || !m.Open) return;
-        const int Show = 8; const float W = 68;
-        int first = Math.Clamp(m.Selected - Show / 2, 0, Math.Max(0, m.Items.Count - Show));
-        var title = MakeLabel(16); title.Text = m.Title; title.Position = new Vector2(0, -26); title.Size = new Vector2(560, 22); menuBox.AddChild(title);
-        for (int i = first; i < Math.Min(m.Items.Count, first + Show); i++)
+        public SeaHud Hud = null!;
+        HudMenu? menu;
+        const float Pitch = 68f, Icon = 64f, Top = 28f;
+        const int Show = 8;
+
+        public BarView() { MouseFilter = MouseFilterEnum.Stop; }
+
+        public void Set(HudMenu? m) { menu = m; QueueRedraw(); }
+
+        List<HudMenuItem> Items => menu is { Open: true } ? menu.Items : menu?.Passive ?? new();
+        bool Active => menu is { Open: true };
+        int First => Active ? Math.Clamp(menu!.Selected - Show / 2, 0, Math.Max(0, menu.Items.Count - Show)) : 0;
+
+        public override void _GuiInput(InputEvent e)
         {
-            var it = m.Items[i];
-            bool sel = i == m.Selected;
-            var b = new TextureButton { TextureNormal = sel ? it.IconSelected ?? it.Icon : it.Icon, IgnoreTextureSize = true, StretchMode = TextureButton.StretchModeEnum.Scale,
-                Position = new Vector2((i - first) * W, 28), Size = new Vector2(64, 64), FocusMode = Control.FocusModeEnum.None, Modulate = it.Enabled ? Colors.White : new Color(1, 1, 1, 0.35f) };
-            int idx = i; b.Pressed += () => pick?.Invoke(idx);
-            menuBox.AddChild(b);
-            var num = MakeLabel(13, new Color(1f, 0.85f, 0.4f)); num.Text = (i + 1).ToString(); num.Position = new Vector2((i - first) * W + 3, 28); menuBox.AddChild(num);
-            if (sel)
+            if (e is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb || menu == null) return;
+            int col = (int)(mb.Position.X / Pitch);
+            if (mb.Position.Y < Top || mb.Position.Y > Top + Icon || mb.Position.X - col * Pitch > Icon) return;
+            int idx = First + col;
+            if (idx >= 0 && idx < Items.Count) { Hud.pick?.Invoke(idx); AcceptEvent(); }
+        }
+
+        void Img(Texture2D? t, Rect2 dst, Color? mod = null)
+        {
+            if (t != null) DrawTextureRect(t, dst, false, mod ?? Colors.White);
+        }
+
+        public override void _Draw()
+        {
+            var items = Items;
+            if (items.Count == 0) return;
+            var font = ThemeDB.FallbackFont;
+            int first = First, last = Math.Min(items.Count, first + Show);
+            int sel = Active ? menu!.Selected : -1;
+            if (Active && menu!.Title.Length > 0)
             {
-                var note = MakeLabel(15); note.Text = it.Label; note.Position = new Vector2(0, 0); note.Size = new Vector2(560, 20); menuBox.AddChild(note);
-                menuBox.AddChild(new ColorRect { Position = new Vector2((i - first) * W - 2, 26), Size = new Vector2(68, 2), Color = new Color(1f, 0.85f, 0.4f), MouseFilter = Control.MouseFilterEnum.Ignore });
+                DrawStringOutline(font, new Vector2(0, -10), menu.Title, HorizontalAlignment.Left, -1, 14, 5, Colors.Black);
+                DrawString(font, new Vector2(0, -10), menu.Title, HorizontalAlignment.Left, -1, 14, new Color(0.75f, 0.78f, 0.9f));
+            }
+            var ind = GameAssets.Texture(Dir + "indicators.tga");
+            for (int i = first; i < last; i++)
+            {
+                var it = items[i];
+                float x = (i - first) * Pitch;
+                bool on = i == sel;
+                var tint = it.Enabled ? Colors.White : new Color(1, 1, 1, 0.35f);
+                Img(on ? it.IconSelected ?? it.Icon : it.Icon, new Rect2(x, Top, Icon, Icon), tint);
+                if (it.Ship is { } sh)
+                {
+                    // the state strip (the three bars of indicators.tga: the filled top half up to the ratio, the dark bottom half beyond it)
+                    if (ind != null)
+                    {
+                        float[] ratio = { sh.Sails, sh.Crew, sh.Hull };
+                        float[] y0 = { 0, 5, 10 }, y1 = { 5, 10, 16 };
+                        for (int b = 0; b < 3; b++)
+                        {
+                            float r = Math.Clamp(ratio[b], 0f, 1f), w = r * Icon, h = y1[b] - y0[b];
+                            if (w > 0.5f) DrawTextureRectRegion(ind, new Rect2(x, Top + Icon + y0[b], w, h), new Rect2(0, y0[b], w, h));
+                            if (w < Icon - 0.5f) DrawTextureRectRegion(ind, new Rect2(x + w, Top + Icon + y0[b], Icon - w, h), new Rect2(w, 16 + y0[b], Icon - w, h));
+                        }
+                    }
+                    Img(sh.GeraldBack, new Rect2(x + Icon - 34, Top + 2, 32, 32));
+                    Img(sh.GeraldFlag, new Rect2(x + Icon - 34 + 4, Top + 2 + 4, 24, 24));
+                }
+                // the key that picks the icon
+                if (Active && i < 9)
+                {
+                    DrawStringOutline(font, new Vector2(x + 4, Top + 14), (i + 1).ToString(), HorizontalAlignment.Left, -1, 13, 4, Colors.Black);
+                    DrawString(font, new Vector2(x + 4, Top + 14), (i + 1).ToString(), HorizontalAlignment.Left, -1, 13, new Color(1f, 0.85f, 0.4f));
+                }
+                if (it.Count.Length > 0)
+                {
+                    // CommandShowParam printXOffset 32 / printYOffset -26 (bold_numbers): centred, 26 above the icon's lower edge
+                    float cw = font.GetStringSize(it.Count, HorizontalAlignment.Left, -1, 20).X;
+                    var at = new Vector2(x + 32 - cw / 2f, Top + Icon - 26 + 18);
+                    DrawStringOutline(font, at, it.Count, HorizontalAlignment.Left, -1, 20, 6, Colors.Black);
+                    DrawString(font, at, it.Count, HorizontalAlignment.Left, -1, 20, it.Enabled ? new Color(1f, 0.95f, 0.8f) : new Color(1f, 0.5f, 0.45f));
+                }
+                if (on)
+                {
+                    // the note: centred over the selected icon, 28 above its top (noteYOffset)
+                    float nw = font.GetStringSize(it.Label, HorizontalAlignment.Left, -1, 16).X;
+                    var at = new Vector2(x + 32 - nw / 2f, Top - 12);
+                    DrawStringOutline(font, at, it.Label, HorizontalAlignment.Left, -1, 16, 6, Colors.Black);
+                    DrawString(font, at, it.Label, HorizontalAlignment.Left, -1, 16, new Color(1f, 0.95f, 0.7f));
+                }
+            }
+            if (Active)
+            {
+                var lr = GameAssets.Texture(Dir + "lr_buttons.tga");
+                if (lr != null)
+                {
+                    // buttonWidth 8, buttonHeight 64, buttonOffset 4: the left half of the picture before the first icon, the right half after the last one
+                    if (first > 0) DrawTextureRectRegion(lr, new Rect2(-12, Top, 8, Icon), new Rect2(0, 0, 16, 64));
+                    if (last < items.Count) DrawTextureRectRegion(lr, new Rect2((last - first) * Pitch, Top, 8, Icon), new Rect2(16, 0, 16, 64));
+                }
             }
         }
-        if (first > 0) { var l = MakeLabel(20); l.Text = "◄"; l.Position = new Vector2(-18, 46); menuBox.AddChild(l); }
-        if (first + Show < m.Items.Count) { var l = MakeLabel(20); l.Text = "►"; l.Position = new Vector2(Show * W - 4, 46); menuBox.AddChild(l); }
     }
 }
