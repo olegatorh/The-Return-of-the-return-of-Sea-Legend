@@ -496,13 +496,15 @@ public partial class SeaView : Node3D
     }
 
     /// <summary>Height of the island surface under the engine point (x, z), or -1000 when there is none.</summary>
+    PhysicsRayQueryParameters3D? landQuery;
     float LandHeight(float x, float z)
     {
         if (islandBody == null || !islandBody.IsInsideTree()) return -1000f;
         var space = GetWorld3D()?.DirectSpaceState;
         if (space == null) return -1000f;
-        var q = PhysicsRayQueryParameters3D.Create(new Vector3(x, 600f, -z), new Vector3(x, -60f, -z), 1u << 4);
-        q.HitBackFaces = true;
+        // one query object for all rays (a new RefCounted per call piled up tens of thousands of objects between garbage collections)
+        var q = landQuery ??= new PhysicsRayQueryParameters3D { CollisionMask = 1u << 4, HitBackFaces = true };
+        q.From = new Vector3(x, 600f, -z); q.To = new Vector3(x, -60f, -z);
         var hit = space.IntersectRay(q);
         return hit.Count > 0 ? ((Vector3)hit["position"]).Y : -1000f;
     }
@@ -530,6 +532,7 @@ public partial class SeaView : Node3D
     {
         if (!Active) return;
         dt = Math.Min(dt, 0.1f);                                                        // SHIP::Execute clamps the frame time
+        profLast = System.Diagnostics.Stopwatch.GetTimestamp();
         rockDt = dt;
         foreach (var s in ships.ToList())
         {
@@ -591,18 +594,37 @@ public partial class SeaView : Node3D
             s.ParamTimer += dt;
             if (s.ParamTimer >= 1f) { s.ParamTimer = 0f; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         }
-        ResolveShipCollisions();
-        TickSeaAI(dt);
-        TickGuns(dt);
-        TickCombat(dt);
-        TickFires();
-        TickForts(dt);
-        TickSailors(dt);
-        TickSails(dt);
-        TickFx(dt);
-        RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0));
-        UpdateCamera(dt, inputEnabled);
-        UpdateHud();
+        PS("ships");
+        ResolveShipCollisions(); PS("collisions");
+        TickSeaAI(dt); PS("ai");
+        TickGuns(dt); PS("guns");
+        TickCombat(dt); PS("combat");
+        TickFires(); PS("fires");
+        TickForts(dt); PS("forts");
+        TickSailors(dt); PS("sailors");
+        TickSails(dt); PS("sails");
+        TickFx(dt); PS("fx");
+        RiggingFx.UpdateFlags((float)(Time.GetTicksMsec() / 1000.0)); PS("flags");
+        UpdateCamera(dt, inputEnabled); PS("camera");
+        UpdateHud(); PS("hud");
+    }
+
+    // SEADOGS_PROF: milliseconds per frame spent in each part of the sea tick (printed with the [prof] line of Main)
+    static readonly bool ProfOn = System.Environment.GetEnvironmentVariable("SEADOGS_PROF") != null;
+    readonly Dictionary<string, long> profAcc = new();
+    long profLast;
+    void PS(string k)
+    {
+        if (!ProfOn) return;
+        long t = System.Diagnostics.Stopwatch.GetTimestamp();
+        profAcc[k] = profAcc.GetValueOrDefault(k) + (t - profLast); profLast = t;
+    }
+    public string ProfReport(int frames)
+    {
+        double k = 1000.0 / System.Diagnostics.Stopwatch.Frequency / frames;
+        var r = string.Join(", ", profAcc.Where(kv => kv.Value * k >= 0.02).Select(kv => $"{kv.Key} {kv.Value * k:0.00}"));
+        profAcc.Clear();
+        return r;
     }
 
     string NationGroup(Attr chr, out string nationName)

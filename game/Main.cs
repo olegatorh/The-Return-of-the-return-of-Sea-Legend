@@ -29,7 +29,7 @@ public partial class Main : Node
     bool camPlaced;
     int frames;
     readonly bool prof = System.Environment.GetEnvironmentVariable("SEADOGS_PROF") != null;
-    long profWorld, profAdv, profFrame;
+    long profWorld, profAdv, profFrame; double profObj;
     Image? lastGameFrame;
 
     Image? GrabFrame(bool full = false)
@@ -1055,10 +1055,14 @@ public partial class Main : Node
         if (prof)
         {
             profWorld += t1 - t0; profAdv += t2 - t1; profFrame += t3 - t2;
+            { double pm = delta * 1000, oc = Performance.GetMonitor(Performance.Monitor.ObjectCount);
+              if (frames > 100 && pm > 25 || Math.Abs(oc - profObj) > 3000) GD.Print($"[prof] frame {frames}: frame time {pm:0.0} ms, objects {profObj:0} -> {oc:0}, script part {(t3 - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0.0} ms, gc0 {GC.CollectionCount(0)} gc2 {GC.CollectionCount(2)}");
+              profObj = oc; }
             if ((frames + 1) % 120 == 0)
             {
                 double k = 1000.0 / System.Diagnostics.Stopwatch.Frequency / 120.0;
                 GD.Print($"[prof] per frame ms: world {profWorld * k:0.0}, advance {profAdv * k:0.0}, frameEvent {profFrame * k:0.0}, fps {Engine.GetFramesPerSecond():0}, process {Performance.GetMonitor(Performance.Monitor.TimeProcess) * 1000:0.0} ms, draw calls {Performance.GetMonitor(Performance.Monitor.RenderTotalDrawCallsInFrame):0}, primitives {Performance.GetMonitor(Performance.Monitor.RenderTotalPrimitivesInFrame):0}, objects {Performance.GetMonitor(Performance.Monitor.ObjectCount):0}");
+                if (sea.Active) GD.Print("[prof] sea ms: " + sea.ProfReport(120));
                 profWorld = profAdv = profFrame = 0;
             }
         }
