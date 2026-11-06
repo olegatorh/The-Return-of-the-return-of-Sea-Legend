@@ -566,7 +566,7 @@ public partial class Main : Node
             if (Keys.Is(sk2, "SeaAction")) SeaAction();                       // BIFastCommand
         }
         // Z = step back (the original ChrRecoil)
-        if (e is InputEventKey { Pressed: true, Echo: false } zk && Keys.Is(zk, "LandRecoil") && dialogView == null && !UiOpen && locations.Count > 0)
+        if (e is InputEventKey { Pressed: true, Echo: false } zk && Keys.Is(zk, "LandRecoil") && Ctl.Allowed("ChrRecoil") && dialogView == null && !UiOpen && locations.Count > 0)
             characters.Values.FirstOrDefault(c => c.IsPlayer)?.Recoil();
         // Q = pistol shot (the original ChrFire)
         if (e is InputEventKey { Pressed: true, Echo: false } qk && Keys.Is(qk, "LandFire") && dialogView == null && !UiOpen && locations.Count > 0)
@@ -755,7 +755,7 @@ public partial class Main : Node
             player.Input = mv;
             player.Classic = classic;
             player.TurnAdd += turnAdd;
-            player.Blocking = free && player.FightMode && Keys.Down("LandBlock");
+            player.Blocking = free && player.FightMode && Keys.Down("LandBlock") && Ctl.Allowed("ChrBlock");      // the script locks the block of the hard levels (LockControl)
             player.Run = forceRun || (classic ? !Keys.Down("LandRun") : Keys.Down("LandRun"));
             player.CameraYaw = camYaw;
         }

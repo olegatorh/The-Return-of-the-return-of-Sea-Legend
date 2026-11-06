@@ -90,10 +90,15 @@ public static class Ctl
     public static void AddMouse(float dx, float dy) => T.AddMouse((int)MathF.Round(dx), (int)MathF.Round(dy));
 
     /// <summary>Start of a frame: update the table and raise the control events the game window does not raise itself.</summary>
+    static long frameNo;
+    static readonly bool Log = System.Environment.GetEnvironmentVariable("SEADOGS_CTLLOG") != null;
+
     public static void Frame(Func<bool> raise)
     {
         T.Update();
         if (it == null) return;
+        if (Log && ++frameNo % 100 == 0)
+            GD.Print($"[controls] group={it.Globals.GetValueOrDefault("curKeyGroupName")?.Val.ToString()} locked: " + string.Join(",", T.All.Where(c => c.Locked && c.SystemCode >= 0).Select(c => c.Name)));
         foreach (var (name, on) in T.Changes())
         {
             if (!raise() || RoutedByMain.Contains(name) || PortKeysWin.Contains(name)) continue;
