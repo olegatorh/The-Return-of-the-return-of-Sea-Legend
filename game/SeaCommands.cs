@@ -61,6 +61,7 @@ public partial class SeaView
     {
         hud.Suspended = suspended;
         if (suspended && menuLevel != MenuLevel.None) CloseCommands();
+        if (suspended && (scopeActiveSent || scopeT > 0f)) LowerTelescope();      // a boarding deck / location / interface takes over: the telescope must not stay up (log, chests and the action icon were hidden by it)
     }
 
     Attr? BI => it.Globals.TryGetValue("BattleInterface", out var b) ? b.Val.Attr : null;

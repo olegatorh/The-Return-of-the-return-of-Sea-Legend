@@ -191,7 +191,7 @@ public partial class SeaView : Node3D
         ships.Clear(); groupPos.Clear(); groupCommander.Clear(); groupType.Clear(); pursuit.Clear(); pursuitPlaced.Clear(); relCache.Clear(); groupCheckT = 0f; ClearCombat(); ClearFires(); ClearForts(); ClearSailors(); ClearSails(); ClearFx(); wakes.Clear(); collCool.Clear();
         island?.QueueFree(); island = null;
         camInit = false; camDist = -1f;
-        deckCam = false; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; pointerChr = -1; lastSelectedShip = -2;
+        deckCam = false; LowerTelescope(); pointerChr = -1; lastSelectedShip = -2;
         Cam.Current = false;
         hud.Update(new HudData());
     }

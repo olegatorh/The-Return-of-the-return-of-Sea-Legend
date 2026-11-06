@@ -83,6 +83,23 @@ public partial class SeaView
         };
     }
 
+    /// <summary>
+    /// The sea is torn down (boarding, a landing, a reload): the telescope goes down for good. The script is told, otherwise SeaCameras_TelescopeActive leaves
+    /// bCanSwitchCameras false and the battle interface hidden (BI_VISIBLE 0) after the boarding; the eyepiece, the spyglass strip and the target are cleared.
+    /// </summary>
+    void LowerTelescope()
+    {
+        if (scopeActiveSent)
+        {
+            it.FireEvent("TelescopeActive", new List<V> { V.Int(0) });
+            it.FireEvent("BI_VISIBLE", new List<V> { V.Int(1) });
+            if (scopeInfoShown) it.FireEvent("ReleaseTelescopeInfo", new List<V>());
+            GD.Print("[sea] telescope lowered: the sea is unloaded while it was up (script told TelescopeActive 0)");
+        }
+        scopeT = 0f; scopeTarget = -1; scopeInfoShown = false; scopeActiveSent = false; lastSpyKey = "";
+        hud.ScopeTexture = ""; hud.ScopeAmount = 0f; hud.SpyVisible = false; hud.Spy = null;
+    }
+
     /// <summary>Per frame while the telescope is up: what is in the middle of the eyepiece, and the script events for it.</summary>
     void UpdateTelescopeInfo(ShipRt p, float dt)
     {
