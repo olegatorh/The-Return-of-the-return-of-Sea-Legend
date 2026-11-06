@@ -937,7 +937,7 @@ void fragment() {
         Detect(dt);
         UpdateEquipment();
         if (dt > 0f) { TickSwing(dt); TickGun(dt); }
-        if (inDialog || dt <= 0f) { isMove = false; PlayIdle(); return; }
+        if (inDialog || dt <= 0f) { isMove = false; if (inDialog) DialogFace((float)GetProcessDeltaTime()); PlayIdle(); return; }
         isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
         var patch = getPatch();
         EnableJump = IsPlayer && !ScriptControlled && task is Task.Stay or Task.None;
@@ -1090,6 +1090,33 @@ void fragment() {
         }
         Locomote(dt);
         Apply();
+    }
+
+    // ---- dialog start: both speakers stop and turn to each other, also when the script's own type does not do it (hero in a cutscene = "actor" type,
+    // "poor"/"huber" NPCs). The game clock is frozen (SetTimeScale(0) in DialogMain), so the turn runs on the real frame time at the idle turn rate.
+    bool dlgFacing, dlgLogged;
+    float dlgStartAy;
+    static readonly bool DialogLog = System.Environment.GetEnvironmentVariable("SEADOGS_DIALOGLOG") != null;
+
+    void DialogFace(float realDt)
+    {
+        if (!dlgFacing || realDt <= 0f) return;
+        if (isSwim || isJump) { dlgFacing = false; return; }
+        CharacterView? other = null;
+        foreach (var c in All.Values) if (!ReferenceEquals(c, this) && c.inDialog && c.Placed) { other = c; break; }
+        if (other == null) return;
+        if (scriptAction.StartsWith("sit", StringComparison.OrdinalIgnoreCase) || playing.StartsWith("sit", StringComparison.OrdinalIgnoreCase)) { dlgFacing = false; return; }     // seated people keep their chair
+        float want = Angle(other.x - x, other.z - z);
+        if (!dlgLogged) { dlgLogged = true; dlgStartAy = ay; if (DialogLog) GD.Print(FormattableString.Invariant($"[dialog] {Id} stops and turns to {other.Id}: yaw {ay:0.00} -> {want:0.00}")); }
+        float rate = Math.Max(rig?.IdleTurnSpeed ?? 4f, 4f);
+        ay = TurnToward(ay, want, rate * realDt);
+        nay = ay; hasNay = false;
+        Apply();
+        if (MathF.Abs(MathF.IEEERemainder(ay - want, MathF.Tau)) < 1e-3f)
+        {
+            dlgFacing = false;
+            if (DialogLog) GD.Print(FormattableString.Invariant($"[dialog] {Id} now faces {other.Id}: yaw {ay:0.00} (was {dlgStartAy:0.00})"));
+        }
     }
 
     /// <summary>Counts the swing down and raises the hit event at the hit frame.</summary>
@@ -1284,7 +1311,10 @@ void fragment() {
                 Apply();
                 return V.Int(1);
             case 30341:                                                                    // TURNBYCHR
-                if (Chr(1) is { } tc) ay = Angle(tc.x - x, tc.z - z);
+                // DialogMain turns the speakers through the script types just before it announces the dialog (InDialog): that turn is eased in over
+                // the following frames (DialogFace) instead of snapping
+                if (it.Globals.TryGetValue("dialogRun", out var dr) && dr.Val.I != 0 && Placed && !inDialog) { if (Chr(1) != null) dlgFacing = true; }
+                else if (Chr(1) is { } tc) ay = Angle(tc.x - x, tc.z - z);
                 Apply();
                 return V.Int(1);
             case 30342: ay = Angle(Fl(1) - x, Fl(3) - z); Apply(); return V.Int(1);        // TURNBYPOINT "lfff"
@@ -1309,7 +1339,11 @@ void fragment() {
             case 30373:                                                                    // EX_MSG: queries and switches
                 switch (S(1))
                 {
-                    case "InDialog": inDialog = Conv.ToInt(d[2]) != 0; return V.Int(1);
+                    case "InDialog":
+                        inDialog = Conv.ToInt(d[2]) != 0;
+                        dlgFacing = inDialog;                                           // see DialogFace
+                        if (inDialog) { dlgLogged = false; Blocking = false; blockUntil = 0f; }
+                        return V.Int(1);
                     case "ChangeFightMode": fightMode = d.Length > 2 && Conv.ToInt(d[2]) != 0; return V.Int(1);
                     case "SetFightMode": FightMode = d.Length > 2 && Conv.ToInt(d[2]) != 0; return V.Int(1);           // with the draw animation (location login, boarding)
                     case "IsSetBalde": return V.Int(string.IsNullOrEmpty(Ent.Root.Find("equip.blade", false)?.Value) ? 0 : 1);
