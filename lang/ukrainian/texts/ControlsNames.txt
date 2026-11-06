@@ -504,3 +504,28 @@ BOAL_UsePotion
 Випити еліксир здоров'я
 }
 
+DialogControls
+{
+Діалог
+}
+
+ChrForward
+{
+Рух персонажа вперед
+}
+
+ChrForward1
+{
+Рух персонажа вперед
+}
+
+ChrBackward
+{
+Рух персонажа назад
+}
+
+ChrBackward1
+{
+Рух персонажа назад
+}
+
