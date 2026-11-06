@@ -710,6 +710,7 @@ public partial class SeaView : Node3D
         d.NavCharge = Conv.ToInt(it.FireEvent("GetCurrentCharge", new List<V>()));
         foreach (var o in ships)
             if (!ReferenceEquals(o, p)) d.NavShips.Add(new NavShip { Dx = o.X - p.X, Dz = o.Z - p.Z, Ay = o.Ay, Relation = Relation(p.Index, o.Index), Dead = o.Dying });
+        FillNavigatorExtras(d, p);
         d.Menu = BuildMenu();
         d.BiVisible = biVisible; d.NotEnoughBalls = biNotEnoughBalls;
         ReportSelectedShip();

@@ -53,6 +53,10 @@ public sealed class HudData
     public HudMenu? Menu;
     public int NavCharge = -1;                      // GetCurrentCharge: picture of the navigator charge icon (small_cannons.tga rows)
     public List<NavShip> NavShips = new();
+    public float[] FireZone = new float[4], FireDir = new float[4], FireRange = new float[4];     // fire-zone fans: angle, direction (rad, relative to the ship), range in metres
+    public Texture2D? IslandMap;                    // the island seen from above (navigator minimap), engine coordinates of its centre and side
+    public Vector2 IslandCentre, ShipPos;
+    public float IslandSize;
     public bool BiVisible = true, NotEnoughBalls;     // battle_interface BI_SET_VISIBLE / BI_MSG_NOT_ENOUGH_BALLS_FLAG (BattleInterface.cs)
 }
 

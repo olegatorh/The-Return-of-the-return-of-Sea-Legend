@@ -169,6 +169,7 @@ public partial class SeaView
                 menuItems.Add(new HudMenuItem { Icon = CmdIcon(tex, pic, false), IconSelected = CmdIcon(tex, pic, true), Label = c.Get("note")?.Value ?? c.Name, Id = c.Get("event")!.Value ?? "" });
             }
         if (menuItems.Count == 0) menuNote = "Немає доступних команд";
+        GD.Print($"[sea] commands of {menuTitle}: " + string.Join(", ", menuItems.Select((m, i) => $"{i + 1}={m.Id}")));
         AddCancel();
     }
 

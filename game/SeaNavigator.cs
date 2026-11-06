@@ -41,6 +41,11 @@ public partial class NavigatorView : Control
     int chargePic = -1;
     bool notEnough;
     List<NavShip> ships = new();
+    float[] fireZone = new float[4], fireDir = new float[4], fireRange = new float[4];
+    Texture2D? islandMap;
+    Vector2 islandCentre, shipPos;
+    float islandSize;
+    static readonly Color FireZoneColor = new(250 / 255f, 250 / 255f, 250 / 255f, 60 / 255f);       // BattleInterface.navigation.argbFireZoneColor
 
     static float U => UiLayout.Hud;
     public static float Side => Size0 * U;
@@ -74,6 +79,8 @@ public partial class NavigatorView : Control
         for (int i = 0; i < 4; i++) { charge[i] = d.Ready[i]; damage[i] = d.Damage[i]; hasGuns[i] = d.HasGuns[i]; }
         chargePic = d.NavCharge; notEnough = d.NotEnoughBalls;
         ships = d.NavShips;
+        fireZone = d.FireZone; fireDir = d.FireDir; fireRange = d.FireRange;
+        islandMap = d.IslandMap; islandCentre = d.IslandCentre; islandSize = d.IslandSize; shipPos = d.ShipPos;
         windText.Text = $"{windSpeed:0.0}"; shipText.Text = $"{shipSpeed:0.0}";
         QueueRedraw();
     }
@@ -135,8 +142,25 @@ public partial class NavigatorView : Control
         // the minimap: sea disc (36 segments) and the ships
         var pts = new Vector2[36];      // no closing duplicate of the first point and no zero radius: both make canvas_item_add_polygon log "triangulation failed" every frame
         for (int i = 0; i < 36; i++) { float a = i * 2 * MathF.PI / 36; pts[i] = c + new Vector2(MathF.Sin(a), MathF.Cos(a)) * MapRadius * U; }
-        if (MapRadius * U > 0.5f) DrawColoredPolygon(pts, SeaColor);
         float mapR = MapRadius * U, k = mapR / (WorldRad * scale);
+        if (mapR > 0.5f)
+        {
+            if (islandMap != null && islandSize > 1f)
+            {
+                // BATTLE_NAVIGATOR::UpdateMiniMap: the disc shows the island picture around the ship, turned with the heading (north up when the ship heads north)
+                var uv = new Vector2[36]; var white = new Color[36];
+                float ch = MathF.Cos(heading), sh = MathF.Sin(heading), world = WorldRad * scale;
+                for (int i = 0; i < 36; i++)
+                {
+                    float a = i * 2 * MathF.PI / 36, sx = MathF.Sin(a), sy = MathF.Cos(a);           // offset of the disc point, up = the ship's heading
+                    float wx = (sx * ch + sy * sh) * world, wz = (-sx * sh + sy * ch) * world;
+                    uv[i] = new Vector2(0.5f + (shipPos.X + wx - islandCentre.X) / islandSize, 0.5f - (shipPos.Y + wz - islandCentre.Y) / islandSize);
+                    white[i] = Colors.White;
+                }
+                DrawPolygon(pts, white, uv, islandMap);
+            }
+            else DrawColoredPolygon(pts, SeaColor);
+        }
         foreach (var sh in ships)
         {
             float fx = sh.Dx * k, fy = sh.Dz * k;
@@ -153,6 +177,16 @@ public partial class NavigatorView : Control
             float area = (t1.X - t0.X) * (t2.Y - t0.Y) - (t2.X - t0.X) * (t1.Y - t0.Y);
             if (!float.IsFinite(area) || MathF.Abs(area) < 0.01f) continue;
             DrawColoredPolygon(new[] { t0, t1, t2 }, col);
+        }
+        // cannon fire zones (UpdateFireRangeBuffer): a fan of 6 points over the zone angle at MaxFireDistance scaled to the disc, for the bow / starboard / stern / port guns
+        for (int side = 0; side < 4; side++)
+        {
+            float rng = Math.Min(fireRange[side] * mapR / (WorldRad * scale), mapR);
+            if (rng < 1f || fireZone[side] < 0.01f) continue;
+            var fan = new Vector2[7]; fan[0] = c;
+            float ang = fireDir[side] - fireZone[side] / 2f, dAng = fireZone[side] / 5f;
+            for (int i = 0; i < 6; i++, ang += dAng) fan[i + 1] = c + new Vector2(MathF.Sin(ang), -MathF.Cos(ang)) * rng;
+            DrawColoredPolygon(fan, FireZoneColor);
         }
         // the ring with the ship in the middle, then the compass card
         var empty = GameAssets.Texture(Dir + "indicators_dark_and_center_ship.tga");
