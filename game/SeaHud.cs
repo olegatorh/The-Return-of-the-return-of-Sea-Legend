@@ -351,7 +351,8 @@ public partial class SeaHud : CanvasLayer
             rows[i].flag.Texture = NationFlag(sh);
         }
         // target
-        targetPanel.Visible = d.Target != null;
+        // as in the original: a foreign ship is described (name, hull, crew, distance) only through the telescope; by eye there is no target panel
+        targetPanel.Visible = d.Target != null && scopeAmount > 0.5f;
         if (d.Target is { } t)
         {
             // a foreign ship's name and characteristics (hull, crew) are read only through the telescope (the ispyglass panel); by eye it is just a flag and a distance
@@ -384,7 +385,9 @@ public partial class SeaHud : CanvasLayer
         }
         // markers over ships
         foreach (var c in markers.GetChildren()) c.QueueFree();
-        foreach (var m in d.Markers)
+        // by eye the ships carry no markers (the original shows only the arrow of the ship chosen in the command menu, see 'pointer');
+        // under the telescope each ship gets its relation triangle with the name and distance
+        if (scopeAmount > 0.5f) foreach (var m in d.Markers)
         {
             var col = m.Relation == 2 ? new Color(1f, 0.25f, 0.2f) : m.Relation == 0 ? new Color(0.4f, 1f, 0.45f) : new Color(1f, 0.9f, 0.4f);
             var tri = new Polygon2D { Polygon = new[] { new Vector2(-8, -12), new Vector2(8, -12), new Vector2(0, 0) }, Color = col, Position = m.Screen };
