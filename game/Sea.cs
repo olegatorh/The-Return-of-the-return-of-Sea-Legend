@@ -51,6 +51,7 @@ public partial class SeaView : Node3D
         public float RockY, RockPitch, RockRoll;           // smoothed ShipRocking state (SeaPhysics.cs)
         public List<(string bort, Vector3 pos)> Cannons = new();
         public List<Vector3> FirePlaces = new();          // "fireplace" labels of the hull (engine local coordinates), SeaFires.cs
+        public int GoalFor; public float GoalT, GoalX, GoalZ, StuckT, StuckX, StuckZ, StuckUntil, StuckDir;   // tactical AI (SeaTactics.cs)
         public List<Gun>? Guns;                           // per-cannon state (SeaGuns.cs)
     }
 
@@ -749,14 +750,14 @@ public partial class SeaView : Node3D
         float tx = s.X, tz = s.Z;
         ShipRt? tgt = s.TaskTarget != null ? ships.FirstOrDefault(o => ReferenceEquals(o.Chr, s.TaskTarget) && !o.Dying) : null;
         int task = s.Task;
-        bool go = true, away = false, match = false; float standoff = 0f;
+        bool go = true, away = false, match = false, attackSlow = false; float standoff = 0f;
         if (task == 4) { tgt = GroupLeader(s.TaskGroup); if (tgt == s) tgt = null; task = 3; }   // AITASK_DEFEND_GROUP: keep with the group's leader like a defender
         // a defender engages an enemy that comes close
         if (task == 3 && ships.Where(o => !o.Dying && !ReferenceEquals(o, s) && Relation(s.Index, o.Index) == 2 && Dist(s, o) < 320f).OrderBy(o => Dist(s, o)).FirstOrDefault() is { } foe) { tgt = foe; task = 1; }
         switch (task)
         {
             case 7: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 60f; } else { tx = s.TaskX; tz = s.TaskZ; standoff = 40f; } break;
-            case 1: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 110f; } else go = false; break;
+            case 1: if (tgt != null) { (tx, tz) = AttackGoal(s, tgt, dt); standoff = 15f; } else go = false; break;       // AIShip::GetAttackPoint: the nearest point of the attack ring
             case 2: case 3:
                 if (tgt != null)
                 {
@@ -771,28 +772,27 @@ public partial class SeaView : Node3D
                 else go = false;
                 break;
             case 5: case 8: if (tgt != null) { tx = tgt.X; tz = tgt.Z; standoff = 12f; match = true; } else go = false; break;      // board / ram the target
-            case 6:
-            {
-                var threat = tgt ?? ships.Where(o => !o.Dying && !ReferenceEquals(o, s) && Relation(s.Index, o.Index) == 2).OrderBy(o => Dist(s, o)).FirstOrDefault() ?? ships.FirstOrDefault(o => o.IsPlayer);
-                if (threat != null) { tx = threat.X; tz = threat.Z; away = true; } else go = false;
-                break;
-            }
+            case 6: { var (rx, rz) = RunAwayGoal(s); tx = rx; tz = rz; away = false; break; }
             default: go = false; break;
         }
         float dx = tx - s.X, dz = tz - s.Z, dist = MathF.Sqrt(dx * dx + dz * dz);
         float want = MathF.Atan2(dx, dz);
         if (away) want += MathF.PI;
-        else if (task == 1 && dist < standoff * 2f) want += MathF.PI / 2f * (MathF.Sin(want - s.Ay) >= 0 ? -1f : 1f);     // come alongside
+        else if (task == 1 && tgt != null) want = AttackHeading(s, tgt, want, ref attackSlow);                                  // AIShipTaskController::DoAttackRotate
         else if ((task == 2 || task == 3) && tgt != null && dist < 45f) want = Mathf.LerpAngle(want, tgt.Ay, 0.8f);         // in the slot: take the leader's heading
+        want = AvoidShips(s, want, tgt, task);
         want = AvoidLand(s, want, dt);
+        if (go) want = AntiStuck(s, want, dt);
         float diff = want - s.Ay;
         while (diff > MathF.PI) diff -= MathF.Tau;
         while (diff < -MathF.PI) diff += MathF.Tau;
         float newSail;
         if (!go) newSail = 0f;
-        else if (away) newSail = 1f;
+        else if (away || task == 6) newSail = 1f;
         else if (match && tgt != null) newSail = dist < standoff * 2f ? (tgt.Sail > 0f ? Math.Min(1f, tgt.Sail + (dist > standoff * 1.2f ? 0.5f : 0f)) : 0f) : 1f;
-        else newSail = dist < standoff && task != 1 ? 0f : 1f;
+        else newSail = dist < standoff ? 0f : 1f;
+        if (attackSlow) newSail = 0.5f;                                                      // AddSpeed(0.5) while the broadside is turned to the target
+        if (s.StuckUntil > 0f) newSail = 1f;
         newSail = MathF.Round(newSail * 2f) / 2f;
         if (newSail != s.Sail) { s.Sail = newSail; it.FireEvent("Shp_UpdParams", new List<V> { V.Int(s.Index), V.Float(s.Sail) }); }
         return Math.Clamp(diff * 2f, -1f, 1f);
