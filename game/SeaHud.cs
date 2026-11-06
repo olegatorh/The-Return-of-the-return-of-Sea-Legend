@@ -354,9 +354,12 @@ public partial class SeaHud : CanvasLayer
         targetPanel.Visible = d.Target != null;
         if (d.Target is { } t)
         {
-            targetName.Text = t.Name;
+            // a foreign ship's name and characteristics (hull, crew) are read only through the telescope (the ispyglass panel); by eye it is just a flag and a distance
+            bool spy = scopeAmount > 0.5f;
+            targetName.Text = spy ? t.Name : "";
+            targetHull.Visible = spy;
             targetHull.Size = new Vector2(244 * Math.Clamp(t.Hull, 0f, 1f), 4);
-            targetInfo.Text = $"{t.Distance:0} м   екіпаж {t.CrewCount}";
+            targetInfo.Text = spy ? $"{t.Distance:0} м   екіпаж {t.CrewCount}" : $"{t.Distance:0} м";
             targetFlag.Texture = NationFlag(t);
         }
         // ammunition bar
@@ -386,7 +389,7 @@ public partial class SeaHud : CanvasLayer
             var col = m.Relation == 2 ? new Color(1f, 0.25f, 0.2f) : m.Relation == 0 ? new Color(0.4f, 1f, 0.45f) : new Color(1f, 0.9f, 0.4f);
             var tri = new Polygon2D { Polygon = new[] { new Vector2(-8, -12), new Vector2(8, -12), new Vector2(0, 0) }, Color = col, Position = m.Screen };
             markers.AddChild(tri);
-            var l = MakeLabel(m.Target ? 15 : 12, col); l.Text = $"{m.Name}  {m.Distance:0}"; l.Position = m.Screen + new Vector2(-70, -34); l.Size = new Vector2(140, 20); l.HorizontalAlignment = HorizontalAlignment.Center;
+            var l = MakeLabel(m.Target ? 15 : 12, col); l.Text = scopeAmount > 0.5f && m.Name.Length > 0 ? $"{m.Name}  {m.Distance:0}" : $"{m.Distance:0}"; l.Position = m.Screen + new Vector2(-70, -34); l.Size = new Vector2(140, 20); l.HorizontalAlignment = HorizontalAlignment.Center;
             markers.AddChild(l);
         }
     }
