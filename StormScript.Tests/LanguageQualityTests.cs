@@ -76,6 +76,18 @@ public sealed class LanguageQualityTests
     }
 
     [Fact]
+    public void FragmentsEndingWithASpaceKeepItWhenTranslated()
+    {
+        // "..." + price + " ...": a translated fragment that loses the trailing space glues the number to the word ("на4290")
+        if (!Paths.HasMerged || !Directory.Exists(Path.Combine(LangDir, "ukrainian", "strings"))) return;
+        var lang = new LanguageService(Paths.Game, LangDir, "Ukrainian");
+        var bad = new List<string>();
+        foreach (var (file, ru) in Literals())
+            if (ru.EndsWith(' ') && lang.LiteralText(file, ru) is { Length: > 0 } t && !t.EndsWith(' ')) bad.Add(file + ": '" + ru + "' -> '" + t + "'");
+        Assert.True(bad.Count <= 0, $"{bad.Count} fragments lost the trailing space: " + string.Join(" | ", bad.Take(8)));
+    }
+
+    [Fact]
     public void TextFileLayerHasNoRussianOnlyLetters()
     {
         string dir = Path.Combine(LangDir, "ukrainian", "texts");

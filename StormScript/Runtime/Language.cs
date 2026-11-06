@@ -176,7 +176,11 @@ public sealed class LanguageService
             foreach (var line in File.ReadAllLines(p, new UTF8Encoding(false)))
             {
                 int tab = line.IndexOf('	');
-                if (tab > 0) polishLiterals[line.Substring(0, tab)] = line.Substring(tab + 1);
+                if (tab <= 0) continue;
+                string key = line.Substring(0, tab), val = line.Substring(tab + 1);
+                // a script literal that ends with a space is a fragment before a concatenated number / name ("... " + price): the hand-written value must keep that space
+                if (key.EndsWith(' ') && val.Length > 0 && !val.EndsWith(' ')) val += " ";
+                polishLiterals[key] = val;
             }
         return polishLiterals;
     }
