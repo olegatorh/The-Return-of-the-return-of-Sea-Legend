@@ -1,24 +1,35 @@
 """Hand-translation workflow.
-  polish_batch.py make <kind> <out> [start count]   dump "id<TAB>ru<TAB>old uk" of unique Russian sentences with that scan kind (missing|ru)
-  polish_batch.py apply <batch dump> <answers>      answers = lines "id<TAB>ukrainian"; appended to lang/ukrainian/strings/_polish.tsv
-"""
-import sys, os
+  polish_batch.py make <out> [start count]   dump "id<TAB>ru<TAB>old uk<TAB>[file]" of unique sentences that still look bad:
+        scan kind 'missing', 'ru' (Russian words left) or a high share of words equal to the Russian source (untranslated pieces)
+  polish_batch.py apply <batch dump> <answers>   answers = lines "id<TAB>ukrainian"; merged into lang/ukrainian/strings/_polish.tsv
+Name pools (comma lists) are skipped."""
+import sys, os, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import scan_lang as S
 POL = os.path.join(S.SDIR, '_polish.tsv')
-def uniq(kind):
-    seen = {}; 
+def overlap(r):
+    a = set(w.lower() for w in re.findall(r'[А-Яа-яЁё]{4,}', r['ru']))
+    b = [w.lower() for w in re.findall(r'[А-Яа-яЁёІіЇїЄє]{4,}', r['uk'])]
+    return 0 if len(b) < 3 else sum(1 for w in b if w in a) / len(b)
+def bad(r):
+    if r['src'] == 'polish': return False
+    return r['words'] >= 3 and r['ru'].count(',') < 4 and not r['ru'].lower().startswith('voice') and \
+        (r['kind'] in ('missing', 'ru', 'same') or (r['uk'] and overlap(r) >= 0.34))
+def uniq():
+    seen = {}
     for r in S.scan():
-        if r['kind'] == kind and r['words'] >= 3 and r['ru'] not in seen: seen[r['ru']] = r
+        if bad(r) and r['ru'] not in seen: seen[r['ru']] = r
     return list(seen.values())
 if sys.argv[1] == 'make':
-    rows = uniq(sys.argv[2])
-    a = int(sys.argv[4]) if len(sys.argv) > 4 else 0
-    n = int(sys.argv[5]) if len(sys.argv) > 5 else len(rows)
-    with open(sys.argv[3], 'w', encoding='utf-8') as f:
+    rows = uniq()
+    a = int(sys.argv[3]) if len(sys.argv) > 3 else 0
+    n = int(sys.argv[4]) if len(sys.argv) > 4 else len(rows)
+    with open(sys.argv[2], 'w', encoding='utf-8') as f:
         for i, r in enumerate(rows[a:a + n], a):
             f.write(f"{i}\t{r['ru']}\t{r['uk'] or ''}\t[{r['file']}]\n")
     print(len(rows), 'total unique')
+elif sys.argv[1] == 'count':
+    print(len(uniq()))
 else:
     src = {}
     for l in open(sys.argv[2], encoding='utf-8').read().split('\n'):
