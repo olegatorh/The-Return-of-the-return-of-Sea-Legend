@@ -17,10 +17,24 @@ Replay arguments of every stage: `playtest_runs.md`. Date 2026-11-06. Hero: new 
 | 4 Leave the port, sail | `reload1` + `ChrAction`, sails up, steer | OK, 100 fps | **canvas error "triangulation failed" ~1000x per sea run** (minimap disc had a duplicate closing vertex; degenerate ship triangles) | this pass (SeaNavigator, `run_tests` now fails on `Invalid polygon data`) | - |
 | 5 World map first entry | `BI_MapEnter` -> `FirstEnterMap` quest: Dagon Teacher appears in the tavern, Ines offers "monk in the corner", Ludwig Prinn dialog chain | works | none | - | - |
 | 5 Sea fight, boarding, return, selling goods | `run_tests -Sea` scenarios (fight, neutral, board, trade, sailto ...) | all ok | none new | - | - |
-| 6 Quest book | `LaunchQuestBook()` | **whole base quest log was Russian** (422 of 457 entries: "Помощь контрабандиста...", "Справка: ...") | missing overlay | this pass: 371 entries machine-translated + 59 titles by hand | 51 long entries stay Russian (MT output rejected: Eng_Line, Ascold, animists...) |
+| 6 Quest book | `LaunchQuestBook()` | **whole base quest log was Russian** (422 of 457 entries: "Помощь контрабандиста...", "Справка: ...") | missing overlay | this pass: 371 entries machine-translated + 59 titles by hand | translated by hand in pass 2 (see counts below) |
 | 6 Items / ships / perks | texts overlay vs base | 10 item descriptions, 2 ship texts, 4 flag perks, 1 control name were Russian | missing keys | this pass | `StartGameDescribe` option hints are empty in the base too |
 | 6 Misc | stderr of all runs | only exit-time leak warnings left; godot.log 0 ERROR | - | - | `[nohandler]` counts (MoveChr, 30373 LockFightMode ...) are messages to not yet created entities, as before |
 
-Counts of untranslated Russian per screen (dialog literals, whole game): 668 pieces, ~460 are gender suffixes / fragments the MT rule skips on purpose,
-205 are real sentences (42 translated now; biggest left: Eng_guber quest 33, Robert Christopher Silehard 27, Valentin Massoni 24, Albermal 8).
+Counts of untranslated Russian per screen (dialog literals, whole game) - translation polish pass 2 (`tools/scan_lang.py`, `tools/scan_texts.py`):
+
+| Measure | Before | After |
+|---|---|---|
+| Russian sentences (>=3 words) with no translation (script literals) | 162 (Eng_guber 33, Silehard 27, Massoni 24 = voice file names, not text, Albermal 8, others) | 0 (the 24 `voice\...` names are sound paths, ignored) |
+| Sentences with machine-translation damage found by the scanner (Russian words left, >=34% of words equal to the source, `Спроси`/`Красавица`/`Пойдіть`...) | 583 | 0 flagged; all rewritten by hand in `lang/ukrainian/strings/_polish.tsv` (736 entries, top priority in `LanguageService.LiteralText`) |
+| Shown translations with Russian-only letters (ы э ъ ё) | 0 | 0 (test-guarded) |
+| Remaining "Russianism" words (curated list) in the shown strings | ~60 | 21 name-pool / debug items, none in dialogs; `tools/polish_words.py` fixed 158 MT values (піастрів, Вітаю, ...) |
+| Quest book entries still Russian (QuestBook) | 56 | 2 (developer comment keys `dummy3_1`, `dummy666_1`, never shown) |
+| Text-file keys showing Russian (all `texts/*`, `scan_texts.py`) | 258 | ~110, all cognates that are valid Ukrainian too (Золото, Фрегат, Магазин...) |
+| Hero types / nations in `HeroDescribe.txt` | Russian words | script codes (`Merchant`, `ENGLAND`...: the scripts switch on them and map the Russian words themselves) |
+
+Regression check: `StormScript.Tests/LanguageQualityTests.cs` (runs in `run_tests.ps1`) scans every Cyrillic literal of the merged scripts through `LanguageService.LiteralText`
+and fails on any Russian-only letter, on more than 3 Russianisms, or on more than 5 untranslated sentences; a second test checks `lang/ukrainian/texts`.
+What remains: ~13k machine-translated fragments (`_mt.tsv`) are readable but not individually proof-read (case/gender slips are possible; the scanner cannot see them);
+name pools (`Characters_names`, `ships_name`) only got a spelling pass (`tools/polish_names.py`); `HeroDescribe.info` (developer doc) is Russian.
 FPS: 95-100 in every stage (window 1280x720), no drops below 60 seen.
