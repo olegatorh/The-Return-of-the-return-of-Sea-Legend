@@ -102,6 +102,9 @@ public sealed partial class Interp
     /// <summary>Engine functions implemented by the host (the game window), registered by name.</summary>
     public readonly Dictionary<string, Func<V[], V>> HostFunctions = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>The control service: CreateControl / MapControl / LockControl ... (see <see cref="ControlTable"/>).</summary>
+    public readonly ControlTable Controls = new();
+
     V CallByName(string name, List<V> args, Node? at)
     {
         if (Funcs.TryGetValue(name, out var fd)) return Invoke(fd, args, at);

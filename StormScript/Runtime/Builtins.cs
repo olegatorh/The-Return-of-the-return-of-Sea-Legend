@@ -226,9 +226,13 @@ public static class Builtins
         Add("deleteentitiesbytype", (it, a) => { it.DeleteAllEntities(S(a, 0)); return V.Void; });
         Nop("entityupdate", "layercreate", "layerdelobject", "layerfreeze", "layersetrealize", "layersetexecute",
             "layerdeletecontent", "layersetmessages", "settimescale", "reloadprogressstart", "reloadprogressupdate",
-            "reloadprogressend", "setreloadnexttipsimage", "setreloadprogressbackimage", "executetechnique",
-            "lockcontrol", "mapcontrol", "setcontrolflags", "setcontroltreshold", "deletecontrol");
-        Zero("createcontrol");
+            "reloadprogressend", "setreloadnexttipsimage", "setreloadprogressbackimage", "executetechnique");
+        Add("createcontrol", (it, a) => V.Int(it.Controls.Create(S(a, 0))));
+        Add("mapcontrol", (it, a) => { it.Controls.Map(I(a, 0), I(a, 1)); return V.Void; });
+        Add("setcontrolflags", (it, a) => { it.Controls.SetFlags(I(a, 0), I(a, 1)); return V.Void; });
+        Add("setcontroltreshold", (it, a) => { it.Controls.SetThreshold(I(a, 0), F(a, 1)); return V.Void; });
+        Add("lockcontrol", (it, a) => { it.Controls.Lock(S(a, 0), I(a, 1) != 0); return V.Void; });
+        Add("deletecontrol", (it, a) => { it.Controls.Delete(I(a, 0)); return V.Void; });
 
         Add("settimescale", (it, a) => { it.TimeScale = F(a, 0); return V.Void; });
 
@@ -240,7 +244,8 @@ public static class Builtins
         // native string GetAssembledString(string format, aref data): "#sName#" -> data.Name as text, "#dName#" -> integer, "#f.2Name#" -> number with 2 decimals
         Add("getassembledstring", (it, a) => V.Str(AssembleString(S(a, 0), Arg(a, 1).Attr)));
         Add("xi_convertstring", (it, a) => V.Str(it.Language?.Global(S(a, 0)) ?? S(a, 0)));
-        Nop("xi_controlmakeinvert", "xi_setmousesensitivity");
+        Add("xi_controlmakeinvert", (it, a) => { it.Controls.MakeInvert(S(a, 0), I(a, 1)); return V.Void; });
+        Add("xi_setmousesensitivity", (it, a) => { it.Controls.SensX = F(a, 0); it.Controls.SensY = F(a, 1); return V.Void; });
 
         // ---- engine natives used by the scripts: lookup by "id" attribute in an array of objects
         Add("nativefindcharacter", (it, a) => V.Int(FindById(a, "NativeFindCharacter")));
