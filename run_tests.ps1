@@ -64,8 +64,10 @@ if ($Sea) {
                '--seapos=-110,100,0@2400', '--duel@2450', '--set=Characters[0].TmpSkill.Accuracy=1@2495', '--fire@2500', '--shot-frame=3000')
         # trade: open the store, choose the ship, buy 3 portions of cannon balls
         $t = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--click=BUY_BUTTON@650',
-               '--call=ProcessTradeIncrease()@700', '--call=ProcessTradeIncrease()@705', '--call=ProcessTradeIncrease()@710', '--click=OK_BUTTON@760', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--shot-frame=905')
-        $fail += Invoke-Godot 'trade' $t 200 @('Balls = "160"')
+               '--call=ProcessTradeIncrease()@700', '--call=ProcessTradeIncrease()@705', '--call=ProcessTradeIncrease()@710', '--click=OK_BUTTON@760', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901',
+              '--mouse=SELL_BUTTON@920', '--key=Right@940', '--key=Right@950', '--mouse=OK_BUTTON@980', '--dump=Characters[0].Ship.Cargo.Goods.Balls@1000', '--dump=Characters[0].Money@1001', '--shot-frame=1005')
+        # buy 60 balls (100 -> 160, money 5000 -> 4985), then sell 40 through the real SELL button / Right keys / OK (160 -> 120, money +4)
+        $fail += Invoke-Godot 'trade' $t 200 @('Balls = "160"', 'money = "4985"', 'Balls = "120"', 'money = "4989"')
         # screens that must open without errors: ship hold and shipyard
         $fail += Invoke-Godot 'hold' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipHold()@500', '--shot-frame=700') 200
         $fail += Invoke-Godot 'yard' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipyard(#Esteban+Castillo)@500', '--shot-frame=700') 200

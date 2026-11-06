@@ -25,6 +25,30 @@ public partial class ScrollImageView : Control
     /// <summary>ini "UseOneString": the caption's centre offset from the picture's centre (x) and its top from the picture's top (y); null = bottom right.</summary>
     public Vector2? TextOffset;
 
+    /// <summary>One caption row of the strip (ini UseOneString / UseTwoString): xi_scroll_image.cpp prints it centred (or by the sign of dwXOffset) at the picture's centre + dwXOffset, strip top + dwYOffset.</summary>
+    public sealed class CaptionStyle { public int Px = 20; public float X, Y; public Color Fore = Colors.White; }
+    public CaptionStyle? Cap1, Cap2;
+    /// <summary>Translates a string-table key (str1/str2 without a leading '#'): the original asks the string service (GetStringNum).</summary>
+    public Func<string, string> Translate = k => k;
+
+    string Caption(string s) => s.StartsWith('#') ? s.Substring(1) : Translate(s);
+
+    void AddCaption(Control cell, string text, CaptionStyle st)
+    {
+        var l = new Label { Text = text, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1, HorizontalAlignment = st.X > 0 ? HorizontalAlignment.Right : st.X < 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center };
+        int px = st.Px;
+        var f = l.GetThemeDefaultFont();
+        while (px > 9 && f.GetStringSize(text, HorizontalAlignment.Left, -1, px).X > itemW - 6) px--;    // PrintIntoWindow shrinks the scale to the picture width
+        l.AddThemeFontSizeOverride("font_size", px);
+        l.AddThemeColorOverride("font_color", st.Fore);
+        l.AddThemeColorOverride("font_outline_color", Colors.Black);
+        l.AddThemeConstantOverride("outline_size", 4);
+        float w = itemW * 2;
+        l.Size = new Vector2(w, 28);
+        l.Position = new Vector2(itemW / 2 + st.X - (st.X > 0 ? w : st.X < 0 ? 0 : w / 2), st.Y - 4);
+        cell.AddChild(l);
+    }
+
     public ScrollImageView(Entity gameInterface, string nodeName, float x1, float y1, float x2, float y2, float imageW, float imageH, Action<string, string> command)
     {
         gi = gameInterface; node = nodeName; this.command = command;
@@ -75,17 +99,12 @@ public partial class ScrollImageView : Control
             var cell = new Control { Size = new Vector2(itemW, itemH), MouseFilter = MouseFilterEnum.Pass };
             AddLayer(cell, r, pic, "1");
             AddLayer(cell, r, pic, "2");
+            AddLayer(cell, r, pic, "3");      // store: TRADE_STATE overlays (sell / buy markers)
+            AddLayer(cell, r, pic, "4");
             string? str = pic.Find("str1", false)?.Value;
-            if (!string.IsNullOrEmpty(str))
-            {
-                var l = TextOffset is { } to
-                    ? new Label { Text = str.TrimStart('#'), Position = new Vector2(itemW / 2 + to.X - itemW, to.Y - 4), Size = new Vector2(itemW * 2, 24), HorizontalAlignment = HorizontalAlignment.Center, MouseFilter = MouseFilterEnum.Ignore, ZIndex = 1 }
-                    : new Label { Text = str.TrimStart('#'), Position = new Vector2(itemW * 0.45f, itemH * 0.72f), Size = new Vector2(itemW * 0.55f, 24), HorizontalAlignment = HorizontalAlignment.Right, MouseFilter = MouseFilterEnum.Ignore };
-                l.AddThemeFontSizeOverride("font_size", 16);
-                l.AddThemeColorOverride("font_outline_color", Colors.Black);
-                l.AddThemeConstantOverride("outline_size", 4);
-                cell.AddChild(l);
-            }
+            if (Cap1 != null && !string.IsNullOrEmpty(str)) AddCaption(cell, Caption(str), Cap1);     // no UseOneString in the ini: the original prints nothing
+            string? str2 = pic.Find("str2", false)?.Value;
+            if (Cap2 != null && !string.IsNullOrEmpty(str2)) AddCaption(cell, Caption(str2), Cap2);
             int idx = i;
             cell.GuiInput += e =>
             {

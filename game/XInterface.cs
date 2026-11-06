@@ -1224,8 +1224,21 @@ public partial class XView : Control
         var sz = Floats(P("imageSize"), 2);
         var v = new ScrollImageView(Ent, name, pos[0], pos[1], pos[2], pos[3], sz[0] > 0 ? sz[0] : 128, sz[1] > 0 ? sz[1] : 128, (cmd, n) => Run(n, cmd, 0));
         if (P("centerXoffset") is { Length: > 0 } cxo) v.CenterX = pos[0] + Conv.ParseFloatPrefix(cxo);         // the chosen picture's centre (screen units), e.g. between the arrows of the chest lists
-        if (P("UseOneString") is { Length: > 0 } one && Conv.ParseFloatPrefix(one) != 0 && Conv.ParseFloatPrefix(P("UseTwoString")) == 0)                        // one caption per picture placed by dwXOffset1 (from the centre) / dwYOffset1 (from the top)
-            v.TextOffset = new Vector2(Conv.ParseFloatPrefix(P("dwXOffset1") ?? "0"), Conv.ParseFloatPrefix(P("dwYOffset1") ?? "92"));
+        v.Translate = Tr;
+        for (int k = 1; k <= 2; k++)
+        {
+            if (!(P(k == 1 ? "UseOneString" : "UseTwoString") is { Length: > 0 } use && Conv.ParseFloatPrefix(use) != 0)) continue;
+            float sc = P("scale" + k) is { Length: > 0 } sct ? Conv.ParseFloatPrefix(sct) : 1f;
+            string? fnt = P("font" + k);
+            var cap = new ScrollImageView.CaptionStyle
+            {
+                Px = string.IsNullOrEmpty(fnt) ? Math.Max(8, (int)(16 * sc)) : FontPx(fnt, sc),
+                X = Conv.ParseFloatPrefix(P("dwXOffset" + k) ?? "0"),
+                Y = Conv.ParseFloatPrefix(P("dwYOffset" + k) ?? (k == 1 ? "92" : "0")),
+            };
+            if (P("dwForeColor" + k) is { Length: > 0 } fcs) cap.Fore = Plain(fcs, Colors.White);
+            if (k == 1) v.Cap1 = cap; else v.Cap2 = cap;
+        }
         return v;
     }
 
