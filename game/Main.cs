@@ -50,6 +50,8 @@ public partial class Main : Node
     readonly List<(int frame, string fn)> calls = new();
     readonly List<(int frame, int answer)> answers = new();
     readonly List<(int from, int to, Vector2 dir)> moves = new();
+    readonly List<(int from, int to, Vector2 d)> mouseMoves = new();       // test hook --mousemove=dx,dy@A-B: raw mouse motion per frame (ChrTurnH / ChrCamTurnV, ShipCamera_Turn_*)
+    readonly List<(int frame, int vk, bool down)> mouseBtns = new();         // test hook --btn=L|R|M(+|-)@N: a real mouse button press / release
     readonly List<(int frame, string path)> dumps = new();
     readonly List<(int frame, string name)> ctls = new();
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
@@ -117,6 +119,8 @@ public partial class Main : Node
             else if (a.StartsWith("--dialog=")) { var p = a.Substring(9).Split('@'); dialogTests.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }
             else if (a.StartsWith("--set=")) { var p = a.Substring(6).Split('@'); var kv = p[0].Split('='); sets.Add((int.Parse(p[1]), kv[0], kv[1])); }
             else if (a.StartsWith("--call="))  { var p = a.Substring(7).Split('@'); calls.Add((int.Parse(p[1]), p[0])); }
+            else if (a.StartsWith("--mousemove=")) { var p = a.Substring(12).Split('@'); var xy = p[0].Split(','); var fr = p[1].Split('-'); mouseMoves.Add((int.Parse(fr[0]), int.Parse(fr[1]), new Vector2(float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture), float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture)))); }
+            else if (a.StartsWith("--btn=")) { var p = a.Substring(6).Split('@'); mouseBtns.Add((int.Parse(p[1]), p[0][0] == 'L' ? 1 : p[0][0] == 'R' ? 2 : 4, p[0].EndsWith('+'))); }
             else if (a.StartsWith("--move=")) { var p = a.Substring(7).Split('@'); var xy = p[0].Split(','); var fr = p[1].Split('-'); moves.Add((int.Parse(fr[0]), int.Parse(fr[1]), new Vector2(float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture), float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture)))); }
             else if (a.StartsWith("--dump=")) { var p = a.Substring(7).Split('@'); dumps.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--at=")) { var p = a.Substring(5).Split('@'); var v = p[0].Split(','); var ci = System.Globalization.CultureInfo.InvariantCulture; atHooks.Add((int.Parse(p[1]), float.Parse(v[0], ci), float.Parse(v[1], ci), float.Parse(v[2], ci), float.Parse(v[3], ci))); }      // test hook: stand at x,y,z facing ay
@@ -164,6 +168,7 @@ public partial class Main : Node
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
         host = new ScriptHost(program);
+        Ctl.Attach(host.It);
         host.It.EntityHandlers["Lightning"] = (e, fmt, d) => weatherFx.OnLightning(d);
         // port settings (settings.ini next to the project): the hidden "beta/test" page of the options screen is enabled by the original #define MOD_BETTATESTMODE
         string settingsFile = Path.Combine(portDir, "settings.ini");
@@ -538,19 +543,19 @@ public partial class Main : Node
         // the original control scheme: the engine reports named controls to the script ("Control Activation")
         if (e is InputEventKey { Pressed: true, Echo: false } ck && !UiOpen && dialogView == null)
         {
-            string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
+            string? ctl = Keys.Is(ck, "MainEsc") ? "MainMenuDouble" : Keys.Is(ck, "LandCommands") ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
             if (ctl == null && locations.Count > 0 && Keys.Is(ck, "LandPotion")) ctl = "BOAL_UsePotion";       // init_pc.c: KEY_C = quick heal (seadogs.c picks the first usable potion)
             if (ctl == "LICommandsActivate" && locations.Count > 0) landHud?.Command(ctl);       // Enter opens the land command menu
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
-            if (ck.PhysicalKeycode == Key.Space && locations.Count > 0) LandAction();
+            if (Keys.Is(ck, "SeaAction") && locations.Count > 0) LandAction();          // BIFastCommand
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk && (Keys.Is(sk, "SeaSailUp") || Keys.Is(sk, "SeaSailDown")) && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
             sea.SailKey(Keys.Is(sk, "SeaSailUp") ? 1 : -1);
         if (e is InputEventKey { Pressed: true, Echo: false } mk && worldMap.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
             if (Keys.Is(mk, "SeaSailUp") || Keys.Is(mk, "SeaSailDown")) worldMap.SailKey(Keys.Is(mk, "SeaSailUp") ? 1 : -1);
-            if (Keys.Is(mk, "SeaAction") || mk.PhysicalKeycode is Key.KpEnter or Key.Space) worldMap.Enter();
+            if (Keys.Is(mk, "SeaAction")) worldMap.Enter();                   // WMapCancel
             else if (Keys.Is(mk, "MapWait")) worldMap.OpenWaitMenu();
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
@@ -558,7 +563,7 @@ public partial class Main : Node
             string? ctl = Keys.Is(sk2, "SeaMap") ? "BI_MapEnter" : Keys.Is(sk2, "SeaBalls") ? "BI_ChargeCannonballs" : Keys.Is(sk2, "SeaGrapes") ? "BI_ChargeGrapes" : Keys.Is(sk2, "SeaKnippels") ? "BI_ChargeKnippels" : Keys.Is(sk2, "SeaBombs") ? "BI_ChargeBombs"
                 : Keys.Is(sk2, "SeaCameraSwitch") ? "Sea_CameraSwitch" : null;
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
-            if (Keys.Is(sk2, "SeaAction") || sk2.PhysicalKeycode is Key.KpEnter or Key.Space) SeaAction();
+            if (Keys.Is(sk2, "SeaAction")) SeaAction();                       // BIFastCommand
         }
         // Z = step back (the original ChrRecoil)
         if (e is InputEventKey { Pressed: true, Echo: false } zk && Keys.Is(zk, "LandRecoil") && dialogView == null && !UiOpen && locations.Count > 0)
@@ -566,7 +571,7 @@ public partial class Main : Node
         // Q = pistol shot (the original ChrFire)
         if (e is InputEventKey { Pressed: true, Echo: false } qk && Keys.Is(qk, "LandFire") && dialogView == null && !UiOpen && locations.Count > 0)
             characters.Values.FirstOrDefault(c => c.IsPlayer)?.TryFire();
-        // F = draw/sheathe the sword (the original used E; E talks here)
+        // E (ChrFightMode) = draw/sheathe the sword
         if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf && pf.ToggleFightMode()) { logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
         if (e is InputEventKey { Pressed: true, Echo: false } tabk && Keys.Is(tabk, "LandLook") && locations.Count > 0 && dialogView == null && !UiOpen && camMode == 1
@@ -583,8 +588,8 @@ public partial class Main : Node
             nameTags = !nameTags;
             foreach (var c in characters.Values) c.ShowNameTag(nameTags);
         }
-        // E or T = talk to the nearest character within reach
-        if (e is InputEventKey { Pressed: true } tk && (Keys.Is(tk, "LandTalk") || tk.PhysicalKeycode == Key.T) && dialogView == null && !UiOpen)
+        // F (the port's modern scheme; the original talks with the left mouse button) = talk to the nearest character within reach
+        if (e is InputEventKey { Pressed: true } tk && Keys.Is(tk, "LandTalk") && dialogView == null && !UiOpen && locations.Count > 0)
         {
             var near = NearestTalkable();
             if (near != null) StartDialog(near.Ent.Root.Get("id")?.Value ?? "");
@@ -609,7 +614,6 @@ public partial class Main : Node
     float camYaw, camPitch = 0.4f, camDist = 3.0f;       // LocationCamera: ax = 0.4, radius = 3
     readonly LandCamera landCam = new();
     static readonly bool CamLog = System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG") != null;
-    float mouseDx, mouseDy;               // mouse motion since the last frame (the classic scheme turns the hero with it)
     float lookBlend, lookPitch;           // Tab: first-person view, blended in over a second like LocationCamera::kMorph
     bool lookMode, lookHidden;
     int lookAtFrame = -1, jumpAtFrame = -1;
@@ -718,18 +722,19 @@ public partial class Main : Node
         {
             var mv = Vector2.Zero;
             bool classic = Keys.Classic;
-            float turnAdd = 0f, pitchSpeed = 0f;
+            float turnAdd = 0f, dAx = 0f;
             if (free)
             {
                 if (classic)
                 {
                     // CONTROLS/init_pc.c: right mouse button = ChrForward, middle = ChrBackward, A/D = ChrTurnHL/HR (+-12 per frame), the mouse = ChrTurnH / ChrCamTurnV;
                     // W/S walk too. Shift (ChrRun) makes the hero walk: Player::IsRunMode returns "not pressed".
-                    if (Keys.Down("LandForward") || Input.IsMouseButtonPressed(MouseButton.Right)) mv.Y += 1;
-                    if (Keys.Down("LandBack") || Input.IsMouseButtonPressed(MouseButton.Middle)) mv.Y -= 1;
+                    if (Keys.Down("LandForward") || Ctl.Down("ChrForward")) mv.Y += 1;
+                    if (Keys.Down("LandBack") || Ctl.Down("ChrBackward")) mv.Y -= 1;
                     if (Keys.Down("LandRight")) turnAdd += 12f * 0.01f;
                     if (Keys.Down("LandLeft")) turnAdd -= 12f * 0.01f;
-                    if (mouseCaptured) { turnAdd += mouseDx * RealSens("mouse.x_sens") * 0.01f; pitchSpeed = -mouseDy * RealSens("mouse.y_sens") * 0.004f * (InvertCameras() ? -1f : 1f) / Math.Max(delta, 0.001f); }
+                    // Player::GetRotateH / Rotate: ChrTurnH.fValue (the mouse x times the sensitivity) * 0.01 per frame; LocationCamera: dAx = -ChrCamTurnV.lValue * 0.05 (raw pixels, inverted by the control's flag)
+                    if (mouseCaptured) { turnAdd += Ctl.T.Read("ChrTurnH").F * 0.01f; dAx = -Ctl.T.Read("ChrCamTurnV").L * 0.05f; }
                 }
                 else
                 {
@@ -740,12 +745,12 @@ public partial class Main : Node
                     if (Keys.Down("LandCamLeft")) camYaw += 1.8f * delta;
                     if (Keys.Down("LandCamRight")) camYaw -= 1.8f * delta;
                 }
-                if (Keys.Down("LandCamUp")) pitchSpeed += 0.9f;
-                if (Keys.Down("LandCamDown")) pitchSpeed -= 0.9f;
+                // the arrow keys are the port's: dAx 0.72 per frame settles at 0.9 rad/s of the camera's inertia (vAx = 1.25 dAx)
+                if (Keys.Down("LandCamUp")) dAx += lookMode ? -0.72f : 0.72f;
+                if (Keys.Down("LandCamDown")) dAx -= lookMode ? -0.72f : 0.72f;
             }
-            mouseDx = mouseDy = 0f;
-            if (camLockPitch == null && !lookMode) camPitch = landCam.Pitch(camPitch, pitchSpeed, delta);
-            else if (lookMode) lookPitch = Math.Clamp(lookPitch - pitchSpeed * delta * 0.7f, -0.8f, 0.8f);
+            if (camLockPitch == null && !lookMode) camPitch = landCam.Pitch(camPitch, dAx, delta, false);
+            else if (lookMode) lookPitch = landCam.Pitch(lookPitch, dAx, delta, !player.FightMode);
             foreach (var (f0, f1, dir) in moves) if (frames >= f0 && frames <= f1 && dialogView == null) { mv = dir; if (classic) { mv = new Vector2(0, dir.Y); turnAdd += dir.X * 0.12f; } }     // test hook
             player.Input = mv;
             player.Classic = classic;
@@ -859,30 +864,33 @@ public partial class Main : Node
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventMouseMotion cm && mouseCaptured && Keys.Classic && locations.Count > 0 && !flyMode) { mouseDx += cm.Relative.X; mouseDy += cm.Relative.Y; return; }        // ChrTurnH / ChrCamTurnV
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen) { sea.FirePlayer(); return; }
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } && dialogView == null && !UiOpen)
+        if (e is InputEventMouseMotion sm && mouseCaptured && sea.Active && locations.Count == 0 && !sea.DeckCamera && !flyMode) { Ctl.AddMouse(sm.Relative.X, sm.Relative.Y); return; }        // ShipCamera_Turn_H / _V: at sea the mouse always turns the camera
+        if (e is InputEventMouseMotion cm && mouseCaptured && Keys.Classic && locations.Count > 0 && !flyMode) { Ctl.AddMouse(cm.Relative.X, cm.Relative.Y); return; }        // ChrTurnH / ChrCamTurnV
+        // the mouse buttons are the script's controls too (remapped on the options pages): Ship_Fire at sea, ChrAction / ChrAttack on land
+        if (e is InputEventMouseButton { Pressed: true } fireBtn && Ctl.Is(fireBtn.ButtonIndex, "Ship_Fire") && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen) { sea.FirePlayer(); return; }
+        if (e is InputEventMouseButton { Pressed: true } landBtn && (Ctl.Is(landBtn.ButtonIndex, "ChrAttack") || Ctl.Is(landBtn.ButtonIndex, "ChrAction")) && dialogView == null && !UiOpen)
         {
             // attack with the sword when it is drawn
             var pl = characters.Values.FirstOrDefault(c => c.IsPlayer);
             if (pl != null && pl.FightMode && pl.Placed)
             {
+                if (!Ctl.Is(landBtn.ButtonIndex, "ChrAttack")) return;
                 // a quick click strikes normally; sideways keys give a fast side cut; holding the button winds up a strong blow (released below)
                 if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en, CharacterView.Strike.Fast); }
                 else lmbDownAt = Time.GetTicksMsec();
             }
-            else if (pl != null && locations.Count > 0) LandAction();          // the original: the left mouse button is ChrAction
+            else if (pl != null && locations.Count > 0 && Ctl.Is(landBtn.ButtonIndex, "ChrAction")) LandAction();          // the original: the left mouse button is ChrAction
         }
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false } && lmbDownAt > 0)
+        if (e is InputEventMouseButton { Pressed: false } landUp && Ctl.Is(landUp.ButtonIndex, "ChrAttack") && lmbDownAt > 0)
         {
             var pl2 = characters.Values.FirstOrDefault(c => c.IsPlayer);
             ulong held = Time.GetTicksMsec() - lmbDownAt; lmbDownAt = 0;
             if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { var en = pl2.NearestInFront(2.2f); if (en != null) pl2.StartSwing(en, held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
         }
         // the deck camera: the right button walks forward, the middle one back (DeckCamera_Forward / _Backward), the mouse looks round without a button
-        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Right or MouseButton.Middle } db && sea.DeckCamera)
+        if (e is InputEventMouseButton db && sea.DeckCamera && (Ctl.Is(db.ButtonIndex, "DeckCamera_Forward") || Ctl.Is(db.ButtonIndex, "DeckCamera_Backward")))
         {
-            sea.DeckWalkMouse = db.Pressed && locations.Count == 0 && !UiOpen && dialogView == null ? (db.ButtonIndex == MouseButton.Right ? 1 : -1) : 0;
+            sea.DeckWalkMouse = db.Pressed && locations.Count == 0 && !UiOpen && dialogView == null ? (Ctl.Is(db.ButtonIndex, "DeckCamera_Forward") ? 1 : -1) : 0;
             if (db.ButtonIndex == MouseButton.Right) rmbDown = false;
             return;
         }
@@ -902,7 +910,7 @@ public partial class Main : Node
             float sx = RealSens("mouse.x_sens"), sy = RealSens("mouse.y_sens");
             bool inv = host.It.Globals.TryGetValue("InterfaceStates", out var ist) && ist.Val.Attr?.Get("InvertCameras")?.Value == "1";
             float dx = mm.Relative.X * sx, dy = mm.Relative.Y * sy * (inv ? -1f : 1f);
-            if (sea.Active && locations.Count == 0) sea.Look(dx, dy);
+            if (sea.Active && locations.Count == 0) { }                // at sea the mouse turns the camera without a button (see above); the right button zooms out
             else if (worldMap.Active && locations.Count == 0) worldMap.Look(dx, dy);
             else if (lookMode) { if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } lp1) lp1.TurnAdd += dx * 0.005f; lookPitch = Math.Clamp(lookPitch + dy * 0.004f, -0.8f, 0.8f); }
             else { camYaw -= dx * 0.005f; if (camLockPitch == null) camPitch = Math.Clamp(camPitch + dy * 0.004f, LandCamera.PitchMin, LandCamera.PitchMax); }
@@ -1041,11 +1049,17 @@ public partial class Main : Node
         if (logHud != null) logHud.ActionSuppressed = landHud?.MenuOpen == true;
         perkView.Visible = dialogView == null && !UiOpen && !worldMap.Active;
         // the deck camera hides the cursor and turns with the mouse (not in scripted test runs, not while a menu or a screen needs the pointer)
-        bool wantCapture = sea.DeckCamera && locations.Count == 0 && !UiOpen && dialogView == null && !sea.CommandsOpen && !worldMap.Active && shotPath == null;
+        bool wantCapture = sea.Active && locations.Count == 0 && !UiOpen && dialogView == null && !sea.CommandsOpen && !worldMap.Active && shotPath == null;
         // the classic land scheme turns the hero with the mouse, which therefore stays hidden in the window while the game is running
         if (Keys.Classic && locations.Count > 0 && !UiOpen && dialogView == null && landHud?.MenuOpen != true && !flyMode && camMode == 1 && !worldMap.Active && shotPath == null) wantCapture = true;
         if (wantCapture != mouseCaptured) { mouseCaptured = wantCapture; Input.MouseMode = wantCapture ? Input.MouseModeEnum.Captured : Input.MouseModeEnum.Visible; }
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        foreach (var (f0, f1, md) in mouseMoves) if (frames >= f0 && frames <= f1) Ctl.AddMouse(md.X, md.Y);
+        foreach (var (bf, bvk, bdown) in mouseBtns)
+            if (bf == frames) Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = bvk == 1 ? MouseButton.Left : bvk == 2 ? MouseButton.Right : MouseButton.Middle, Pressed = bdown, Position = new Vector2(10, 10), GlobalPosition = new Vector2(10, 10) });
+        Keys.InWorldMap = worldMap.Active && locations.Count == 0;
+        Ctl.Frame(() => true);           // the control service: raises Control Activation / Deactivation for the controls the window does not route itself
+        Ctl.EnsurePortControls(frames);
         UpdateWorld((float)delta);
         RaiseCameraPosAng();
         long t1 = System.Diagnostics.Stopwatch.GetTimestamp();

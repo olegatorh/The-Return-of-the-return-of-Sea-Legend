@@ -70,13 +70,27 @@ public sealed class LandCamera
         cam.LookAt(lookTo);
     }
 
-    /// <summary>The vertical angle: input is the wanted angular speed (rad/s); it is smoothed (vAx -= 8 dt vAx) and clamped to the camera's range.</summary>
-    public float Pitch(float pitch, float wantedSpeed, float dt)
+    /// <summary>
+    /// LocationCamera::Execute: the vertical angle ax has an angular velocity vAx. Every frame the mouse adds 10 * dAx * dt to it (3 * dAx in the first-person view), the angle moves
+    /// by vAx * dt, the velocity decays by 8 dt (2.6 x faster when looking from the eyes), is limited to +-2 and the angle to axmin..axmax.
+    /// </summary>
+    public float Pitch(float pitch, float dAx, float dt, bool look)
     {
-        PitchVel += (wantedSpeed - PitchVel) * Math.Min(dt * 8f, 1f);
-        pitch += PitchVel * dt;
-        if (pitch < PitchMin) { pitch = PitchMin; PitchVel = 0f; }
-        if (pitch > PitchMax) { pitch = PitchMax; PitchVel = 0f; }
-        return pitch;
+        float kvax = 8f * dt;
+        if (look)
+        {
+            PitchVel += 3f * dAx;
+            pitch += PitchVel * dt;
+            kvax = Math.Min(kvax * 2.6f, 1f);
+        }
+        else
+        {
+            PitchVel += 10f * dAx * dt;
+            pitch += PitchVel * dt;
+            kvax = Math.Min(kvax, 1f);
+        }
+        PitchVel -= kvax * PitchVel;
+        PitchVel = Math.Clamp(PitchVel, -2f, 2f);
+        return Math.Clamp(pitch, PitchMin, PitchMax);
     }
 }

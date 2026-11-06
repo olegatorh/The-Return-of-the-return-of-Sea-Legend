@@ -865,7 +865,12 @@ public partial class SeaView : Node3D
         if (DeckCamera) { DeckLook(dx, dy); return; }
         camYawOff -= dx * 0.005f; camPitch = Math.Clamp(camPitch + dy * 0.004f, 0.05f, 1.4f);
     }
-    public void Zoom(int dir) { if (!DeckCamera) camDist = Math.Clamp((camDist < 0 ? 40f : camDist) + dir * 4f, 12f, 120f); }
+    public void Zoom(int dir)
+    {
+        if (DeckCamera) return;
+        var camRoot = it.Entities.FirstOrDefault(e => !e.Deleted && e.Class.Equals("SHIP_CAMERA", StringComparison.OrdinalIgnoreCase))?.Root;
+        camDist = Math.Clamp((camDist < 0 ? 40f : camDist) + dir * 4f, F(camRoot, "MinDistance", 25f), F(camRoot, "MaxDistance", 70f));      // the wheel is the port's: steps of 4 m within the script's limits
+    }
 
     public void SailKey(int dir)
     {
@@ -938,12 +943,13 @@ public partial class SeaView : Node3D
         Cam.Near = 0.5f;
         if (inputEnabled)
         {
+            if (!CommandsOpen) ShipCameraControls(dt, dMin, dMax, camEnt?.Root);
             if (Keys.Down("SeaCamLeft")) camYawOff += 1.4f * dt;
             if (Keys.Down("SeaCamRight")) camYawOff -= 1.4f * dt;
             if (Keys.Down("SeaCamUp")) camPitch = Math.Clamp(camPitch + 0.8f * dt, 0.05f, 1.4f);
             if (Keys.Down("SeaCamDown")) camPitch = Math.Clamp(camPitch - 0.8f * dt, 0.05f, 1.4f);
-            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(dMin * 0.5f, camDist - 30f * dt);
-            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(dMax * 1.6f, camDist + 30f * dt);
+            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(dMin, camDist - 30f * dt);
+            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(dMax, camDist + 30f * dt);
         }
         if (!camInit && System.Environment.GetEnvironmentVariable("SEADOGS_SEACAM") is { } sc)      // debug: "distance,pitch,yawOffset"
         {
