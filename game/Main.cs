@@ -89,6 +89,7 @@ public partial class Main : Node
     readonly List<(int frame, string name)> loadAt = new();       // test hook --load=name@N
     readonly List<int> seaDuels = new();                      // test hook --duel@N
     int actRetryUntil;
+    readonly List<(int, string)> showHits = new();
     readonly List<(int frame, float x, float z, float ay)> mapTeleports = new();      // test hook --mappos=x,z,ay@N: place the WORLD MAP ship once the map is built (retries every 10 frames)
     readonly List<(int frame, float dx, float dz)> mapStorms = new();   // test hook --mapstorm=dx,dz@N: a world-map storm placed at the ship + (dx, dz) (retries every 10 frames until the map is built)
     readonly List<int> mapMeets = new();                      // test hook --mapmeet@N: the world-map ship is put next to the first encounter ship
@@ -109,6 +110,7 @@ public partial class Main : Node
             else if (a.StartsWith("--lang=")) language = a.Substring(7);
             else if (a.StartsWith("--shot=")) shotPath = a.Substring(7);
             else if (a.StartsWith("--shot-frame=")) shotAtFrame = int.Parse(a.Substring(13));
+            else if (a.StartsWith("--showhit=")) { var p = a.Substring(10).Split('@'); showHits.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }       // test hook: the hero's-blow health numbers over a character, --showhit=Id:damage@N (damage 0 = blocked)
             else if (a.StartsWith("--bring=")) { var p = a.Substring(8).Split('@'); brings.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }       // test hook: put a character 1.6 m in front of the player
             else if (a.StartsWith("--dialog=")) { var p = a.Substring(9).Split('@'); dialogTests.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }
             else if (a.StartsWith("--set=")) { var p = a.Substring(6).Split('@'); var kv = p[0].Split('='); sets.Add((int.Parse(p[1]), kv[0], kv[1])); }
@@ -473,6 +475,11 @@ public partial class Main : Node
     void StartDialog(string id)
     {
         var chr = host.It.CallTop("CharacterFromID", V.Str(id));
+        if (id.Contains(' ') && Conv.ToInt(host.It.CallTop("GetCharacterIndex", V.Str(id))) < 0)       // ids that really contain underscores (eng_guber): retry with the literal spelling
+        {
+            var alt = host.It.CallTop("CharacterFromID", V.Str(id.Replace(' ', '_')));
+            if (alt.Attr != null) { chr = alt; id = id.Replace(' ', '_'); }
+        }
         if (chr.Attr == null) { GD.Print("[dialog] no such character: " + id); return; }
         GD.Print("[dialog] starting dialog with " + id);
         var main = host.It.CallTop("GetMainCharacter");
@@ -1056,6 +1063,7 @@ public partial class Main : Node
         }
         frames++;
 
+        foreach (var (f, id0) in showHits) if (f == frames) { var ip = id0.Split(':'); float dmg = ip.Length > 1 ? float.Parse(ip[1], System.Globalization.CultureInfo.InvariantCulture) : 4f; if (characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == ip[0]) is { } hn) { hn.Ent.Root.GetOrCreate("chr_ai.hp").Value = Math.Max(0f, hn.HpNow - dmg).ToString(System.Globalization.CultureInfo.InvariantCulture); hn.ShowHit(dmg, dmg <= 0f); } }
         foreach (var (f, id0) in brings) if (f == frames) { var ip = id0.Split(':'); string id = ip[0]; float bdist = ip.Length > 1 ? float.Parse(ip[1], System.Globalization.CultureInfo.InvariantCulture) : 1.6f; if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } bp && characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == id) is { } bn) bn.PlaceNear(bp, bdist); }       // --bring=Id@N or Id:metres@N
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
         foreach (var (f, n) in mouseClicks) if (f == frames) view?.MouseClick(n);
