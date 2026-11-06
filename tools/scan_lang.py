@@ -7,7 +7,7 @@ import os, re, sys, json
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = os.path.dirname(HERE)
 PROG = os.path.join(PORT, 'addon', 'merged', 'PROGRAM')
-SDIR = os.path.join(PORT, 'lang', 'ukrainian', 'strings')
+SDIR = os.environ.get('SEADOGS_LANG_SDIR') or os.path.join(PORT, 'lang', 'ukrainian', 'strings')   # env override: compare layer snapshots
 CYR = re.compile('[А-Яа-яЁё]')
 LIT = re.compile(r'"([^"\n]*)"')
 RU_LETTERS = re.compile('[ыэъЫЭЪёЁ]')
@@ -113,6 +113,11 @@ SUS_RE = [
     (re.compile(r"\b([" + UKL + r"]{3,}) \1\b", re.I), 'repeat'),
     (re.compile(r"\b(?:я|ти|він|вона|ми|ви|вони)\s+(?:є|був|була|були)\s+(?:не\s+)?(?:ты|мы|вы)\b"), 'ru-pron'),
     (re.compile(r"\b(?:Всього|Вcього)\s+добре\b|\bдоберу\b"), 'known-slip'),
+    # Russian vowel+'е' spelling (Ukrainian writes 'є'/'ї' there): ориентируюся, фехтование, аудиенцію, боеприпаси; capitalised names are skipped
+    (re.compile(r"\b(?![А-ЯІЇЄҐ])(?!статует|освоен)[" + UKL + r"]*[аеиоуюя]е[" + UKL + r"]*\b"), 'ru-vowel-e'),
+    (re.compile(r"\b[" + UKL + r"]+[чшщ]ь\b"), 'ru-soft-sign'),
+    # calques the machine translation made of Russian words: 'Хорошо' -> 'Досить добре', 'сундук' -> 'ковчег', 'крыс' -> 'мишей', 'стража' -> 'охоронник'
+    (re.compile(r"[Дд]осить добре|ковчег|\bмишей\b|\bмишам\b|ростовщ|кошел|в трибун|триум|охоронник", re.I), 'calque'),
 ]
 def suspicious(uk):
     """list of flag names for a Ukrainian string (empty = nothing suspicious)"""
