@@ -477,6 +477,12 @@ public partial class WorldMapView
     {
         if (!built || encs.Count == 0) return false;
         var e = encs[0];
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_MEETFOLLOW") == "1")       // quest tests: skip the merchants and meet the pursuer (the quest war encounters are made as pursuers)
+        {
+            var f = encs.FirstOrDefault(x => x.Type == 1);
+            if (f == null) return false;
+            e = f;
+        }
         shipX = e.X + 4f; shipZ = e.Z + 4f;
         GD.Print($"[map] test: ship moved next to encounter type {e.Type} at ({e.X:0},{e.Z:0})");
         PublishShip();
