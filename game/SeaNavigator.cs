@@ -133,9 +133,9 @@ public partial class NavigatorView : Control
         float s = Side;
         var c = new Vector2(s / 2, s / 2);
         // the minimap: sea disc (36 segments) and the ships
-        var pts = new Vector2[37];
-        for (int i = 0; i < 37; i++) { float a = i * 2 * MathF.PI / 36; pts[i] = c + new Vector2(MathF.Sin(a), MathF.Cos(a)) * MapRadius * U; }
-        DrawColoredPolygon(pts, SeaColor);
+        var pts = new Vector2[36];      // no closing duplicate of the first point and no zero radius: both make canvas_item_add_polygon log "triangulation failed" every frame
+        for (int i = 0; i < 36; i++) { float a = i * 2 * MathF.PI / 36; pts[i] = c + new Vector2(MathF.Sin(a), MathF.Cos(a)) * MapRadius * U; }
+        if (MapRadius * U > 0.5f) DrawColoredPolygon(pts, SeaColor);
         float mapR = MapRadius * U, k = mapR / (WorldRad * scale);
         foreach (var sh in ships)
         {
@@ -146,12 +146,13 @@ public partial class NavigatorView : Control
             fx = tmp + c.X;
             var col = sh.Dead ? Dead : sh.Relation == 2 ? Enemy : sh.Relation == 0 ? Friend : Neutral;
             float ang = sh.Ay - heading, r = ShipShowRadius * U;
-            DrawColoredPolygon(new[]
-            {
-                new Vector2(fx + r * MathF.Sin(ang), fy - r * MathF.Cos(ang)),
-                new Vector2(fx + r * MathF.Sin(ang - MathF.PI * .9f), fy - r * MathF.Cos(ang - MathF.PI * .8f)),
-                new Vector2(fx + r * MathF.Sin(ang + MathF.PI * .9f), fy - r * MathF.Cos(ang + MathF.PI * .8f)),
-            }, col);
+            var t0 = new Vector2(fx + r * MathF.Sin(ang), fy - r * MathF.Cos(ang));
+            var t1 = new Vector2(fx + r * MathF.Sin(ang - MathF.PI * .9f), fy - r * MathF.Cos(ang - MathF.PI * .8f));
+            var t2 = new Vector2(fx + r * MathF.Sin(ang + MathF.PI * .9f), fy - r * MathF.Cos(ang + MathF.PI * .8f));
+            // a degenerate triangle (zero radius before the first layout, NaN position) makes canvas_item_add_polygon log "triangulation failed" every frame
+            float area = (t1.X - t0.X) * (t2.Y - t0.Y) - (t2.X - t0.X) * (t1.Y - t0.Y);
+            if (!float.IsFinite(area) || MathF.Abs(area) < 0.01f) continue;
+            DrawColoredPolygon(new[] { t0, t1, t2 }, col);
         }
         // the ring with the ship in the middle, then the compass card
         var empty = GameAssets.Texture(Dir + "indicators_dark_and_center_ship.tga");

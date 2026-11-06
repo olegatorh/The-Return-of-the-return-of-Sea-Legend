@@ -110,3 +110,4 @@ Entity class | blots | PORT | 70 | V | fort wall marks seen on screenshots (Fala
 Entity class | Sharks | PORT | 70 | V | fin + wedge track + jump seen on screenshots (test --sharks=jump@N); ships still make them dive
 Entity class | BallSplash | PORT | 85 | V | t_splash.cpp: explos.tga bubble grid (HeightF ripple) + 4 planes with the 64 splash.tga frames (65 ms), alpha lerp of two frames, ambient desaturated; replaces the particle fallback
 Entity class | Ship (in locations) | PORT | 75 | V | MSG_SHIP_CREATE 50300: port ships and the boat built with the sea model code, furled, rocking on the waves of the location (SeaLocShips.cs)
+Language | Quest book (RESOURCE/QUESTSTEXT) in Ukrainian | PORT | 60 | E | 371 of 422 missing entries machine-translated + 59 titles by hand (docs/PLAYTEST.md); 51 long entries still Russian

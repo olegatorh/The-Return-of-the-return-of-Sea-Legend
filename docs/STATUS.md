@@ -17,16 +17,16 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 32 subsystems below): **75 %**
+* Overall (mean of the 33 subsystems below): **74 %**
 * Unit tests: **37** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **22251** lines of C# (`StormScript/` library + `game/`)
+* Port code: **22252** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
-| PORT | 21 | 77 % |
+| PORT | 22 | 77 % |
 | APPROX | 8 | 63 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
@@ -67,6 +67,7 @@ Layers (where the behaviour comes from):
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ████████░░ 80 % | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder |
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
+| Language | Quest book (RESOURCE/QUESTSTEXT) in Ukrainian | PORT | ██████░░░░ 60 % | E | 371 of 422 missing entries machine-translated + 59 titles by hand (docs/PLAYTEST.md); 51 long entries still Russian |
 
 ## Engine classes that the scripts create (77)
 

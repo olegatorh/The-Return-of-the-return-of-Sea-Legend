@@ -499,3 +499,8 @@ DlgScrollDown
 
 }
 
+BOAL_UsePotion
+{
+Випити еліксир здоров'я
+}
+
