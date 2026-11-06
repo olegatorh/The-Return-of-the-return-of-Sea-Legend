@@ -1,8 +1,8 @@
 # Контракти рушія: скрипти ↔ порт (автоматичний аудит)
 
-_Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
+_Згенеровано `python tools/contract_audit.py` 2026-11-06 01:47. Не редагувати вручну — перезапустити (`run_tests.ps1 -Contracts`)._
 
-Джерела: скрипти `addon/merged/PROGRAM` (1139 файлів, 1154 #define, 4137 функцій), порт `StormScript/Runtime` + `game/*.cs` (89 файлів), reference `reference/storm-engine` (95 класів, 219 подій, 159 native), логи: 78 (`game/smoke_*.log`, `reports/*/log_tail.txt`).
+Джерела: скрипти `addon/merged/PROGRAM` (1139 файлів, 1154 #define, 4137 функцій), порт `StormScript/Runtime` + `game/*.cs` (89 файлів), reference `reference/storm-engine` (95 класів, 219 подій, 159 native), логи: 88 (`game/smoke_*.log`, `reports/*/log_tail.txt`).
 
 ## Відомі обмеження
 * Обробник порту «обробляє» код, якщо число коду (або підкоманда-рядок) трапляється будь-де в коді, досяжному з лямбди `EntityHandlers[...]` (замикання викликів до 5 рівнів, неоднозначні методи — усі кандидати). Тому пропуски скоріше НЕДОоцінені: випадковий збіг числа ховає проблему, але хибних «немає» мало. Заглушки `case N: return 0` рахуються як обробка.
@@ -24,7 +24,7 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | Події | 201 | 23 | 2 | 24 |
 | Параметри подій: формат | 110 | 0 | 0 | 6 |
 | Параметри подій | 236 | 0 | 0 | 2 |
-| Події: runtime | 0 | 0 | 0 | 48 |
+| Події: runtime | 0 | 0 | 0 | 46 |
 | Ресурси | 0 | 12 | 0 | 0 |
 | Ресурси: ini | 83 | 6 | 1 | 6 |
 
@@ -35,11 +35,11 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | 2 | Події | ievntGetHelpTexture | INTERFACE/ship.c:154, INTERFACE/store.c:65 | НЕ підіймається портом | оригінал: core.Event "s" (src/libs/xinterface/src/xinterface.cpp:3301) |
 | 3 | Повідомлення | Island → MSG_ISLAND_START (50102) fmt "l" | SEA_AI/AIIsland.c:3 | код 50102 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:114 |
 | 4 | Повідомлення | Island → MSG_LOCATION_ADD_MODEL (30100) fmt "liss" | Locations/locations_loader.c:674 | код 30100 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:114 |
-| 5 | Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; клас визначено за кодом (reference) |
-| 6 | Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; клас визначено за кодом (reference) |
+| 5 | Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; клас визначено за кодом (reference) |
+| 6 | Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; клас визначено за кодом (reference) |
 | 7 | Повідомлення | ship → AI_MESSAGE_SET_LAYERS (51015) fmt "lss" | SEA_AI/AISea.c:6 | код 51015 не знайдено в обробнику | оригінал: обробляє (src/libs/ship/src/ship.cpp:1210); порт: game/Sea.cs:110; клас визначено за кодом (reference) |
-| 8 | Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:234 |
-| 9 | Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:234 |
+| 8 | Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:235 |
+| 9 | Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:235 |
 | 10 | Повідомлення | HELPCHOOSER → MSG_HELPCHOOSER_START (45200) fmt "ls" | INTERFACE/interface.c:1229 | немає EntityHandlers["HELPCHOOSER"] | оригінал: обробляє (src/libs/xinterface/src/help_chooser/help_chooser.cpp:180) |
 | 11 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_BALL_UPDATE (77401) fmt "lalffffff" | SEA_AI/AIBalls.c:166 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
 | 12 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_FIRE (77400) fmt "lisffffff" | SEA_AI/shipBortFire.c:45 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
@@ -52,8 +52,8 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | 19 | Події | EWhr_GetWindAngle | Weather/WhrWeather.c:38 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/location/src/grass.cpp:323) |
 | 20 | Події | EWhr_GetWindSpeed | Weather/WhrWeather.c:39 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/location/src/grass.cpp:343) |
 | 21 | Події | WhrCalcFogColor | SEA_AI/Cabin.c:299, Weather/WhrWeather.c:225 | НЕ підіймається портом | оригінал: core.Event "fff" (src/libs/weather/src/sky.cpp:26) |
-| 22 | Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74 (+2) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
-| 23 | Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
+| 22 | Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74 (+2) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
+| 23 | Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
 | 24 | Події | DelInterfaceTexture | INTERFACE/save_load.c:24 | НЕ підіймається портом | оригінал: core.Event "s\|ss" (src/libs/xinterface/src/nodes/xi_scroll_image.cpp:815) |
 | 25 | Події | DisableScroll | INTERFACE/helpscreen.c:29 | НЕ підіймається портом | оригінал: core.Event "sl" (src/libs/xinterface/src/nodes/xi_formt_text.cpp:926) |
 | 26 | Події | EmergencyDialogExit | dialog.c:9 | НЕ підіймається портом | оригінал: core.Event "" (src/libs/dialog/src/dialog.cpp:925) |
@@ -64,33 +64,33 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | 31 | Події | LocationTimeUpdate | Locations/locations_loader.c:939 | НЕ підіймається портом | оригінал: core.Event "f" (src/libs/location/src/location.cpp:144) |
 | 32 | Події | MSG_TELESCOPE_REQUEST | SEA_AI/sea.c:223 | НЕ підіймається портом | оригінал: core.Event "l" (src/libs/battle_interface/src/spyglass/spyglass.cpp:170) |
 | 33 | Події | SetWindowSize | BATTLE_INTERFACE/LogInterface.c:17 | НЕ підіймається портом | оригінал: core.Event "lll" (src/libs/battle_interface/src/log_and_action.cpp:50) |
-| 34 | Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
+| 34 | Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
 | 35 | Повідомлення | TELESCOPE → MSG_TELESCOPE_INIT_ARRAYS (77300) fmt "leee" | SEA_AI/sea.c:846 | код 77300 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41; [nohandler] 6× у логах |
 | 36 | Функції рушія | CreateClass() ×5 | gameutils.c:7, lcorrect.c:5 (+3) | немає в порті (Builtins/HostFunctions) | оригінал: 1 арг. (src/libs/core/src/internal_functions.cpp:118); у логах не траплялась |
 | 37 | Функції рушія | InitInterface() |  | unresolved під час прогону | 1× у reports/2026-11-05_08-51-31/log_tail.txt |
 | 38 | Функції рушія | GlobalLngFileID() ×1 | INTERFACE/utilite.c:376 | немає в порті (Builtins/HostFunctions) | оригінал: 0 арг. (src/libs/xinterface/src/string_service/str_service.cpp:1615); native-оголошення: native int GlobalLngFileID() (INTERFACE/utilite.c:7); у логах не траплялась |
-| 39 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316 (+8) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; лише налагоджувальні скрипти |
-| 40 | Повідомлення | scrshoter → MSG_SCRSHOT_RELEASE (45044) fmt "ls" | INTERFACE/save_load.c:693 | код 45044 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); порт: game/Main.cs:258; клас визначено за кодом (reference) |
+| 39 | Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316 (+8) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; лише налагоджувальні скрипти |
+| 40 | Повідомлення | scrshoter → MSG_SCRSHOT_RELEASE (45044) fmt "ls" | INTERFACE/save_load.c:693 | код 45044 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); порт: game/Main.cs:259; клас визначено за кодом (reference) |
 
 ## Повідомлення — розбіжності (19)
 | Контракт | Елемент | Місце в скриптах | Стан у порту | Докази |
 |---|---|---|---|---|
 | Повідомлення | Island → MSG_ISLAND_START (50102) fmt "l" | SEA_AI/AIIsland.c:3 | код 50102 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:114 |
 | Повідомлення | Island → MSG_LOCATION_ADD_MODEL (30100) fmt "liss" | Locations/locations_loader.c:674 | код 30100 не знайдено в обробнику | оригінал: обробляє (src/libs/island/src/island.cpp:238); порт: game/Sea.cs:114 |
-| Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; клас визначено за кодом (reference) |
-| Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; клас визначено за кодом (reference) |
+| Повідомлення | location → MSG_LOCATION_HIDELGROUP (30181) fmt "ls" | Locations/locations.c:86 | код 30181 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; клас визначено за кодом (reference) |
+| Повідомлення | location → MSG_LOCATION_VIEWLGROUP (30180) fmt "lsffl" | Locations/locations.c:79 | код 30180 не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; клас визначено за кодом (reference) |
 | Повідомлення | ship → AI_MESSAGE_SET_LAYERS (51015) fmt "lss" | SEA_AI/AISea.c:6 | код 51015 не знайдено в обробнику | оригінал: обробляє (src/libs/ship/src/ship.cpp:1210); порт: game/Sea.cs:110; клас визначено за кодом (reference) |
-| Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:234 |
-| Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:234 |
+| Повідомлення | xinterface → MSG_INTERFACE_CHECK_AGAIN (45057) fmt "l" | INTERFACE/mainmenu.c:407 | код 45057 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:235 |
+| Повідомлення | xinterface → MSG_INTERFACE_LAUNCH_DASHBOARD (45054) fmt "l" | INTERFACE/interface.c:1669 | код 45054 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/xinterface.cpp:455); порт: game/Main.cs:235 |
 | Повідомлення | HELPCHOOSER → MSG_HELPCHOOSER_START (45200) fmt "ls" | INTERFACE/interface.c:1229 | немає EntityHandlers["HELPCHOOSER"] | оригінал: обробляє (src/libs/xinterface/src/help_chooser/help_chooser.cpp:180) |
 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_BALL_UPDATE (77401) fmt "lalffffff" | SEA_AI/AIBalls.c:166 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
 | Повідомлення | sea_operator → MSG_SEA_OPERATOR_FIRE (77400) fmt "lisffffff" | SEA_AI/shipBortFire.c:45 | немає EntityHandlers["sea_operator"] | оригінал: обробляє (src/libs/sea_operator/src/sea_operator.cpp:51); клас визначено за кодом (reference) |
-| Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74, SEA_AI/Cabin.c:252 (+1) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
-| Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
-| Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:343 |
+| Повідомлення | MODELR → MSG_MODEL_RESTORE (20505) fmt "l" | SEA_AI/AIAbordage.c:70, SEA_AI/AIAbordage.c:74, SEA_AI/Cabin.c:252 (+1) | код 20505 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
+| Повідомлення | MODELR → MSG_MODEL_SET_LIGHT_PATH (20503) fmt "ls" | SEA_AI/AIFort.c:106, SEA_AI/sea.c:557 | код 20503 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
+| Повідомлення | MODELR → MSG_MODEL_SET_TECHNIQUE (20510) fmt "ls" | ITEMS/itemLogic.c:24 | код 20510 не знайдено в обробнику | оригінал: обробляє (src/libs/model/src/model.cpp:300); порт: game/Main.cs:344 |
 | Повідомлення | TELESCOPE → MSG_TELESCOPE_INIT_ARRAYS (77300) fmt "leee" | SEA_AI/sea.c:846 | код 77300 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41; [nohandler] 6× у логах |
-| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316, Locations/locators_test.c:321 (+7) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:272; лише налагоджувальні скрипти |
-| Повідомлення | scrshoter → MSG_SCRSHOT_RELEASE (45044) fmt "ls" | INTERFACE/save_load.c:693 | код 45044 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); порт: game/Main.cs:258; клас визначено за кодом (reference) |
+| Повідомлення | location → MSG_LOCATION_EX_MSG (30155) "TestLocatorsGroup" fmt "lss" | Locations/locators_test.c:311, Locations/locators_test.c:316, Locations/locators_test.c:321 (+7) | підкоманду "TestLocatorsGroup" не знайдено в обробнику | оригінал: обробляє (src/libs/location/src/location.cpp:233); порт: game/Main.cs:273; лише налагоджувальні скрипти |
+| Повідомлення | scrshoter → MSG_SCRSHOT_RELEASE (45044) fmt "ls" | INTERFACE/save_load.c:693 | код 45044 не знайдено в обробнику | оригінал: обробляє (src/libs/xinterface/src/scr_shoter/scr_shoter.cpp:242); порт: game/Main.cs:259; клас визначено за кодом (reference) |
 | Повідомлення | TELESCOPE → MSG_SHIP_DELETE (50301) fmt "la" | SEA_AI/shipDead.c:8 | код 50301 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41 |
 | Повідомлення | TELESCOPE → MSG_TELESCOPE_REQUEST (77301) fmt "l" | SEA_AI/telescope.c:4 | код 77301 приймається без дії (згаданий лише в коментарі обробника) | оригінал: класу немає в reference; порт: game/SeaTelescope.cs:41 |
 | Повідомлення | TMPTELEPORT → 42222 fmt "la" | teleport.c:242 | немає EntityHandlers["TMPTELEPORT"] | оригінал: обробляє (src/libs/teleport/src/teleport.cpp:199); лише налагоджувальні скрипти |
@@ -159,9 +159,9 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 |---|---|---|---|---|
 | Ресурси | atlas picture:  (group ) |  | не завантажується портом | 17× у game/smoke_door.log, game/smoke_screen_cards.log, game/smoke_screen_dice.log |
 | Ресурси | atlas picture:  (group ICONS) |  | не завантажується портом | 17× у game/smoke_door.log, game/smoke_hold.log, game/smoke_rename.log |
-| Ресурси | texture: ships\flagall.tga |  | не завантажується портом | 37× у game/smoke_board.log.err, game/smoke_chase.log.err, game/smoke_chest.log.err |
-| Ресурси | texture: ships\sail_rope.tga |  | не завантажується портом | 27× у game/smoke_board.log.err, game/smoke_chest.log.err, game/smoke_door.log.err |
-| Ресурси | texture: ships\vant.tga | SEA_AI/AIShip.c:43 | не завантажується портом | 27× у game/smoke_board.log.err, game/smoke_chest.log.err, game/smoke_door.log.err |
+| Ресурси | texture: ships\flagall.tga |  | не завантажується портом | 40× у game/smoke_board.log.err, game/smoke_chase.log.err, game/smoke_chest.log.err |
+| Ресурси | texture: ships\sail_rope.tga |  | не завантажується портом | 30× у game/smoke_board.log.err, game/smoke_chest.log.err, game/smoke_door.log.err |
+| Ресурси | texture: ships\vant.tga | SEA_AI/AIShip.c:43 | не завантажується портом | 30× у game/smoke_board.log.err, game/smoke_chest.log.err, game/smoke_door.log.err |
 | Ресурси | atlas picture:  (group GOODS) |  | не завантажується портом | 4× у game/smoke_screen_price.log, reports/2026-11-05_08-49-52/log_tail.txt, reports/2026-11-05_08-49-54/log_tail.txt |
 | Ресурси | sound: poorman | Characters/init/FalaiseDeFleur.c:549, Characters/init/Redmond.c:470, Characters/init/Santiago.c:472 | не завантажується портом | 3× у reports/2026-11-05_08-46-25/log_tail.txt, reports/2026-11-05_08-49-52/log_tail.txt, reports/2026-11-05_08-49-54/log_tail.txt |
 | Ресурси | sound: waitress_brm | Loc_ai/types/LAi_waitress.c:149 | не завантажується портом | 3× у reports/2026-11-05_08-49-52/log_tail.txt, reports/2026-11-05_08-49-54/log_tail.txt, reports/2026-11-05_08-51-31/log_tail.txt |
@@ -213,58 +213,56 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | Події | NewGameEvent | seadogs.c:64 | не знайдено; ім'я використовується скриптами як дані (Events.h:14) — можливо, скрипт-подія | у reference не підіймається |
 | Події | PassengerDown | INTERFACE/passengers.c:69 | не знайдено; ім'я використовується скриптами як дані (INTERFACE/passengers.c:69) — можливо, скрипт-подія | у reference не підіймається |
 | Події | startAfterWaitScene | QUESTS/quests_scenes.c:10 | не знайдено; ім'я використовується скриптами як дані (QUESTS/quests_scenes.c:10) — можливо, скрипт-подія | у reference не підіймається |
-| Події: runtime | BI_GetChargeQuantity | BATTLE_INTERFACE/BattleInterface.c:84 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:210; [events] топ-40 у 32 логах |
-| Події: runtime | BI_GetFortRelation | BATTLE_INTERFACE/BattleInterface.c:92 | жодного разу в регресійних прогонах | порт: game/BattleInterface.cs:99; [events] топ-40 у 32 логах |
-| Події: runtime | BI_VISIBLE | BATTLE_INTERFACE/ispyglass.c:17 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:88; [events] топ-40 у 32 логах |
-| Події: runtime | BI_Visible | BATTLE_INTERFACE/BattleInterface.c:87, BATTLE_INTERFACE/LogInterface.c:25 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:88; [events] топ-40 у 32 логах |
-| Події: runtime | evntSetUsingAbility | BATTLE_INTERFACE/BattleInterface.c:97 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:235; [events] топ-40 у 32 логах |
-| Події: runtime | CannGFHeight | SEA_AI/AICannon.c:17 | жодного разу в регресійних прогонах | порт: game/SeaCombat.cs:240; [events] топ-40 у 32 логах |
-| Події: runtime | CannReCaclParam | SEA_AI/AICannon.c:21 | жодного разу в регресійних прогонах | порт: game/SeaForts.cs:124; [events] топ-40 у 32 логах |
-| Події: runtime | FortCreate | SEA_AI/AIFort.c:27 | жодного разу в регресійних прогонах | порт: game/SeaForts.cs:43; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterBusyPos | Loc_ai/LAi_init.c:32 | жодного разу в регресійних прогонах | порт: game/Characters.cs:895; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterEscapeSlide | Loc_ai/LAi_init.c:42 | жодного разу в регресійних прогонах | порт: game/Characters.cs:918; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterFire | Loc_ai/LAi_init.c:39 | жодного разу в регресійних прогонах | порт: game/Characters.cs:275; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterFollowGo | Loc_ai/LAi_init.c:33 | жодного разу в регресійних прогонах | порт: game/Characters.cs:943; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterIsFire | Loc_ai/LAi_init.c:40 | жодного разу в регресійних прогонах | порт: game/Characters.cs:170; [events] топ-40 у 32 логах |
-| Події: runtime | Location_CharacterTaskFailure | Loc_ai/LAi_init.c:31 | жодного разу в регресійних прогонах | порт: game/Characters.cs:157; [events] топ-40 у 32 логах |
-| Події: runtime | Location_Character_EndAction | Loc_ai/LAi_init.c:44 | жодного разу в регресійних прогонах | порт: game/Characters.cs:448; [events] топ-40 у 32 логах |
-| Події: runtime | Shp2Strand | SEA_AI/AIShip.c:97 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:102; [events] топ-40 у 32 логах |
-| Події: runtime | ShpActFirePlace | SEA_AI/AIShip.c:108 | жодного разу в регресійних прогонах | порт: game/SeaFires.cs:116; [events] топ-40 у 32 логах |
-| Події: runtime | ShpDelete | BATTLE_INTERFACE/BattleInterface.c:79 | жодного разу в регресійних прогонах | порт: game/Sea.cs:543; [events] топ-40 у 32 логах |
-| Події: runtime | ShpEatSwimGood | SEA_AI/AISeaGoods.c:18 | жодного разу в регресійних прогонах | порт: game/SeaFx.cs:498; [events] топ-40 у 32 логах |
-| Події: runtime | ShpFireAction | SEA_AI/AIShip.c:105 | жодного разу в регресійних прогонах | порт: game/SeaAI.cs:112; [events] топ-40 у 32 логах |
-| Події: runtime | Shp_ShipIslColl | SEA_AI/AIShip.c:92 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:91; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_DeleteShipEncounter | WorldMap/worldmap.c:72 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:135; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_EventWindowChangeSelectoin | WorldMap/worldmap.c:68 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:360; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_EventWindowSelect | WorldMap/worldmap.c:69 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:359; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_IsSkipEnable | WorldMap/worldmap_events.c:178 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:204; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_PlayerInStorm | WorldMap/worldmap.c:66 | жодного разу в регресійних прогонах | порт: game/WorldStorms.cs:241; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_ShipEncounter | WorldMap/worldmap.c:67 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:221; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_WaitMenuChangeSelectoin | WorldMap/worldmap.c:70 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:375; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_WaitMenuSelect | WorldMap/worldmap.c:71 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:371; [events] топ-40 у 32 логах |
-| Події: runtime | WorldMap_outside_islandzone | WorldMap/worldmap.c:65 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:403; [events] топ-40 у 32 логах |
-| Повідомлення (runtime) | <no entity> \| ls \| 30350 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| lsl \| 30373 LockFightMode |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| lsl \| 30373 SetFightWOWeapon |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 38984× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| sis \| MoveChr |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 70201× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Події: runtime | EventMastFall | BATTLE_INTERFACE/BattleInterface.c:52 | жодного разу в регресійних прогонах | порт: game/SeaSails.cs:426; [events] топ-40 у 32 логах |
-| Події: runtime | ExitFromWorldMap | WorldMap/worldmap.c:74 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:412; [events] топ-40 у 32 логах |
-| Події: runtime | FormatedTextActivate | INTERFACE/addon_team.c:77, INTERFACE/controls.c:62 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:934; [events] топ-40 у 32 логах |
-| Події: runtime | IEvnt_MouseClick | INTERFACE/transfer_crew.c:57, INTERFACE/transfer_goods.c:76 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:394; [events] топ-40 у 32 логах |
-| Події: runtime | NextDay | QUESTS/quests.c:38, BATTLE_INTERFACE/BattleInterface.c:49 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:335; [events] топ-40 у 32 логах |
-| Події: runtime | QuestActivate | INTERFACE/boal_questbook.c:33, INTERFACE/QuestBook.c:27 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:879; [events] топ-40 у 32 логах |
-| Події: runtime | QuestTopChange | INTERFACE/boal_questbook.c:31, INTERFACE/QuestBook.c:25 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:1008; [events] топ-40 у 32 логах |
-| Події: runtime | ReleaseTelescopeInfo | BATTLE_INTERFACE/ispyglass.c:16 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:92; [events] топ-40 у 32 логах |
-| Події: runtime | ScrollPosChange | INTERFACE/addon_team.c:79, INTERFACE/boal_questbook.c:36 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:396; [events] топ-40 у 32 логах |
-| Події: runtime | ScrollTopChange | INTERFACE/addon_team.c:80, INTERFACE/boal_questbook.c:37 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:396; [events] топ-40 у 32 логах |
-| Події: runtime | SetScrollerPos | INTERFACE/addon_team.c:78, INTERFACE/boal_questbook.c:35 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:935; [events] топ-40 у 32 логах |
-| Події: runtime | SetTelescopeInfo | BATTLE_INTERFACE/ispyglass.c:15 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:108; [events] топ-40 у 32 логах |
-| Події: runtime | TelescopeActive | SEA_AI/AICameras.c:82 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:87; [events] топ-40 у 32 логах |
-| Події: runtime | TornadoDamage | SEA_AI/AIShip.c:110 | жодного разу в регресійних прогонах | порт: game/WeatherFx.cs:131; [events] топ-40 у 32 логах |
-| Події: runtime | evntCheckEnableLocator | BATTLE_INTERFACE/BattleInterface.c:98 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:271; [events] топ-40 у 32 логах |
-| Події: runtime | evntCheckEnableShip | BATTLE_INTERFACE/BattleInterface.c:99 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:257; [events] топ-40 у 32 логах |
-| Події: runtime | evntSave | INTERFACE/save_load.c:259, INTERFACE/save_load.c:846 | жодного разу в регресійних прогонах | порт: game/Main.cs:1107; [events] топ-40 у 32 логах |
-| Події: runtime | evntUpdateFormtText | INTERFACE/addon_team.c:81, INTERFACE/controls.c:63 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:933; [events] топ-40 у 32 логах |
+| Події: runtime | BI_GetChargeQuantity | BATTLE_INTERFACE/BattleInterface.c:84 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:210; [events] топ-40 у 34 логах |
+| Події: runtime | BI_GetFortRelation | BATTLE_INTERFACE/BattleInterface.c:92 | жодного разу в регресійних прогонах | порт: game/BattleInterface.cs:99; [events] топ-40 у 34 логах |
+| Події: runtime | BI_VISIBLE | BATTLE_INTERFACE/ispyglass.c:17 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:88; [events] топ-40 у 34 логах |
+| Події: runtime | BI_Visible | BATTLE_INTERFACE/BattleInterface.c:87, BATTLE_INTERFACE/LogInterface.c:25 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:88; [events] топ-40 у 34 логах |
+| Події: runtime | evntSetUsingAbility | BATTLE_INTERFACE/BattleInterface.c:97 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:235; [events] топ-40 у 34 логах |
+| Події: runtime | CannGFHeight | SEA_AI/AICannon.c:17 | жодного разу в регресійних прогонах | порт: game/SeaCombat.cs:240; [events] топ-40 у 34 логах |
+| Події: runtime | CannReCaclParam | SEA_AI/AICannon.c:21 | жодного разу в регресійних прогонах | порт: game/SeaForts.cs:124; [events] топ-40 у 34 логах |
+| Події: runtime | FortCreate | SEA_AI/AIFort.c:27 | жодного разу в регресійних прогонах | порт: game/SeaForts.cs:43; [events] топ-40 у 34 логах |
+| Події: runtime | Location_CharacterBusyPos | Loc_ai/LAi_init.c:32 | жодного разу в регресійних прогонах | порт: game/Characters.cs:990; [events] топ-40 у 34 логах |
+| Події: runtime | Location_CharacterEscapeSlide | Loc_ai/LAi_init.c:42 | жодного разу в регресійних прогонах | порт: game/Characters.cs:1018; [events] топ-40 у 34 логах |
+| Події: runtime | Location_CharacterFollowGo | Loc_ai/LAi_init.c:33 | жодного разу в регресійних прогонах | порт: game/Characters.cs:1043; [events] топ-40 у 34 логах |
+| Події: runtime | Location_CharacterTaskFailure | Loc_ai/LAi_init.c:31 | жодного разу в регресійних прогонах | порт: game/Characters.cs:152; [events] топ-40 у 34 логах |
+| Події: runtime | Location_Character_EndAction | Loc_ai/LAi_init.c:44 | жодного разу в регресійних прогонах | порт: game/Characters.cs:519; [events] топ-40 у 34 логах |
+| Події: runtime | Shp2Strand | SEA_AI/AIShip.c:97 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:102; [events] топ-40 у 34 логах |
+| Події: runtime | ShpDelete | BATTLE_INTERFACE/BattleInterface.c:79 | жодного разу в регресійних прогонах | порт: game/Sea.cs:543; [events] топ-40 у 34 логах |
+| Події: runtime | ShpEatSwimGood | SEA_AI/AISeaGoods.c:18 | жодного разу в регресійних прогонах | порт: game/SeaFx.cs:498; [events] топ-40 у 34 логах |
+| Події: runtime | ShpFireAction | SEA_AI/AIShip.c:105 | жодного разу в регресійних прогонах | порт: game/SeaAI.cs:112; [events] топ-40 у 34 логах |
+| Події: runtime | ShpGetBortFireDelta | SEA_AI/AIShip.c:106 | жодного разу в регресійних прогонах | порт: game/SeaCombat.cs:139; [events] топ-40 у 34 логах |
+| Події: runtime | Shp_ShipIslColl | SEA_AI/AIShip.c:92 | жодного разу в регресійних прогонах | порт: game/SeaGrounding.cs:91; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_DeleteShipEncounter | WorldMap/worldmap.c:72 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:135; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_EventWindowChangeSelectoin | WorldMap/worldmap.c:68 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:407; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_EventWindowSelect | WorldMap/worldmap.c:69 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:406; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_IsSkipEnable | WorldMap/worldmap_events.c:178 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:204; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_PlayerInStorm | WorldMap/worldmap.c:66 | жодного разу в регресійних прогонах | порт: game/WorldStorms.cs:241; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_ShipEncounter | WorldMap/worldmap.c:67 | жодного разу в регресійних прогонах | порт: game/WorldEncounters.cs:221; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_WaitMenuChangeSelectoin | WorldMap/worldmap.c:70 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:422; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_WaitMenuSelect | WorldMap/worldmap.c:71 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:418; [events] топ-40 у 34 логах |
+| Події: runtime | WorldMap_outside_islandzone | WorldMap/worldmap.c:65 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:450; [events] топ-40 у 34 логах |
+| Повідомлення (runtime) | <no entity> \| ls \| 30350 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 41346× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| lsl \| 30373 LockFightMode |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 41346× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| lsl \| 30373 SetFightWOWeapon |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 41346× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| sis \| MoveChr |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 74455× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Події: runtime | EventMastFall | BATTLE_INTERFACE/BattleInterface.c:52 | жодного разу в регресійних прогонах | порт: game/SeaSails.cs:426; [events] топ-40 у 34 логах |
+| Події: runtime | ExitFromWorldMap | WorldMap/worldmap.c:74 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:459; [events] топ-40 у 34 логах |
+| Події: runtime | FormatedTextActivate | INTERFACE/addon_team.c:77, INTERFACE/controls.c:62 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:934; [events] топ-40 у 34 логах |
+| Події: runtime | IEvnt_MouseClick | INTERFACE/transfer_crew.c:57, INTERFACE/transfer_goods.c:76 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:394; [events] топ-40 у 34 логах |
+| Події: runtime | NextDay | QUESTS/quests.c:38, BATTLE_INTERFACE/BattleInterface.c:49 | жодного разу в регресійних прогонах | порт: game/WorldMap.cs:382; [events] топ-40 у 34 логах |
+| Події: runtime | QuestActivate | INTERFACE/boal_questbook.c:33, INTERFACE/QuestBook.c:27 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:879; [events] топ-40 у 34 логах |
+| Події: runtime | QuestTopChange | INTERFACE/boal_questbook.c:31, INTERFACE/QuestBook.c:25 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:1008; [events] топ-40 у 34 логах |
+| Події: runtime | ReleaseTelescopeInfo | BATTLE_INTERFACE/ispyglass.c:16 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:92; [events] топ-40 у 34 логах |
+| Події: runtime | ScrollPosChange | INTERFACE/addon_team.c:79, INTERFACE/boal_questbook.c:36 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:396; [events] топ-40 у 34 логах |
+| Події: runtime | ScrollTopChange | INTERFACE/addon_team.c:80, INTERFACE/boal_questbook.c:37 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:396; [events] топ-40 у 34 логах |
+| Події: runtime | SetScrollerPos | INTERFACE/addon_team.c:78, INTERFACE/boal_questbook.c:35 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:935; [events] топ-40 у 34 логах |
+| Події: runtime | SetTelescopeInfo | BATTLE_INTERFACE/ispyglass.c:15 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:108; [events] топ-40 у 34 логах |
+| Події: runtime | TelescopeActive | SEA_AI/AICameras.c:82 | жодного разу в регресійних прогонах | порт: game/SeaTelescope.cs:87; [events] топ-40 у 34 логах |
+| Події: runtime | TornadoDamage | SEA_AI/AIShip.c:110 | жодного разу в регресійних прогонах | порт: game/WeatherFx.cs:131; [events] топ-40 у 34 логах |
+| Події: runtime | evntCheckEnableLocator | BATTLE_INTERFACE/BattleInterface.c:98 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:271; [events] топ-40 у 34 логах |
+| Події: runtime | evntCheckEnableShip | BATTLE_INTERFACE/BattleInterface.c:99 | жодного разу в регресійних прогонах | порт: game/SeaCommands.cs:257; [events] топ-40 у 34 логах |
+| Події: runtime | evntSave | INTERFACE/save_load.c:259, INTERFACE/save_load.c:846 | жодного разу в регресійних прогонах | порт: game/Main.cs:1109; [events] топ-40 у 34 логах |
+| Події: runtime | evntUpdateFormtText | INTERFACE/addon_team.c:81, INTERFACE/controls.c:63 | жодного разу в регресійних прогонах | порт: game/XInterface.cs:933; [events] топ-40 у 34 логах |
 | Функції рушія | LayerCreate() ×19 | dialog.c:115, dialog.c:181 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; у reference немає |
 | Функції рушія | LayerDelObject() ×25 | INTERFACE/interface.c:1618, SEA_AI/AISea.c:28 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; оригінал: 2 арг. (src/libs/core/src/internal_functions.cpp:118) |
 | Функції рушія | LayerFreeze() ×67 | INTERFACE/interface.c:1158, INTERFACE/interface.c:1159 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; оригінал: 2 арг. (src/libs/core/src/internal_functions.cpp:118) |
@@ -281,16 +279,16 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | Функції рушія | LayerSetRealize() ×6 | dialog.c:116, dialog.c:182 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; оригінал: 1 арг. (src/libs/core/src/internal_functions.cpp:118) |
 | Параметри подій | FormatedTextActivate → ProcHelpSectionActivate() | INTERFACE/helpscreen.c:30 | #1: string замість int (порт = формат reference) | скрипт читає "l" (INTERFACE/helpscreen.c:236); порт передає "sl" (game/XInterface.cs:934); оригінал "sl" |
 | Повідомлення (runtime) | <no entity> \| ls \| 30373 IsFightMode |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 88× у game/smoke_intro.log |
-| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupHear |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 68× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupLook |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 68× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupSay |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 68× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| ss \| RegistryGroup |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 66× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| ss \| RegistryGroup |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 70× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupHear |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 72× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupLook |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 72× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| ssf \| SetGroupSay |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 72× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
 | Функції рушія | GetNPCInformation() ×4 | DIALOGS/Docker Generated_dialog.c:153, DIALOGS/Docker Generated_dialog.c:162 | не визначена ні в скриптах, ні в оригінальному рушії — ймовірно дефект скриптів | у reference немає |
 | Функції рушія | Sea_TurnRateMagicNumber() ×1 | SEA_AI/AIShip.c:2103 | не визначена ні в скриптах, ні в оригінальному рушії — ймовірно дефект скриптів | у reference немає |
-| Повідомлення (runtime) | <no entity> \| l \| 10006 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 33× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
-| Повідомлення (runtime) | <no entity> \| l \| 51025 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 33× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| l \| 10006 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 35× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| l \| 51025 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 35× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
+| Повідомлення (runtime) | <no entity> \| lll \| 77004 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 34× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
 | Повідомлення (runtime) | <no entity> \| lllas \| 51011 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 33× у game/smoke_intro.log |
-| Повідомлення (runtime) | <no entity> \| lll \| 77004 |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 32× у game/smoke_board.log, game/smoke_chase.log, game/smoke_chest.log |
 | Повідомлення (runtime) | <no entity> \| ssi \| AddModel |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 25× у game/smoke_board.log, game/smoke_chase.log, game/smoke_door.log |
 | Функції рушія | EntityUpdate() ×2 | SEA_AI/AIBalls.c:55, SEA_AI/AIBalls.c:78 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; оригінал: 1 арг. (src/libs/core/src/internal_functions.cpp:118) |
 | Функції рушія | LayerSetExecute() ×2 | gameutils.c:6, SEA_AI/sea.c:174 | stub: no-op (у Godot не потрібно: шари/профайлер/екран завантаження) | порт: StormScript/Runtime/Builtins.cs:227; оригінал: 1 арг. (src/libs/core/src/internal_functions.cpp:118) |
@@ -310,8 +308,8 @@ _Згенеровано `python tools/contract_audit.py` 2026-11-05 23:31. Не 
 | Повідомлення (runtime) | <no entity> \| ssl \| SetGroupPriority |  | ціль без сутності в момент виклику (оригінал теж ігнорує, якщо сутність не створена; перевірити, чи порт створює її так само рано) | [nohandler] 2× у game/smoke_neutralB.log |
 | Параметри подій: формат | CannFire | SEA_AI/AICannon.c:18 | порт передає "afffffff", reference "afffffffff" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/SeaCombat.cs:205; оригінал: src/libs/sea_ai/src/ai_cannon.cpp:149 |
 | Параметри подій: формат | GetRiggingData | BATTLE_INTERFACE/BattleInterface.c:51 | порт передає "sll", reference "slll\|sllla" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Sea.cs:103; оригінал: src/libs/rigging/src/flag.cpp:858 |
-| Параметри подій: формат | Location_CharacterAttack | Loc_ai/LAi_init.c:37 | порт передає "aaff", reference "iislll" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Characters.cs:1005; оригінал: src/libs/location/src/character.cpp:5097 |
-| Параметри подій: формат | Location_CharacterEntryToLocator | BATTLE_INTERFACE/LandInterface.c:77, Characters/characters_events.c:17 | порт передає "aass", reference "iissf" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Characters.cs:760; оригінал: src/libs/location/src/character.cpp:245 |
+| Параметри подій: формат | Location_CharacterAttack | Loc_ai/LAi_init.c:37 | порт передає "aaff", reference "iislll" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Characters.cs:1113; оригінал: src/libs/location/src/character.cpp:5097 |
+| Параметри подій: формат | Location_CharacterEntryToLocator | BATTLE_INTERFACE/LandInterface.c:77, Characters/characters_events.c:17 | порт передає "aass", reference "iissf" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Characters.cs:854; оригінал: src/libs/location/src/character.cpp:245 |
 | Параметри подій: формат | ShpDelete | BATTLE_INTERFACE/BattleInterface.c:79 | порт передає "l", reference "li" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/Sea.cs:543; оригінал: src/libs/ship/src/ship.cpp:753 |
 | Параметри подій: формат | ShpSailDamage | SEA_AI/AIShip.c:94 | порт передає "lfff", reference "lfffl" — але обробники PotC-скриптів читають саме те, що дає порт (різниця версій рушія) | порт: game/SeaSails.cs:404; оригінал: src/libs/rigging/src/sail.cpp:1659 |
 | Ресурси: ini | RESOURCE/INI/EURO/fonts.ini |  | порт не читає; оригінал (reference) теж не читає за цим шляхом | ні назви, ні теки в коді порту; скрипти не передають |
