@@ -359,7 +359,7 @@ public partial class Main : Node
         // "ILogAndActions": message log and the hint for the action under the player's feet
         host.It.EntityHandlers["ILogAndActions"] = (e, fmt, d) =>
         {
-            if (logHud == null) { logHud = new LogHud(); AddChild(logHud); }
+            if (logHud == null) { logHud = new LogHud { Ent = e }; AddChild(logHud); }
             return logHud.OnMessage(fmt, d);
         };
         // "IBoardingStatus": crew strength strips during boarding

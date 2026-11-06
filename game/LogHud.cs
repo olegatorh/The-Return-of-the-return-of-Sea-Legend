@@ -19,6 +19,10 @@ public partial class LogHud : Control
     string actionName = "Nothing";
     public Func<string, string> Translate = s => s;
     bool actionSuppressed;
+    public Entity? Ent;                                   // the script's object ILogAndActions: ActiveActions.* (texture, grid, size, position, IconNum per action)
+    readonly TextureRect actionIcon = new() { MouseFilter = MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, Visible = false };
+    readonly Label iconCaption = new() { MouseFilter = MouseFilterEnum.Ignore, Visible = false, HorizontalAlignment = HorizontalAlignment.Left };
+    bool seaIcons;
 
     /// <summary>The land command menu is open: it offers the same actions as icons, so the text hint steps aside.</summary>
     public bool ActionSuppressed { set { if (value != actionSuppressed) { actionSuppressed = value; Refresh(); } } }
@@ -40,6 +44,9 @@ public partial class LogHud : Control
         Style(action, 18, new Color(1f, 0.85f, 0.4f));
         AddChild(action);
         action.Visible = false;
+        AddChild(actionIcon);
+        Style(iconCaption, 15, new Color(1f, 0.85f, 0.4f));
+        AddChild(iconCaption);
     }
 
     static void Style(Label l, int size, Color c)
@@ -87,13 +94,40 @@ public partial class LogHud : Control
     void Refresh()
     {
         bool show = visibleAction && !actionSuppressed && !actionName.Equals("Nothing", StringComparison.OrdinalIgnoreCase) && actionName.Length > 0;
-        action.Visible = show;
-        if (show) action.Text = "[Пробіл]  " + (ActionText.TryGetValue(actionName, out var t) ? t : actionName);
+        string label = ActionText.TryGetValue(actionName, out var t) ? t : actionName;
+        // ILogAndActions::SetAction / Realize: the picture of the action (ActiveActions.<name>.IconNum in the grid horzQ x vertQ of TextureName, -1 = none) at
+        // ActiveActions.left/top, width x height; the scripts set no text1/text2, so the original prints no words
+        var aa = Ent?.Root.Get("ActiveActions");
+        string tex = aa?.Get("TextureName")?.Value ?? "";
+        int num = (int)Conv.ParseFloatPrefix(aa?.Get(actionName)?.Get("IconNum")?.Value ?? "-1");
+        int hq = Math.Max(1, (int)Conv.ParseFloatPrefix(aa?.Get("horzQ")?.Value ?? "1")), vq = Math.Max(1, (int)Conv.ParseFloatPrefix(aa?.Get("vertQ")?.Value ?? "1"));
+        var texture = show && tex.Length > 0 && num >= 0 ? GameAssets.Texture(tex) : null;
+        seaIcons = tex.Contains("cicons_command", StringComparison.OrdinalIgnoreCase);
+        actionIcon.Visible = texture != null;
+        iconCaption.Visible = texture != null && seaIcons;
+        if (texture != null)
+        {
+            float cw = texture.GetWidth() / (float)hq, ch = texture.GetHeight() / (float)vq;
+            actionIcon.Texture = new AtlasTexture { Atlas = texture, Region = new Rect2((num % hq) * cw, (num / hq) * ch, cw, ch) };
+            iconRect = new Rect2(F(aa, "left", 16), F(aa, "top", 16), F(aa, "width", 64) is var iw and >= 8f ? iw : 64f, F(aa, "height", 64) is var ih and >= 8f ? ih : 64f);   // RecalculateVIcon gives 0 while the engine does not set showWindow.aspectRatio
+            iconCaption.Text = "[Пробіл] " + label;
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_ICONLOG") != null) GD.Print($"[log] action icon {actionName}: tex {tex} {texture.GetSize()} grid {hq}x{vq} num {num} rect {iconRect}");
+        }
+        // the sea has the icon only (+ a caption with the key); on land the text hint stays as the aid it was
+        action.Visible = show && !seaIcons;
+        if (action.Visible) action.Text = "[Пробіл]  " + label;
     }
+
+    Rect2 iconRect = new(16, 16, 64, 64);
+    static float F(Attr? a, string n, float def) => a?.Get(n)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
 
     public override void _Process(double delta)
     {
         Position = new Vector2(40, 30) + UiLayout.Extra(this);
+        // the script's pixels are those of an 800 x 600 screen; the HUD sits at the real top left corner of the window (not in the centred 640 x 480 core)
+        float k = UiLayout.Hud;
+        actionIcon.Position = iconRect.Position * k - Position; actionIcon.Size = iconRect.Size * k;
+        iconCaption.Position = actionIcon.Position + new Vector2(0, iconRect.Size.Y * k); iconCaption.Size = new Vector2(240, 22);
         Process2(delta);
     }
 
