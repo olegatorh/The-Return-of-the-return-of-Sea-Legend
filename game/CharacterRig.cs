@@ -51,6 +51,29 @@ public partial class CharacterRig : Node3D
         return (hit, dur);
     }
 
+    /// <summary>Real seconds the CURRENT playback (with the live speed factor and time scale) still needs to reach animation time <paramref name="animFrames"/>
+    /// (frames from the action start). Negative once passed; a stopped clock (dialog) gives a large value.</summary>
+    float SecondsTo(float animFrames)
+    {
+        float rate = TimeScale * SpeedMul * an.Fps * Math.Abs(cur == null || cur.Speed <= 0 ? 1f : cur.Speed);
+        return rate > 1e-4f ? (animFrames - time) / rate : 999f;
+    }
+
+    /// <summary>Seconds until the strike frame (the .ani event "Attack*") of the playing action; null if the action has none.</summary>
+    public float? SecondsToStrike()
+    {
+        if (cur == null) return null;
+        foreach (var (name, frame, rev) in cur.Events)
+            if (!rev && name.StartsWith("Attack", StringComparison.OrdinalIgnoreCase)) return SecondsTo(frame - cur.Start);
+        return SecondsTo(Math.Max(cur.End - cur.Start, 1) * 0.4f);
+    }
+
+    /// <summary>Seconds until the playing action has reached its last frame.</summary>
+    public float SecondsToEnd() => cur == null ? 0f : Math.Max(0f, SecondsTo(Math.Max(cur.End - cur.Start, 1)));
+
+    /// <summary>Playback position of the current action in frames from its start (for the melee log).</summary>
+    public float AnimFrame => time;
+
     static float Fl(string? v, float def) => v != null && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
 
     /// <summary>The engine's <c>UpdateActionMoveData</c>: signed "Walk speed" (0 if absent), "Blend time" (0.2), "Turn speed" (the file's, 2.0 if absent).

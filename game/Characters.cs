@@ -58,7 +58,7 @@ public partial class CharacterView : Node3D
         {
             if (fightMode == value) return;
             fightMode = value;
-            if (!value) { atkHitIn = -1f; atkTarget = null; queuedSwing = null; Blocking = false; blockUntil = 0f; }      // fgtCurType = fgt_none
+            if (!value) { swingAnim = false; atkHitIn = -1f; atkTarget = null; queuedSwing = null; Blocking = false; blockUntil = 0f; }      // fgtCurType = fgt_none
             if (rig != null && Placed && rig.Play(value ? "Normal to fight" : "Fight to normal", false, true)) playing = "draw";
         }
     }
@@ -72,6 +72,10 @@ public partial class CharacterView : Node3D
         set { if (value && !blocking) blockAge = 0f; if (!value) parryIntent = false; blocking = value; }
     }
     float atkDamage = 1f, swingAy;
+    bool swingAnim;                                // the blow follows the rig playback (see TickSwing)
+    string swingAction = "";
+    /// <summary>NPC recovery after a blow: the next action blends in over its "Blend time" (0.2 s) - the original NPC cannot start the next blow before that; the hero's pace is his input.</summary>
+    float SwingRecovery => IsPlayer ? 0f : 0.2f;
     (CharacterView enemy, Strike kind)? queuedSwing;
     float queuedUntil;
     ulong swingStartMs;
@@ -1092,15 +1096,38 @@ void fragment() {
     void TickSwing(float dt)
     {
         atkCooldown -= dt;
+        bool strikeNow = false;
+        if (swingAnim && rig != null)
+        {
+            // the blow is driven by the REAL playback of the animation (speed factor, time scale and all): the strike lands when the rig reaches the
+            // "Attack*" event frame, the control comes back when the animation has ended (+ the blend into the next action for NPCs)
+            if (rig.ActionName != swingAction) { swingAnim = false; atkCooldown = Math.Max(atkCooldown, 0f); }
+            else
+            {
+                bool done = rig.Finished;
+                if (atkHitIn >= 0f)
+                {
+                    float s = rig.SecondsToStrike() ?? 0f;
+                    if (done || s <= 0f) { strikeNow = true; atkHitIn = -1f; }
+                    else atkHitIn = s;
+                }
+                if (done) { swingAnim = false; atkCooldown = SwingRecovery; }
+                else atkCooldown = rig.SecondsToEnd() + SwingRecovery;
+            }
+        }
         if (queuedSwing is { } q)
         {
             queuedUntil -= dt;
             if (queuedUntil <= 0f || !q.enemy.IsAlive) queuedSwing = null;
             else if (atkCooldown <= 0f && atkHitIn < 0f) { queuedSwing = null; StartSwing(q.enemy, q.kind); }
         }
-        if (atkHitIn < 0f) return;
-        atkHitIn -= dt;
-        if (atkHitIn >= 0f) return;
+        if (!strikeNow)
+        {
+            if (atkHitIn < 0f) return;
+            if (swingAnim) return;                       // waiting for the rig
+            atkHitIn -= dt;
+            if (atkHitIn >= 0f) return;
+        }
         if (atkTarget != null)
         {
             float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
@@ -1117,7 +1144,7 @@ void fragment() {
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
                 if (IsPlayer) atkTarget.ShowHit(hpBefore - atkTarget.HpNow, blocked);
                 if (!IsPlayer && atkTarget.IsPlayer && StatHeroHits++ < 3) GD.Print(FormattableString.Invariant($"[fight] the hero was {(blocked ? "attacked (blocked)" : "hit")} by {Id}: hp {hpBefore:0.#} -> {atkTarget.HpNow:0.#}, kind={lastKind}"));
-                if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began, {(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
+                if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began (rig {swingAction} at frame {rig?.AnimFrame:0.00} of the strike frame, speed x{rig?.SpeedMul:0.00}),{(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
                 atkTarget.PlayReaction(blocked);
                 if (parried) Stagger();
             }
@@ -1149,7 +1176,8 @@ void fragment() {
         float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f);      // the script's speed factor (agility) speeds the animation up or down
         atkHitIn = tm.hit / spd; atkCooldown = tm.duration / spd; swingStartMs = Time.GetTicksMsec();
         if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
-        if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) playing = a;
+        swingAnim = false;
+        if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) { playing = a; swingAnim = true; swingAction = rig.ActionName; }
         if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
         lastKind = kind; swingAy = ay;
         if (!IsPlayer) StatNpcSwings++;
@@ -1159,6 +1187,7 @@ void fragment() {
     /// <summary>Thrown off balance by a parry (or a step back, the original control ChrRecoil): the "Recoil" animation and a pause before the next swing.</summary>
     public void Stagger()
     {
+        swingAnim = false;
         atkCooldown = Math.Max(atkCooldown, 1.2f); atkHitIn = -1f; atkTarget = null;
         if (rig != null && rig.Play("Recoil", false, true)) playing = "Recoil";
     }
