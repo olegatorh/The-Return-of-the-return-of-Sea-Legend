@@ -538,6 +538,7 @@ public partial class Main : Node
         {
             string? ctl = ck.PhysicalKeycode == Key.Escape ? "MainMenuDouble" : ck.PhysicalKeycode == Key.Enter ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
+            if (ctl == null && locations.Count > 0 && Keys.Is(ck, "LandPotion")) ctl = "BOAL_UsePotion";       // init_pc.c: KEY_C = quick heal (seadogs.c picks the first usable potion)
             if (ctl == "LICommandsActivate" && locations.Count > 0) landHud?.Command(ctl);       // Enter opens the land command menu
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (ck.PhysicalKeycode == Key.Space && locations.Count > 0) LandAction();

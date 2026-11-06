@@ -169,6 +169,12 @@ if ($Sea) {
         $mh = @('--ctl=Quick_Load@200', '--call=LAi_SetWarriorType(#Terry++Snider)@400', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420',
                 '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Terry__Snider:7@440', '--key=F@460', '--shot-frame=1500')
         $fail += Invoke-Godot 'meleehero' $mh 300 @('[fight] Terry  Snider vs Blaze:', '[fight] the hero was hit by Terry  Snider')
+        # healing: potions in the pack, health 10, the quick-heal key C (BOAL_UsePotion) drinks the first usable one, then the land command menu
+        # (Enter, Right = "Use", Enter, Enter = first potion); the count drops by one each time and the health rises (log '[heal]', hp_bottle poured in by LAi_AllCharactersUpdate)
+        $hl = @('--ctl=Quick_Load@200', '--call=GiveItem2Character(#Blaze,potion1)@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--set=Characters[0].chr_ai.hp=10@310',
+                '--dump=Characters[0].Items.potion1@320', '--key=C@330', '--dump=Characters[0].Items.potion1@340', '--key=Enter@500', '--key=Right@510', '--key=Enter@520', '--key=Enter@540',
+                '--dump=Characters[0].Items.potion1@560', '--shot-frame=900')
+        $fail += Invoke-Godot 'heal' $hl 300 @('[heal] Blaze: health rose', 'potion1 = "6"', 'potion1 = "5"', "[land] command BI_ItemsUse 'potion1'", 'potion1 = "4"')
         $dr = @('--ctl=Quick_Load@200', '--run', '--move=0,1@480-1100', '--key=F@560', '--shot-frame=1200')
         $fail += Invoke-Godot 'drawrun' $dr 300 @('[move] hero stopped for the draw', '[move] hero moves again')
         # 'sail to' the port from the command menu: the squadron is moved next to the port's reload locator behind the fader, where mooring is offered

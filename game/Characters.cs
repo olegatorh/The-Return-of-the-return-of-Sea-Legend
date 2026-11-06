@@ -936,7 +936,7 @@ void fragment() {
         if (rig.Events.Count > 0) { var evs = rig.Events.ToArray(); rig.Events.Clear(); foreach (var e in evs) OnAnimEvent(e); }
         Detect(dt);
         UpdateEquipment();
-        if (dt > 0f) { TickSwing(dt); TickGun(dt); }
+        if (dt > 0f) { TickSwing(dt); TickGun(dt); TickHealLog(); }
         if (inDialog || dt <= 0f) { isMove = false; if (inDialog) DialogFace((float)GetProcessDeltaTime()); PlayIdle(); return; }
         isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
         var patch = getPatch();
@@ -1117,6 +1117,16 @@ void fragment() {
             dlgFacing = false;
             if (DialogLog) GD.Print(FormattableString.Invariant($"[dialog] {Id} now faces {other.Id}: yaw {ay:0.00} (was {dlgStartAy:0.00})"));
         }
+    }
+
+    // ---- healing log (test aid): a potion's health is poured in by the script (LAi_AllCharactersUpdate: hp_bottle -> hp); one line when the health has risen by 3
+    float healLast = -1f, healBase = -1f; bool healLogged;
+    void TickHealLog()
+    {
+        float h = HpNow;
+        if (healLast < 0f || h < healLast - 0.01f) { healBase = h; healLogged = false; }
+        healLast = h;
+        if (!healLogged && h - healBase >= 3f) { healLogged = true; GD.Print(FormattableString.Invariant($"[heal] {Id}: health rose {healBase:0.#} -> {h:0.#} (bottle left {Skill("hp_bottle", 0f):0.#})")); }
     }
 
     /// <summary>Counts the swing down and raises the hit event at the hit frame.</summary>
