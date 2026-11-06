@@ -4,7 +4,7 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -216,6 +216,51 @@ if ($Sea) {
         foreach ($sc in $screens) {
             $fail += Invoke-Godot "screen_$($sc[0])" @('--ctl=Quick_Load@200', "--call=$($sc[1])@400", '--shot-frame=520') 150 @($sc[2])
         }
+        # playtest part 3 (docs/playtest_runs.md): ransack captain choice (take him prisoner -> back to the ransack main screen), shipyard repair (hull / sails to 100 for 3139, 4 h pass), selling a companion's ship,
+        # monthly salary screen (script: NextDay -> wdmNextDayUpdate -> Event_CheckMoneyData -> LaunchSalayScreen; the crew costs 850 of the 3850 shown)
+        $fail += Invoke-Godot 'ransackcapt' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=LaunchRansackCaptain(#Blaze,#Cayman+Commander)@400', '--mouse=CAPTURE_BUTTON@500', '--shot-frame=620') 150 @('ransack_captain.ini', 'transfer_main.ini')
+        $fail += Invoke-Godot 'yardrepair' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--set=Characters[0].Money=50000@305', '--set=Characters[0].Ship.HP=300@306', '--set=Characters[0].Ship.SP=40@306',
+            '--call=LaunchShipyard(#Esteban+Castillo)@400', '--key=Enter@450', '--mouse=REPAIR_BUTTON@500', '--mouse=FIXALL_BUTTON@600', '--dump=Characters[0].Ship.HP@650', '--dump=Characters[0].Ship.SP@650', '--dump=Characters[0].Money@650', '--shot-frame=700') 200 @('HP = "550"', 'SP = "100"', 'money = "46861"')
+        $fail += Invoke-Godot 'yardsell' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '"--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Id=William Blaker@305"', '--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Remove=1@306',
+            '--call=Character_into_companion()@310', '--set=Characters[0].Money=1000@311', '--call=LaunchShipyard(#Esteban+Castillo)@400', '--key=Right@450', '--key=Enter@500', '--mouse=SELLSHIP_BUTTON@560', '--mouse=OK_BUTTON@620',
+            '--dump=Characters[659].Ship.Type@700', '--dump=Characters[0].Money@700', '--shot-frame=720') 200 @('Type = "1000"', 'money = "5156"')
+        $fail += Invoke-Godot 'salary' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].Money=50000@255', '--set=NullCharacter.SalayPayMonth=7@300', '--call=WaitDate(nopost,0,0,1,0,0)@400', '--mouse=B_OK@900',
+            '--dump=Characters[0].Money@1100', '--shot-frame=1150') 200 @('salary.ini', 'money = "49150"')
+    }
+}
+
+# playtest part 3, long stages with an English / French patent (the pirate flag makes every port shoot): boarding by the player ("Board" action) -> loot screens -> back at sea; storming a fort
+# (SeaAI.Update.Forts -> LandTroops -> fortcapture -> the town); the officer from the tavern; sleeping in the tavern
+if ($Stages3) {
+    if (-not (Test-Path "$root\saves\quicksave.sdsave")) { Write-Host 'no saves\quicksave.sdsave' -ForegroundColor Yellow }
+    else {
+        $env:SEADOGS_PLAYERHP = '9000'
+        $mart = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_eng)@305', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
+            '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250', '--seapos=-110,100,0@2400')
+        # the French ship is parked 25 m abeam with the sails down; Enter offers "Board" (the player's own boarding), the decks are cleared by a hook, the ransack screen: "exit" + confirm sinks the prize
+        $env:SEADOGS_DUELDIST = '25'
+        $b = $mart + @('--duel@2450', '--sail=-1@2460', '--sail=-1@2470', '--key=Enter@2600', '--call=LAi_SetImmortal(#Blaze,1)@2650')
+        foreach ($f in 32..60) { $b += "--killgroup=brdenemy@$($f * 100)"; $b += "--ctl=ChrAction@$($f * 100 + 50)" }
+        $b += @('--call=SetCrewQuantityOverMax(#Blaze,300)@6250', '--click=EXIT_BTN@6400', '--click=CONFIRM_YES_BUTTON@6500', '--shot-frame=8200')
+        $fail += Invoke-Godot 'boardpatent' $b 500 @('[sea] action: Board', 'transfer_main.ini', '[sea] CapitanFF01 is dead: the ship sinks')
+        Remove-Item Env:SEADOGS_DUELDIST
+        # Antigua with a French patent: the fort is put into FORT_ABORDAGE (its squadron is gone), the ship goes next to it; Enter = "land troops" -> fort deck -> fortcapture -> the town
+        $an = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_fra)@305', '--call=EquipCharacterbyItem(#Blaze,patent_fra)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
+            '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-696,753,0@1200', '--act@1250', '--seapos=-60,-110,0@2400',
+            '--call=Fort_SetAbordageMode(#Blaze,#Antigua+Commander)@2450', '--call=Character_SetAbordageEnable(#Antigua+Commander,1)@2455', '--sail=-1@2460', '--set=bWeatherIsStorm=0@2500', '--call=LAi_SetImmortal(#Blaze,1)@2550', '--act@2700')
+        foreach ($f in 36..70) { $an += "--killgroup=brdenemy@$($f * 100)"; $an += "--ctl=ChrAction@$($f * 100 + 50)" }
+        $an += @('--click=GOODS@7400', '--key=Escape@7700', '--click=SLAVES@8000', '--key=Escape@8300', '--click=ENTER_BATTLE@8600', '--shot-frame=9500')
+        $fail += Invoke-Godot 'fortland' $an 600 @('[sea] action: LandTroops', 'fortcapture.ini', 'transfer_goods.ini', 'ransack_crew.ini', '[location] model GrPort_l')
+        Remove-Item Env:SEADOGS_PLAYERHP
+        # Antigua tavern: officer hire (BetaTestMode removes the random "nobody today"), the officer joins, the passengers screen; sleeping to the night
+        $tav = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=GiveItem2Character(#Blaze,patent_eng)@252', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@254', '--set=Characters[0].Money=50000@255',
+            '--set=Characters[0].location.from_sea=Antigua_port@256', '--set=bBettaTestMode=1@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--dialog=Ronald_Shorter@600', '--answer=1@700', '--answer=2@800', '--answer=3@900',
+            '--answer=1@1000', '--answer=1@1100', '--dialog=Location_fantom_character_<1>@1300', '--answer=1@1400', '--answer=1@1500', '--answer=1@1600', '--answer=1@1700', '--answer=1@1800', '--call=LaunchPassengers(#Blaze)@2100', '--shot-frame=2300')
+        $fail += Invoke-Godot 'officerhire' $tav 200 @("answer 1 -> node 'hire'", 'passengers.ini')
+        $sl = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=GiveItem2Character(#Blaze,patent_eng)@252', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@254', '--set=Characters[0].Money=50000@255',
+            '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--dialog=Ronald_Shorter@600', '--answer=1@700', '--answer=3@800', '--answer=1@900', '--answer=1@1000',
+            '--dump=Characters[0].Money@1600', '--dump=Characters[0].location@1600', '--shot-frame=1700')
+        $fail += Invoke-Godot 'tavernsleep' $sl 200 @("answer 1 -> node 'room_night_wait'", 'money = "49995"', 'location = "Antigua_tavern_upstairs"')
     }
 }
 
