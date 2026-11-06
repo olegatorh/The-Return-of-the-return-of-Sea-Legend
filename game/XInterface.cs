@@ -169,7 +169,7 @@ public partial class XView : Control
                 if (nodes.TryGetValue(S(1), out var rs) && rs is ScrollImageView rsv) rsv.Refresh();
                 return V.Int(0);
             case 45025: DeleteScrollImage(S(1), d.Length > 2 ? Conv.ToInt(d[2]) : -1); return V.Int(0);   // DEL_SCROLLIMAGE: node, index
-            case 45022: return V.Int(0);                                   // SETHELPSTRING: the CONTEXTHELP texts (chelp_*) are not in the game data
+            case 45022: ctxHelp?.SetTemp(S(1)); return V.Int(0);           // SETHELPSTRING: a temporary hint for the delay of the CONTEXTHELP node
             case 45053: case 45052: return V.Int(0);
             case 45031: SetQuestTitles(d); return V.Int(0);                 // SET_TITLE_STRINGS: node, QuestInfo, top
         }
@@ -180,6 +180,7 @@ public partial class XView : Control
     void NodeMessage(string node, int code, string param, V[] d)
     {
         if (!nodes.TryGetValue(node, out var c)) return;
+        if (c is ContextHelpView chv0) { if (code == 0) chv0.ClearTemp(); return; }                    // MSG_TO_NODE 0: remove the temporary hint
         if (c is KeyChooserView kcv) { if (code == 0 && d.Length > 3) kcv.Codes = d[3].Attr; return; }   // the list of key codes (objControlsState.key_codes)
         if (c is EditBoxView) return;
         if (c is FormattedListView fl0)
@@ -312,7 +313,7 @@ public partial class XView : Control
     public void Clear()
     {
         foreach (var c in GetChildren()) c.QueueFree();
-        locks.Clear(); lockSaved.Clear(); blinds.Clear(); preLockNode = "";
+        ctxHelp = null; locks.Clear(); lockSaved.Clear(); blinds.Clear(); preLockNode = "";
         dynImages.Clear(); dynKeys.Clear(); snapped.Clear(); lastSnapExtra = new Vector2(-1, -1); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
@@ -410,7 +411,7 @@ public partial class XView : Control
                     Floats(P("pointerWidth"), 1)[0], Floats(P("pointerHeight"), 1)[0], Floats(P("baseLeft"), 1)[0]),
                 "QUESTTITLE" => MakeQuestTitle(P, pos),
                 "QUESTTEXT" => MakeQuestText(pos),
-                "CONTEXTHELP" => new Control { MouseFilter = MouseFilterEnum.Ignore },
+                "CONTEXTHELP" => MakeContextHelp(sec, P, pos),
                 "CHANGER" => MakeChanger(name, sec),
                 "EDITBOX" => new EditBoxView(Ent, name, pos[0], pos[1], pos[2], pos[3], (int)Floats(P("stringLength"), 1)[0],
                     FontPx(P("strFont") ?? "interface_normal", Floats(P("strScale"), 1)[0] is var es && es > 0 ? es : 1f), Plain(P("argbBoxColor"), new Color(0, 0, 0, 1)), Plain(P("argbBoundColor"), new Color(0.3f, 0.3f, 0.3f, 0.5f))),
@@ -799,6 +800,26 @@ public partial class XView : Control
 
     readonly Dictionary<string, Label> collectionStrings = new(StringComparer.OrdinalIgnoreCase);
     readonly List<Label> collectionLabels = new();
+
+    ContextHelpView? ctxHelp;
+
+    Control MakeContextHelp(IniFile.Section? sec, Func<string, string?> P, float[] pos)
+    {
+        var list = new List<(string, string)>();
+        if (sec != null)
+            foreach (var l in sec.All("helpstr"))
+            {
+                var p = l.Split(',');
+                if (p.Length >= 2 && p[0].Trim().Length > 0) list.Add((p[0].Trim(), p[1].Trim()));
+            }
+        var fill = Plain(P("color"), new Color(13 / 255f, 11 / 255f, 63 / 255f));
+        var bord = Plain(P("borderColor"), fill);
+        var font = Plain(P("fontColor"), new Color(0.5f, 0.5f, 0.5f));
+        var v = new ContextHelpView(pos[0], pos[1], pos[2], pos[3], fill, bord, bord != fill, font, FontPx(P("font") ?? "interface_normal", 0.8f), Floats(P("offset"), 1)[0],
+            Floats(P("delay"), 1)[0], list, P("defhelp") ?? "", CurrentNode, Tr);
+        ctxHelp = v;
+        return v;
+    }
 
     Control MakeFourImages(string name, Func<string, string?> P)
     {
