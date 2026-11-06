@@ -97,7 +97,9 @@ public partial class XView : Control
             case 45015:                                                    // ENABLE/DISABLE_STRING
                 if (strings.TryGetValue(S(1), out var lab)) lab.Visible = msg == 45014;
                 return V.Int(0);
-            case 45045: if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[nodemsg] {fmt} {string.Join(" ; ", d.Select(x => Conv.ToStr(x)))}"); NodeMessage(S(1), Conv.ToInt(d[2]), d.Length > 4 ? S(4) : S(3), d); return V.Int(0);   // MSG_TO_NODE
+            case 45045: if (System.Environment.GetEnvironmentVariable("SEADOGS_NODEMSG") != null) GD.Print($"[nodemsg] {fmt} {string.Join(" ; ", d.Select(x => Conv.ToStr(x)))}"); string ntext = d.Length > 4 ? S(4) : S(3); NodeMessage(S(1), Conv.ToInt(d[2]), ntext, d);
+                // code 0 on a formatted text adds a text and returns the number of lines it occupies (the control pages count the key column's rows with it)
+                return V.Int(Conv.ToInt(d[2]) == 0 && nodes.TryGetValue(S(1), out var nn) && (nn is Label || nn is FormattedListView) && d.Length <= 5 ? 1 + ntext.Count(ch => ch == '\n') : 0);   // MSG_TO_NODE
             case 45013:                                                    // PLACE_IMAGE: node, ?, x1, y1, x2, y2
                 if (d.Length >= 7)
                 {
@@ -171,7 +173,8 @@ public partial class XView : Control
                 return V.Int(0);
             case 45025: DeleteScrollImage(S(1), d.Length > 2 ? Conv.ToInt(d[2]) : -1); return V.Int(0);   // DEL_SCROLLIMAGE: node, index
             case 45022: ctxHelp?.SetTemp(S(1)); return V.Int(0);           // SETHELPSTRING: a temporary hint for the delay of the CONTEXTHELP node
-            case 45053: case 45052: return V.Int(0);
+            case 45052: if (d.Length > 2 && d[2].Attr is { } saveA) OptionsFile.Save(S(1), saveA); return V.Int(0);                  // SAVEOPTIONS: name, the option tree
+            case 45053: return V.Int(d.Length > 2 && d[2].Attr is { } loadA && OptionsFile.Load(S(1), loadA) ? 1 : 0);              // LOADOPTIONS
             case 45031: SetQuestTitles(d); return V.Int(0);                 // SET_TITLE_STRINGS: node, QuestInfo, top
         }
         Warn($"message {msg} ({fmt})");
@@ -190,6 +193,10 @@ public partial class XView : Control
             {
                 case 0: fl0.Add(param); return;                                          // append a line
                 case 2: fl0.ScrollTo(d.Length > 3 ? Conv.ToFloat(d[3]) : 0); return;     // scroll bar moved
+                case 8: if (d.Length > 4) fl0.SetColor(Conv.ToInt(d[3]), Conv.ToInt(d[4])); return;      // colour of a text
+                case 3:                                                                  // line0.. = the visible line where each text starts (-1: nothing)
+                    if (d.Length > 3 && d[3].Attr is { } posA) { int k = 0; foreach (int ln in fl0.VisibleStarts()) posA.GetOrCreate("line" + k++).Value = ln.ToString(); if (k == 0) posA.GetOrCreate("line0").Value = "-1"; }
+                    return;
                 case 4:                                                                  // tops of the visible lines -> attributes l0..
                     if (d.Length > 3 && d[3].Attr is { } outA) { int k = 0; foreach (var top in fl0.VisibleTops()) outA.GetOrCreate("l" + k++).Value = ((int)top).ToString(); }
                     return;
@@ -962,6 +969,8 @@ public partial class XView : Control
 
     Control MakeFormatted(Func<string, string?> P, float[] pos)
     {
+        if (string.Equals(P("font"), "KEYBOARD_SYMBOL", StringComparison.OrdinalIgnoreCase))        // the key caps of the control pages
+            return new KeyGlyphLabel(Floats(P("lineSpace"), 1)[0], 12f) { Position = new Vector2(pos[0], pos[1]), Size = new Vector2(pos[2] - pos[0], pos[3] - pos[1]) };
         string al = (P("alignment") ?? "center").ToLowerInvariant();
         var lab = new Label
         {
@@ -997,7 +1006,6 @@ public partial class XView : Control
     public void Click(string node)
     {
         GD.Print($"[xinterface] click {node}");
-        if (node == "CONTROLS_B_CHANGE") { GetParent().AddChild(new KeyBindingsScreen()); return; }     // the port's own key binding screen (the original KEYCHOOSER page is script + engine widgets)
         Run(node, "click", 0);
     }
 
@@ -1175,6 +1183,14 @@ public partial class XView : Control
         {
             it.FireEvent("QuestTopChange", new List<V> { V.Int(wh.ButtonIndex == MouseButton.WheelUp ? -1 : 1) });
             GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (e is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left or MouseButton.Right or MouseButton.Middle } mbk && TextTarget() is KeyChooserView mkc && mkc.Codes != null)
+        {
+            // a mouse button is a key of the list too (VK_LBUTTON = 1, VK_RBUTTON = 2, VK_MBUTTON = 4)
+            int midx = mkc.IndexOf(mbk.ButtonIndex == MouseButton.Left ? 1 : mbk.ButtonIndex == MouseButton.Right ? 2 : 4);
+            GetViewport().SetInputAsHandled();
+            if (midx >= 0) it.FireEvent("evntKeyChoose", new List<V> { V.Int(midx), V.Int(0) });
             return;
         }
         if (e is not InputEventKey { Pressed: true } k || GetChildCount() == 0) return;

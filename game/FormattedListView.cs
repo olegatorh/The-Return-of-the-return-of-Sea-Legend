@@ -36,7 +36,18 @@ public partial class FormattedListView : Control
     public int Count => lines.Count;
     public int Selected => cur;
 
+    readonly Dictionary<int, Color> colors = new();
+
     public void Add(string text) { lines.Add(text); QueueRedraw(); }
+
+    /// <summary>Message 8: colour of one text (group -1 = the last one added), an ARGB value.</summary>
+    public void SetColor(int group, int argb)
+    {
+        if (group < 0) group = lines.Count - 1;
+        uint c = unchecked((uint)argb);
+        colors[group] = new Color((c >> 16 & 255) / 255f, (c >> 8 & 255) / 255f, (c & 255) / 255f, (c >> 24 & 255) / 255f);
+        QueueRedraw();
+    }
 
     /// <summary>Position 0..1 of the scroll bar.</summary>
     public void ScrollTo(float p)
@@ -50,6 +61,13 @@ public partial class FormattedListView : Control
     {
         for (int i = 0; i < visible; i++)
             if (first + i < lines.Count) yield return i * lineSpace + up;
+    }
+
+    /// <summary>Message 3: for each text that starts in the visible part, the number of the visible line it starts in.</summary>
+    public IEnumerable<int> VisibleStarts()
+    {
+        for (int i = 0; i < visible; i++)
+            if (first + i < lines.Count && lines[first + i].Length > 0) yield return i;
     }
 
     void SetFirst(int f, bool notify)
@@ -84,7 +102,7 @@ public partial class FormattedListView : Control
             bool sel = first + i == cur;
             if (sel) DrawRect(new Rect2(0, top - 14, Size.X, lineSpace - 4), new Color(1f, 0.85f, 0.4f, 0.18f));
             DrawString(font, new Vector2(left, top + 24), lines[first + i], HorizontalAlignment.Left, Size.X - left - 8, 20,
-                sel ? new Color(1f, 0.92f, 0.6f) : Colors.White);
+                sel ? new Color(1f, 0.92f, 0.6f) : colors.TryGetValue(first + i, out var lc) ? lc : Colors.White);
         }
     }
 
