@@ -115,3 +115,13 @@ Result: `Ship.Type = 26` (Lugger1, crew 35), `from_sea = QC_port`, hero at the p
 Already driven by the scenarios of `run_tests.ps1 -Sea` (`sea map mapnight storm fight neutral board trade hold yard door chest landhud melee meleehero drawrun sailto rename
 screen_*`) from `saves\quicksave.sdsave`; their hook strings are in the script. Quick save / load in the middle of those stages: `--ctl=Quick_Save@N` / `--ctl=Quick_Load@N`
 (overwrites `saves\quicksave`!); the `--save=/--load=` pair above does not.
+
+## Part 2 - other islands, map travel, sea encounter
+
+Setup shared by the runs (Antigua): `--ctl=Quick_Load@200 --set=Characters[0].Money=50000@290 --set=Characters[0].nation=0@290 --set=Characters[0].enghunter=1@290 --call=initTutMainCharacterShip@295 --set=Characters[0].location.from_sea=Antigua_port@296 --call=SetNationRelation2MainCharacter(0,0)@290`
+(relations: 0 friend, 1 neutral, 2 enemy; nations ENGLAND 0, FRANCE 1, PIRATE 3).
+
+* Island by sea: `... --sail=+1@700 --seapos=-600,-101,4.71@720 --ctl=BI_MapEnter@1000 --ctl=BI_MapEnter@1100 --mappos=<rx>,<rz>,0@1200 --act@1250 --call=SeaAI_SailToLocator(reload_1)@2400 --act@3000` (rx, rz from `worldMap.islands.*.position.rx/rz`, e.g. Antigua -696,753).
+* Town fuzz: for each of `Antigua_port Antigua_town Antigua_Store Antigua_shipyard Antigua_townhall Antigua_Tavern Antigua_UsurerHouse Antigua_church`: `--call=DoReloadCharacterToLocation(<id>,reload,reload1)@f --fuzz@f+100`, f += 1100, `SEADOGS_LANGLOG=1`.
+* Antigua people: store Lainell_Maxwell (answers 1,1 -> trade; Space or Enter picks the ship), shipyard Johrje_Samelter (1,1,1), tavern Ronald_Shorter (1 = crew, 3 = room), usurer "Antigua Usurer", governor Major_Antigua.
+* Encounter: `SEADOGS_MAPLOG=1 SEADOGS_MAPSPEED=1 SEADOGS_MAPSAIL=0 SEADOGS_SEED=3`, `--set=worldMap.date.hourPerSec=0.05@1010 --set=Characters[0].worldmapencountersoff=0@1010 --mapmeet@1500 --key=Enter@1510 --key=Enter@1700` (= run_tests `mapencounter`).

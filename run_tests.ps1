@@ -97,6 +97,12 @@ if ($Sea) {
                 '--call=wdmCreateMerchantShip(0,Sent,0)@1300', '--mapmeet@1400', '--key=Enter@1410', '--shot-frame=2000')
         $env:SEADOGS_MAPSPEED = '1'
         $fail += Invoke-Godot 'mapmerchant' $me 300 @('+merchant type 0', 'encounter with ship type 0 (Merchant')
+        # script-generated encounter -> "Sails on the horizon" -> Attack: SeaLogin must put the encounter group (fenc_*) into the sea and give it the attack task
+        $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_SEED = '3'
+        $ec = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.05@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
+                '--mapmeet@1500', '--key=Enter@1510', '--key=Enter@1700', '--shot-frame=3200')
+        $fail += Invoke-Godot 'mapencounter' $ec 300 @('encounter with ship type 0', '[sea] ship fenc_', 'task: attack Blaze')
         Remove-Item Env:SEADOGS_MAPLOG, Env:SEADOGS_MAPSPEED, Env:SEADOGS_MAPSAIL, Env:SEADOGS_SEED
         # Martinique: the French squadron is placed abeam and shot at; the script must apply the damage (a perfect gunner for this shot: the per-ball
         # dispersion of Ball_AddBall grows with 1.2 - TmpSkill.Accuracy and the tutorial gunner would miss now and then)

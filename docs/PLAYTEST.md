@@ -38,3 +38,18 @@ and fails on any Russian-only letter, on more than 3 Russianisms, or on more tha
 What remains: ~13k machine-translated fragments (`_mt.tsv`) are readable but not individually proof-read (case/gender slips are possible; the scanner cannot see them);
 name pools (`Characters_names`, `ships_name`) only got a spelling pass (`tools/polish_names.py`); `HeroDescribe.info` (developer doc) is Russian.
 FPS: 95-100 in every stage (window 1280x720), no drops below 60 seen.
+
+## Part 2: after the first quests (ports of other islands, world map travel, sea encounters)
+
+Replay arguments: `playtest_runs.md`, section "Part 2". Hero: the town-port quicksave with the tutorial lugger (`initTutMainCharacterShip`).
+
+| Stage | What was done | Result | Defects found | Fixed in | Still open |
+|---|---|---|---|---|---|
+| 7 Map -> Antigua | QC -> map -> `--mappos` Antigua -> exit to sea -> `SeaAI_SailToLocator(reload_1)` | island, fort (69 cannons), squadron load; as a pirate (nation 3) the squadron and fort attack at once (script: `Ship_CheckFlagEnemy` + hunter score, random) | none in the engine; hooks need `nation=0`, `SetNationRelation2MainCharacter(0,0)` (0 = friend, 1 = neutral, 2 = enemy) and may still hit the random flag check | - | Moor needs a friendly or lucky flag check |
+| 7b All 12 other islands | map -> island -> sail to the port, one process per island (Redmond, Oxbay, Douwesen, Conceicao, IslaMuelle, KhaelRoa, Guadelupa, Sent, Gaity, Cuba, Cayman, Terks) | all load, 0 `[errors]`/`[unresolved]`; Moor reached on Cayman, KhaelRoa, Oxbay, Terks | - | - | - |
+| 8 Antigua town fuzz | port, town, store, shipyard, townhall, tavern, usurer, church, 60+ characters | no errors; hostile guards alarm lines for a pirate hero | RU leaks in guard lines ("Стража", "Следуйте за мною"), shipyard "Корабли", ship names with Russian "э" (Нуэстра) | translation agent | - |
+| 9 Store / shipyard / tavern crew screens (Antigua) | dialog -> trade screen (Space/Enter picks the ship), shipyard list, hire crew | OK; ship must be in port (`location.from_sea`), else "no ship" (script) | stray "6" text left of the ship slot on the ship-choice screens, ship type label overflows its frame | - | cosmetic, needs the original to compare |
+| 10 Sea encounter from the map | script-generated merchant/follow encounter -> "Sails on the horizon" -> Attack | fenc_* squadron spawns in the sea and attacks; storm weather works | `wdmCreateMerchantShip` made by a hook has no script-side encounter record, so SeaLogin skips it (hook limitation, not an engine bug) | scenario `mapencounter` | - |
+| 11 Save/load in Antigua tavern | `--save`/`--load` after renting a room dialog | location, money, time kept | none | - | sleeping needs the later answers of `room_night` (not driven) |
+
+Not reached in this pass (no time): boarding a script-spawned enemy and selling the prize, officers screen, repair at the yard, day/night while sailing.
