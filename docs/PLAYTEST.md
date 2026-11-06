@@ -101,3 +101,23 @@ locator entry, character / ship death, day change, sea login, `QuestDelayExit`) 
 
 Translation leaks seen while driving (not touched): speaker name "Изенбрандт Юрксен" (Russian letters), `GetSexPhrase("ым","ой")` fragments glue Russian suffixes to Ukrainian words
 ("живийым", "мертвийым" in Hunter_dialog `meeting`), Russianisms "Пойдіть", "Пройдіть, поки кости не зламаються" in the Ford dialog, "Ось і я стрибався" (cell dialog).
+
+## Translation polish pass 3 (hand proof-reading of the machine-translated layer)
+
+`python tools/scan_lang.py --suspicious [N]` lists machine-translated fragments (`_mt.tsv`, not overridden by a better layer) that still look wrong:
+Russian-only letters/words, Russian infinitives, mixed scripts, repeated words, Russian vowel+`е` spelling, `ь` after ч/ш/щ, and known calques
+(`Досить добре` for "Хорошо", `ковчег` for "сундук", `мишей` for "крыс", `ростовщ…`, `охоронник`, `триум`...). `SEADOGS_LANG_SDIR=<dir>` compares layer snapshots.
+
+| Measure | Before | After |
+|---|---|---|
+| `_polish.tsv` entries | 747 | 4401 |
+| Machine-translated literals still in use (script literals, whole game) | 14413 | 9861 |
+| Suspicious by the heuristics above | 232 | 0 |
+
+Hand-rewritten (natural Ukrainian, speaker gender checked): officer hire (`Enc_Officer_dialog`), shopkeepers (`Common_Store`), usurers, the hero/Danielle story dialog
+(`blaze_dialog`), tavern keepers (Ines Diaz, `QC_Tavern`), church/prison/shipyard/soldier/citizen commons, town governors (`Common_govenor`, `Eng_guber`, `govenor_SiegeFort`),
+sea captains and parley, land encounters (bandits, rapers, smugglers), citizens of 7 islands, Morgan/Henry/beggars, Leif Erikson (Ascold quest), generic hints.
+Gender-split words (`"Я приш"+GetSexPhrase("ёл","ла")`, `"соглас"+("ен","на")`) were fixed per site: the stem is cut so that the unchanged suffix literal completes the word
+(`Я прийш`+`ов`), and the male suffix literals `ёл ый ым ой ец ку го ...` got global Ukrainian values (they used to show Russian letters).
+Remaining: about 9.9k fragments (mostly later quest-NPC dialogs: Ascold, Silehard, Azzy, Danielle, Philosopher, Arnaud Matton, Albermal ...) are still plain machine output
+without detected defects; they are readable but not proof-read. Name pools only got spelling passes.
