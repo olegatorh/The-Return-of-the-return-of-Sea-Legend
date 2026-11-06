@@ -17,16 +17,16 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 34 subsystems below): **75 %**
+* Overall (mean of the 35 subsystems below): **76 %**
 * Unit tests: **41** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **22792** lines of C# (`StormScript/` library + `game/`)
+* Port code: **22829** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 3 | 91 % |
 | NATIVE | 1 | 90 % |
-| PORT | 22 | 77 % |
+| PORT | 23 | 77 % |
 | APPROX | 8 | 63 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
@@ -69,6 +69,7 @@ Layers (where the behaviour comes from):
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
 | Language | Quest book (RESOURCE/QUESTSTEXT) in Ukrainian | PORT | ██████░░░░ 60 % | E | 371 of 422 missing entries machine-translated + 59 titles by hand (docs/PLAYTEST.md); 51 long entries still Russian |
 | Core | Quest machinery (win_condition kinds, DoQuestCheckDelay, LAi actor tasks with quest callbacks, quest ships, map quest encounters, prison / hunters generator) | SCRIPT | ██████████ 100 % | T | driven by run_tests -Quests (English line steps 1, Pirate line to the captured Ford, necronomicon locator, Black Pearl map encounter, head hunters -> cell, delays across save/load); 244 dialog files fuzzed, 273 of 274 scripted locators exist |
+| Sea | Addon FAQ rules (surrender, spyglass panel, grapeshot crew, weapons, fort landing, live-world pause): engine side checked by run_tests -Rules (docs/RULES_CHECK.md) | PORT | █████████░ 90 % | T | spyglass panel redraw and telescope lowering at boarding fixed; siege end-to-end (squadron, ransom, boat command) not yet run |
 
 ## Engine classes that the scripts create (77)
 

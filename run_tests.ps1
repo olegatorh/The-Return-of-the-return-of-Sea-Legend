@@ -4,7 +4,7 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests, [switch]$Rules)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
@@ -337,6 +337,45 @@ if ($Quests) {
 if ($Contracts) {
     Write-Host '== engine contract audit -> docs\CONTRACTS.md, docs\contracts.json' -ForegroundColor Cyan
     python "$root\tools\contract_audit.py"
+}
+
+# docs/RULES_CHECK.md: the addon FAQ rules whose engine side is checked with targeted runs (script results are read with SEADOGS_CALLLOG=1 / --call)
+if ($Rules) {
+    if (-not (Test-Path "$root\saves\quicksave.sdsave")) { Write-Host 'no saves\quicksave.sdsave' -ForegroundColor Yellow }
+    else {
+        $env:SEADOGS_CALLLOG = '1'
+        # rule 1: CheckForSurrender: reputation 10 surrenders, 50 does not; a class-1 enemy never; Sailing penalty to the skills of a companion
+        $r1 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--set=defeat=0@305', '--set=SurrenderModifier=7@305', '--set=boarding_location_type=0@305',
+                '--set=Characters[757].Ship.Type=94@306', '--set=Characters[757].Ship.Crew.Quantity=20@306', '--set=Characters[757].Ship.Crew.Morale=0@306', '--set=Characters[0].Ship.Crew.Quantity=40@306')
+        foreach ($s in 'Leadership', 'Grappling', 'Fencing', 'Sneak') { $r1 += "--set=Characters[0].Skill.$s=80@400"; $r1 += "--set=Characters[757].Skill.$($s -replace 'Grappling','Defence')=20@400" }
+        $r1 += @('--set=Characters[0].reputation=10@400', '--call=CheckForSurrender(#Blaze,#Cayman+Commander)@410', '--set=Characters[0].reputation=50@420', '--call=CheckForSurrender(#Blaze,#Cayman+Commander)@430',
+                 '--set=Characters[0].reputation=10@440', '--set=Characters[757].Ship.Type=140@440', '--call=CheckForSurrender(#Blaze,#Cayman+Commander)@450',
+                 '--set=Characters[757].Ship.Crew.Quantity=20@460', '--set=Characters[0].Ship.Type=94@460', '--call=DelBakSkillAttr(#Blaze)@461', '--call=GetCharacterSkill(#Blaze,Leadership)@470', '--shot-frame=520')
+        $fail += Invoke-Godot 'rules_surrender' $r1 150 @('CheckForSurrender(<attr Characters[0]>,<attr Characters[757]>) -> 1', 'CheckForSurrender(<attr Characters[0]>,<attr Characters[757]>) -> 0', 'GetCharacterSkill(<attr Characters[0]>,Leadership) -> 20')
+        # rules 3 + 4: the crew floor of grapeshot (25% of MinCrew) and the weapons in the hold (GetWeaponCrew)
+        $r3 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--set=Characters[757].Ship.Type=94@305', '--set=Characters[757].Ship.Crew.Quantity=100@305', '--set=Characters[757].TmpSkill.Defence=0.5@305',
+                '--call=Ship_ApplyCrewHitpoints(#Cayman+Commander,99999)@320', '--dump=Characters[757].Ship.Crew.Quantity@321', '--call=SetCharacterGoods(#Blaze,6,0)@330', '--call=GetWeaponCrew(#Blaze,40)@331',
+                '--call=SetCharacterGoods(#Blaze,6,50)@350', '--call=GetWeaponCrew(#Blaze,40)@351', '--shot-frame=400')
+        $fail += Invoke-Godot 'rules_crew' $r3 150 @('Quantity = "8"', 'GetWeaponCrew(<attr Characters[0]>,40) -> 20', 'GetWeaponCrew(<attr Characters[0]>,40) -> 40')
+        # rule 2: every spyglass shows what its scope.show flags say (the panel data is logged); the duel ship is 80 m abeam, the telescope is held up from frame 2600
+        $env:SEADOGS_PLAYERHP = '9000'; $env:SEADOGS_DUELDIST = '80'; $env:SEADOGS_SCOPE = '2600'; $env:SEADOGS_SEACAM = '40,0.3,1.5708'
+        $r2 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_eng)@305', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
+                '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250', '--seapos=-110,100,0@2400', '--duel@2450', '--sail=-1@2460', '--sail=-1@2470')
+        $f = 2700
+        foreach ($n in 1..5) { $r2 += "--call=GiveItem2Character(#Blaze,spyglass$n)@$f"; $r2 += "--call=EquipCharacterbyItem(#Blaze,spyglass$n)@$f"; $f += 250 }
+        $r2 += "--shot-frame=$f"
+        $fail += Invoke-Godot 'rules_spyglass' $r2 300 @('spyglass panel: type ''1'' hull -1 sails -1 crew -1', 'hull 100 sails 100 crew -1 speed', 'crew 490 speed')
+        Remove-Item Env:SEADOGS_DUELDIST, Env:SEADOGS_SCOPE, Env:SEADOGS_SEACAM
+        # rule 7: Antigua (French patent): the player's balls destroy the fort cannons through the script (--fortkill) -> Fort.Mode 1 (FORT_ABORDAGE); the garrison squadron is gone (Character_SetAbordageEnable) -> LandTroops -> fort deck
+        $r7 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=GiveItem2Character(#Blaze,patent_fra)@305', '--call=EquipCharacterbyItem(#Blaze,patent_fra)@310', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400',
+                '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-696,753,0@1200', '--act@1250', '--seapos=-60,-110,0@2400',
+                '--fortkill@2450', '--sail=-1@2460', '--set=bWeatherIsStorm=0@2500', '--call=LAi_SetImmortal(#Blaze,1)@2550', '--call=Character_SetAbordageEnable(#Antigua+Commander,1)@2570', '--act@2700', '--shot-frame=3600')
+        $fail += Invoke-Godot 'rules_fortkill' $r7 300 @('Fort.Mode = 1', '[sea] action: LandTroops', '[location] model fort2')
+        # rule 9: bWorldAlivePause survives a save / load
+        $fail += Invoke-Godot 'rules_pause' @('--ctl=Quick_Load@200', '--set=bWorldAlivePause=0@310', '--save=rulespause@320', '--set=bWorldAlivePause=1@400', '--load=rulespause@500', '--dump=bWorldAlivePause@900', '--shot-frame=950') 200 @('bWorldAlivePause = 0')
+        Remove-Item "$root\saves\rulespause*" -ErrorAction SilentlyContinue
+        Remove-Item Env:SEADOGS_CALLLOG, Env:SEADOGS_PLAYERHP
+    }
 }
 
 if ($fail -gt 0) { Write-Host "FAILED ($fail)" -ForegroundColor Red; exit 1 }
