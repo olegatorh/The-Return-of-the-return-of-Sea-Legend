@@ -17,17 +17,17 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 32 subsystems below): **74 %**
+* Overall (mean of the 32 subsystems below): **75 %**
 * Unit tests: **37** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **21718** lines of C# (`StormScript/` library + `game/`)
+* Port code: **22251** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 2 | 85 % |
 | NATIVE | 1 | 90 % |
-| PORT | 20 | 77 % |
-| APPROX | 9 | 62 % |
+| PORT | 21 | 77 % |
+| APPROX | 8 | 63 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -48,7 +48,7 @@ Layers (where the behaviour comes from):
 | Land | Items on the ground, chests | PORT | ████████░░ 80 % | V | box locators -> OpenBox hint -> original itemsbox screen, items moved both ways (test chest); random/quest items shown (MODELR), picked with fade (MSG_MODEL_BLEND) |
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images, text input) | PORT | ████████░░ 83 % | T | most screens render; ship rename on the ship screen works end to end (-Sea 'rename': KEYCHOOSER + key_hook.c, Ukrainian letters from the system layout, Backspace/Enter/Esc); EDITBOX is a typed text field (NodeOk/NodeCancel) instead of the original on-screen alphabet grid; LOCK_NODE makes windows modal; SET_BLIND pulses pictures; DELETE_PICTURE/STRING, DEL_SCROLLIMAGE, REFRESH_SCROLL; XBOX, GLOWS, CONTEXTHELP (its chelp_* texts are not in the game data), VIDEO missing |
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
-| Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea 'trade': buy 60 balls, sell 40 through the real SELL button, cargo and money asserted); the strip captions follow xi_scroll_image.cpp (str1/str2 translated, dwXOffset/dwYOffset, trade-state sell/buy markers, hold quantities); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
+| Interface | Store, shipyard, trade, cargo transfer screens | PORT | █████░░░░░ 55 % | T | store buy and sell work end to end (-Sea trade, tradenomoney, tradepoor, tradefull, tradesellall, tradecompanion (ship choice with Left / Right), itemstrade: money, cargo and capacity asserted); Shift + arrows are the speed actions; the hint line (CONTEXTHELP) works; the strip captions follow xi_scroll_image.cpp (str1/str2 translated, dwXOffset/dwYOffset, trade-state sell/buy markers, hold quantities); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
 | Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
 | Interface | Land HUD (battle_land_interface) and command menu | PORT | ███████░░░ 75 % | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ██████░░░░ 60 % | V | navigator (top right), squadron and target panels, ammo bar, ship markers and the command icon row (C key: ship, command, target, charge, sail state; script-driven) from the original textures; layout is mine; ability icons and locator targets (SailTo) untested |
@@ -62,7 +62,7 @@ Layers (where the behaviour comes from):
 | Sea | Boarding | SCRIPT | ███████░░░ 70 % | T | whole flow (test board): enemy/player start -> upper deck, gun deck, cabin fights (land combat engine, group 'say' radius) -> ransack screens -> swap ships / officer to ship / enemy sinks (51013/51014/51026) -> back to sea; grapple scene, captured-ship crew fights not checked by hand |
 | Sea | Telescope, cabin, deck cameras, people on deck | APPROX | ██████░░░░ 60 % | V | telescope (Ctrl): from the mast top (ship camera) or the eye (deck camera), zoom and eyepiece of the equipped spyglass (MSG_TELESCOPE_SET_TYPE, multiplied over the picture); the ship in the middle raises SetTelescopeInfo and the ispyglass strip shows what the spyglass type allows; deck camera (Tab, Sea_CameraSwitch): first person, mouse look, RMB/MMB or Up/Down walk on the ship's path model; cabin and deck work as locations; sailors on deck walk the script walk graphs (my behaviour rules) |
 | Map | World map scene, ship, zones, date, encounters, storms, event window, wait menu | PORT | ███████░░░ 75 % | T | works (tests map, storm); storms 31000/31001 drift over open water with clouds/rain/lightning and send the ship to a sea storm (WorldMap_PlayerInStorm); event window and wait menu (time skip, key T) from the WorldMap/Interfaces textures; day and night: the whole map is multiplied with a colour of the map hour (night blue, dawn pink, dusk orange; test mapnight), clock taken from worldMap.date.* when the script writes it (the original draws the day/night sky only in the date counter and the wind strip: not ported); storm motion and wait items reconstructed; weather, sky, compass simplified |
-| Map | Map encounters (merchant, follow, war) | APPROX | █████░░░░░ 55 % | V | spawn, move, contact; speeds relative to the player's ship rate (the reference worldmap is a later version with other messages; not verified) |
+| Map | Map encounters (merchant, follow, war) | PORT | ████████░░ 80 % | T | ported from wdm_enemy/merchant/follow/warring_ship.cpp: births ahead of the player (GeneratePosition), merchants sail between the ports of the islands along A* paths round the coast and fade out at the goal, follow ships (pirates, hunters, squadrons) steer for the player and attack within 16 units, merchants / warring pairs are met with Enter, lifetime 60-180 s, view-distance fade, island and ship pushes, cannon smoke of the war pair; tests maptraffic, mapfollow, mapmerchant; env SEADOGS_MAPLOG; the island walk patch of the later reference is replaced by the land mask; this game has no patrols / fleeing (docs/VERIFIED.md W1-W6) |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ████████░░ 80 % | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder |
 | Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
