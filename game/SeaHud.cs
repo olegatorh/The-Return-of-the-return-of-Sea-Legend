@@ -38,6 +38,7 @@ public sealed class HudData
     public bool On;
     public float Heading, WindTo, WindSpeed, Speed, MaxSpeed, SailState;
     public float[] Ready = { 1f, 1f, 1f, 1f };     // bow, starboard, stern, port: 1 = loaded, < 1 = reloading
+    public float[] Damage = new float[4];          // DamageRatio of the four sides (destroyed guns, grey arc)
     public bool[] HasGuns = { false, false, false, false };
     public int Charge = -1;
     public int[] Ammo = new int[4];

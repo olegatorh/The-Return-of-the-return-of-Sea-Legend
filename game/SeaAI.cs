@@ -80,13 +80,6 @@ public partial class SeaView
         GD.Print($"[sea] group '{group}' pursues '{other}': placed at ({nx:0},{nz:0}), {d:0} m from it");
     }
 
-    /// <summary>AI_MESSAGE_CANNON_RELOAD: the charge type changed: every bort has to load again.</summary>
-    void ReloadAll(ShipRt s)
-    {
-        float recharge = Math.Max(2f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(s.Chr) })));
-        foreach (var b in s.Cannons.Select(c => c.bort).Distinct()) s.ReadyAt[b] = clock + recharge;
-    }
-
     /// <summary>
     /// SHIP_FIRE_ACTION: the player fired a broadside in direction <paramref name="dir"/>; every other ship in that sector and within range is reported
     /// with its group commander and its relation to the player. The script decides the consequences (Ship_FireAction).

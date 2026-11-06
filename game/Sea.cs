@@ -51,7 +51,7 @@ public partial class SeaView : Node3D
         public float RockY, RockPitch, RockRoll;           // smoothed ShipRocking state (SeaPhysics.cs)
         public List<(string bort, Vector3 pos)> Cannons = new();
         public List<Vector3> FirePlaces = new();          // "fireplace" labels of the hull (engine local coordinates), SeaFires.cs
-        public readonly Dictionary<string, float> ReadyAt = new();
+        public List<Gun>? Guns;                           // per-cannon state (SeaGuns.cs)
     }
 
     readonly Interp it;
@@ -267,7 +267,7 @@ public partial class SeaView : Node3D
                 if (d.Length > 3) it.WriteRef(d[3], V.Float(tot));
                 return V.Int(1);
             }
-            case AI_UNLOAD: Clear(); return V.Int(1);
+            case AI_UNLOAD: UnloadAll(); Clear(); return V.Int(1);
             case 51014:                                                                   // AI_MESSAGE_SWAP_SHIPS "laa": the two characters change ships (ransack "swap"; the script swapped their Ship attributes)
                 if (d.Length > 2 && d[1].Attr is { } c1 && d[2].Attr is { } c2) SwapShips(c1, c2);
                 return V.Int(1);
@@ -592,6 +592,7 @@ public partial class SeaView : Node3D
         }
         ResolveShipCollisions();
         TickSeaAI(dt);
+        TickGuns(dt);
         TickCombat(dt);
         TickFires();
         TickForts(dt);
@@ -647,8 +648,12 @@ public partial class SeaView : Node3D
         for (int i = 0; i < 4; i++)
         {
             d.HasGuns[i] = p.Cannons.Any(c => c.bort == borts[i]) || (i == 2 && p.Cannons.Any(c => c.bort != "cannonf" && c.bort != "cannonr" && c.bort != "cannonl"));
-            if (p.ReadyAt.TryGetValue(i == 2 && !p.ReadyAt.ContainsKey("cannonb") ? p.ReadyAt.Keys.FirstOrDefault(k => k != "cannonf" && k != "cannonr" && k != "cannonl") ?? borts[i] : borts[i], out var at) && clock < at)
-                d.Ready[i] = Math.Clamp(1f - (at - clock) / 10f, 0f, 0.95f);
+            if (HudBort(p, i) is { } hb)
+            {
+                d.Ready[i] = BortCharge(p, hb);
+                var gs = GunsOf(p).Where(g => g.Bort == hb).ToList();
+                d.Damage[i] = 1f - (float)(gs.Count(g => !g.Damaged) + gs.Count(g => g.Damage >= 2f)) / gs.Count;
+            }
         }
         if (sh?.Find("Cannons.Charge.Type", false)?.Value is { Length: > 0 } ct) d.Charge = (int)Conv.ParseFloatPrefix(ct);
         string[] goods = { "Balls", "Grapes", "Knippels", "Bombs" };

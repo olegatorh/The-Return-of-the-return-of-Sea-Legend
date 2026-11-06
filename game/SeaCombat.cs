@@ -24,6 +24,7 @@ public partial class SeaView
 
     readonly List<Ball> balls = new();
     readonly List<(float at, ShipRt ship, Vector3 local, string bort, float dir, float elev)> queued = new();
+    readonly Dictionary<(ShipRt, Vector3), Gun> queuedGun = new();
     float clock;
     static SphereMesh? ballMesh;
     static StandardMaterial3D? ballMat;
@@ -32,7 +33,7 @@ public partial class SeaView
     void ClearCombat()
     {
         foreach (var b in balls) b.Node.QueueFree();
-        balls.Clear(); queued.Clear();
+        balls.Clear(); queued.Clear(); queuedGun.Clear();
     }
 
     /// <summary>Player: fire the broadside that faces the camera direction (left mouse button).</summary>
@@ -130,35 +131,38 @@ public partial class SeaView
     /// </summary>
     void FireBort(ShipRt s, string bort, Vector3 target)
     {
-        if (s.ReadyAt.TryGetValue(bort, out var t) && clock < t) return;
         var sh = s.Chr.Find("Ship", false);
         if (sh == null) return;
-        var cannons = s.Cannons.Where(c => c.bort == bort).ToList();
-        if (cannons.Count == 0) return;
+        var guns = GunsOf(s).Where(g => g.Bort == bort).ToList();
+        if (guns.Count == 0 || !BortCharged(s, bort)) return;                              // AISHIP_BORT::isCharged: every intact gun has finished loading
+        bool enough = EnoughBalls(s, bort);
         float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
         float rad = Conv.ToFloat(it.FireEvent("ShpGetBortFireDelta", new List<V> { V.A(s.Chr), V.Float(target.X), V.Float(target.Y), V.Float(target.Z) }));
         if (noSpreadOnce) rad = 0f;
         float ra = Random.Shared.NextSingle() * MathF.Tau;
         target += new Vector3(rad * MathF.Sin(ra), 0f, rad * MathF.Cos(ra));
         var fdir = new Vector3(target.X - s.X, target.Y, target.Z - s.Z).Normalized();
-        int fired = 0;
-        var shots = new List<(float at, Vector3 local, float dir, float elev)>();
-        foreach (var c in cannons)
+        var axis = new Vector3(MathF.Sin(BortDir(s, bort)), 0f, MathF.Cos(BortDir(s, bort)));
+        var shots = new List<(float at, Vector3 local, float dir, float elev, Gun gun)>();
+        foreach (var g in guns)
         {
-            if (!Conv.ToBool(it.FireEvent("CannLoad", new List<V> { V.A(s.Chr) }))) continue;      // no ball / powder
-            var cp = BallStart(s, c.pos);
+            if (g.Damaged) continue;
+            g.CanRecharge = enough;
+            if (!g.Ready) continue;                                                        // AICannon::Fire: empty / loading guns do not shoot
+            var cp = BallStart(s, g.Pos);
+            var toT = new Vector3(target.X - cp.X, target.Y - cp.Y, target.Z - cp.Z).Normalized();
+            if (toT.X * axis.X + toT.Z * axis.Z < 0.3f) continue;                          // the target must be within ~72 degrees of the gun axis
             float cdir = MathF.Atan2(target.X - cp.X, target.Z - cp.Z);
             float delay = noSpreadOnce ? 0f : Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) })));
-            shots.Add((clock + delay, c.pos, cdir, HeightFireAngle(v0, cp, target)));
-            fired++;
+            g.Fired = true;
+            shots.Add((clock + delay, g.Pos, cdir, HeightFireAngle(v0, cp, target), g));
         }
+        int fired = shots.Count;
         if (fired == 0) return;                                                            // the HUD learns it from SHIP_NOT_ENOUGH_BALLS (TickCombat)
-        float recharge = Math.Max(2f, Conv.ToFloat(it.FireEvent("CannGRTime", new List<V> { V.A(s.Chr) })));
-        s.ReadyAt[bort] = clock + recharge;
         float dist = MathF.Sqrt((target.X - s.X) * (target.X - s.X) + (target.Z - s.Z) * (target.Z - s.Z));
-        GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), delays {shots.Min(q => q.at - clock):0.0}-{shots.Max(q => q.at - clock):0.0} s, recharge {recharge:0.0} s");
+        GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), delays {shots.Min(q => q.at - clock):0.0}-{shots.Max(q => q.at - clock):0.0} s, {guns.Count(g => g.Damaged)} damaged");
         it.FireEvent("Ship_Bort_Fire", new List<V> { V.Int(s.Index), V.A(s.Chr), V.Str(bort), V.Float(target.X), V.Float(target.Y), V.Float(target.Z), V.Float(fdir.X), V.Float(fdir.Y), V.Float(fdir.Z) });
-        foreach (var q in shots) queued.Add((q.at, s, q.local, bort, q.dir, q.elev));
+        foreach (var q in shots) { queued.Add((q.at, s, q.local, bort, q.dir, q.elev)); queuedGun[(s, q.local)] = q.gun; }
         if (s.IsPlayer) FireAction(s, BortDir(s, bort), v0 * v0 / G);                    // ships in the sector learn that they were fired at (SeaAI.cs)
     }
 
@@ -170,7 +174,7 @@ public partial class SeaView
     {
         if (ships.FirstOrDefault(s => s.IsPlayer && !s.Dying) is not { } p || p.Cannons.Count == 0) return;
         int balls = Conv.ToInt(it.FireEvent("Shp_GetCurBallsNum", new List<V> { V.A(p.Chr) }));
-        bool notEnough = p.Cannons.GroupBy(c => c.bort).Any(g => g.Count() > balls);
+        bool notEnough = p.Cannons.GroupBy(c => c.bort).Any(g => IntactGuns(p, g.Key) > balls);
         it.FireEvent("Shp_NotEnoughBalls", new List<V> { V.Int(notEnough ? 1 : 0) });
     }
 
@@ -218,7 +222,13 @@ public partial class SeaView
         clock += dt;
         // delayed cannons of a broadside
         for (int i = queued.Count - 1; i >= 0; i--)
-            if (clock >= queued[i].at) { var q = queued[i]; queued.RemoveAt(i); if (ships.Contains(q.ship)) Launch(q.ship, q.local, q.dir, q.elev); }
+            if (clock >= queued[i].at)
+            {
+                var q = queued[i]; queued.RemoveAt(i);
+                if (!ships.Contains(q.ship)) continue;
+                Launch(q.ship, q.local, q.dir, q.elev);
+                if (queuedGun.Remove((q.ship, q.local), out var gun)) { gun.Fired = false; gun.Loaded = false; Recharge(q.ship, gun); }      // AICannon::RealFire: empty, then Recharge
+            }
         // AI ships shoot at their target when it is abeam and in range
         foreach (var s in ships)
         {
@@ -234,7 +244,7 @@ public partial class SeaView
             while (rel < -MathF.PI) rel += MathF.Tau;
             if (MathF.Abs(MathF.Abs(rel) - MathF.PI / 2) >= 0.5f) continue;
             string bort = rel > 0 ? "cannonr" : "cannonl";
-            if (s.ReadyAt.TryGetValue(bort, out var rt) && clock < rt) continue;
+            if (!BortCharged(s, bort)) continue;
             // AIShipCannonController::Fire(AIShip*): aim height from the script (CANNON_GET_FIRE_HEIGHT), the target led by its speed over the flight
             // and the fire delay (CANNON_GET_FIRE_TIME)
             float h = Conv.ToFloat(it.FireEvent("CannGFHeight", new List<V> { V.A(s.Chr), V.A(tgt.Chr) }));

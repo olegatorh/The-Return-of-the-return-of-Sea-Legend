@@ -71,7 +71,7 @@ public partial class NavigatorView : Control
     public void Set(HudData d)
     {
         heading = d.Heading; windAngle = d.WindTo; windSpeed = d.WindSpeed; shipSpeed = d.Speed;
-        for (int i = 0; i < 4; i++) { charge[i] = d.Ready[i]; hasGuns[i] = d.HasGuns[i]; }
+        for (int i = 0; i < 4; i++) { charge[i] = d.Ready[i]; damage[i] = d.Damage[i]; hasGuns[i] = d.HasGuns[i]; }
         chargePic = d.NavCharge; notEnough = d.NotEnoughBalls;
         ships = d.NavShips;
         windText.Text = $"{windSpeed:0.0}"; shipText.Text = $"{shipSpeed:0.0}";
