@@ -36,6 +36,10 @@ public partial class WorldMapView : Node3D
     double secOfDay;
     readonly WorldHud hud = new() { Name = "MapHud" };
     readonly WorldMapUi ui = new() { Name = "MapUi" };
+    // day / night: a multiply tint over the 3D map (below the HUD layer), the colour follows the map clock
+    readonly CanvasLayer tintLayer = new() { Name = "MapDaylight", Layer = 3, Visible = false };
+    readonly ColorRect tint = new() { Name = "Tint", MouseFilter = Control.MouseFilterEnum.Ignore, Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Mul } };
+    int pubH = -1, pubM = -1, pubS = -1, lastTintHour = -1;
 
     /// <summary>The world map exists as soon as the script has created the entity (it sends no message to it first).</summary>
     public bool Active
@@ -53,6 +57,9 @@ public partial class WorldMapView : Node3D
         it = interp;
         Name = "WorldMapView";
         AddChild(Cam);
+        tint.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        tintLayer.AddChild(tint);
+        AddChild(tintLayer);
         AddChild(hud);
         AddChild(ui);
     }
@@ -77,6 +84,7 @@ public partial class WorldMapView : Node3D
         ClearStorms(); ui.Close();
         scene?.QueueFree(); scene = null; shipNode = null; ent = null; built = false; inside = "";
         Cam.Current = false;
+        tintLayer.Visible = false; pubH = pubM = pubS = lastTintHour = -1;
         hud.Set(false, "", 0, 0);
     }
 
@@ -158,6 +166,7 @@ public partial class WorldMapView : Node3D
         else { shipX = dx; shipZ = dz; }
         shipAy = F(root, "playerShipAY");
         secOfDay = F(root, "date.hour") * 3600 + F(root, "date.min") * 60 + F(root, "date.sec");
+        pubH = (int)F(root, "date.hour"); pubM = (int)F(root, "date.min"); pubS = (int)F(root, "date.sec");
         PublishShip(true);
         HookWindows();
         HookStormAttrs();          // a new map has no storms yet (the attributes outlive the entity)
@@ -221,6 +230,13 @@ public partial class WorldMapView : Node3D
                 GD.Print($"[maplog] t={mapTime:0.0} ship ({shipX:0.0},{shipZ:0.0}) ay={shipAy:0.00} vel={shipVel:0.0} turn={shipTurn:0.00} sail={sail} windK={WindSpeedFactor(shipX, shipZ, shipAy):0.00} enc={encs.Count}");
         }
         PublishShip();
+        // the script (calendar.c, debug screens) may set worldMap.date.* itself: take the clock from the attributes when they differ from what the engine published last
+        if ((int)F(root, "date.hour") != pubH || (int)F(root, "date.min") != pubM || (int)F(root, "date.sec") != pubS)
+        {
+            secOfDay = F(root, "date.hour") * 3600 + F(root, "date.min") * 60 + F(root, "date.sec");
+            pubH = (int)F(root, "date.hour"); pubM = (int)F(root, "date.min"); pubS = (int)F(root, "date.sec");
+        }
+        ApplyDaylight();
         if (run)
         {
             UpdateDate(dt);
@@ -316,6 +332,36 @@ public partial class WorldMapView : Node3D
         return $"{day} {months[Math.Clamp(mon - 1, 0, 11)]} {yr}, {h:00}:{m:00}{isl}";
     }
 
+    // colour the whole map is multiplied with: (hour, rgb); night is a dark blue, dawn pink, dusk orange, noon untouched. Linear between keys, wrapping at 24 h.
+    static readonly (float h, float r, float g, float b)[] DayKeys =
+    {
+        (0f, 0.38f, 0.44f, 0.70f), (4.5f, 0.40f, 0.46f, 0.72f), (6f, 0.88f, 0.64f, 0.58f), (7.5f, 1f, 0.94f, 0.86f), (9f, 1f, 1f, 1f),
+        (16.5f, 1f, 1f, 0.98f), (18f, 1f, 0.82f, 0.62f), (19.5f, 0.78f, 0.52f, 0.50f), (21f, 0.44f, 0.47f, 0.72f), (24f, 0.38f, 0.44f, 0.70f),
+    };
+
+    public static Color DaylightColor(float hour)
+    {
+        hour = ((hour % 24f) + 24f) % 24f;
+        for (int i = 1; i < DayKeys.Length; i++)
+        {
+            var a = DayKeys[i - 1]; var b = DayKeys[i];
+            if (hour > b.h) continue;
+            float k = (hour - a.h) / (b.h - a.h);
+            return new Color(a.r + (b.r - a.r) * k, a.g + (b.g - a.g) * k, a.b + (b.b - a.b) * k);
+        }
+        return Colors.White;
+    }
+
+    void ApplyDaylight()
+    {
+        float hour = (float)(secOfDay / 3600.0);
+        var c = DaylightColor(hour);
+        tint.Color = c;
+        tintLayer.Visible = true;
+        int hh = (int)hour;
+        if (hh != lastTintHour) { lastTintHour = hh; GD.Print($"[map] daylight at {hour:0.0} h: multiply {c.R:0.00},{c.G:0.00},{c.B:0.00}"); }
+    }
+
     /// <summary>The map clock: worldMap.date.hourPerSec game hours per second (set by the script from the slowest ship); the script is told with WorldMap_UpdateDate and NextDay.</summary>
     void UpdateDate(float dt, double skipSec = 0)
     {
@@ -327,6 +373,7 @@ public partial class WorldMapView : Node3D
         root.Find("date.hour", true)!.Value = ((int)(secOfDay / 3600)).ToString();
         root.Find("date.min", true)!.Value = ((int)(secOfDay % 3600 / 60)).ToString();
         root.Find("date.sec", true)!.Value = ((int)(secOfDay % 60)).ToString();
+        pubH = (int)(secOfDay / 3600); pubM = (int)(secOfDay % 3600 / 60); pubS = (int)(secOfDay % 60);
         dateTimer += dt;
         if (days > 0 || skipSec > 0 || dateTimer >= 0.25f)
         {

@@ -52,6 +52,10 @@ if ($Sea) {
         $b = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--act@1250', '--shot-frame=2000')
         $fail += Invoke-Godot 'map' $b 300 @('[map] world map built', '[map] exit to sea at QuebradasCostillas')
+        # day / night of the world map: the script sets the clock (worldMap.date.hour), the engine multiplies the map with the daylight colour of that hour
+        $nm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.01@1250', '--set=worldMap.date.hour=23@1251', '--set=worldMap.date.hourPerSec=0.01@1400', '--set=worldMap.date.hour=23@1401', '--shot-frame=1420')
+        $fail += Invoke-Godot 'mapnight' $nm 300 @('[map] daylight at 23')
         # world-map storm: the script creates it (wdmCreateStorm -> MSG_WORLDMAP_CREATESTORM), a hook moves it onto the ship, WorldMap_PlayerInStorm sends us
         # to the sea with Login.Storm = 1 (storm weather; AIShip.c applies the wind damage)
         $sm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
