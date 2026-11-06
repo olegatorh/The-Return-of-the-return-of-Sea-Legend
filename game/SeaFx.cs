@@ -95,7 +95,7 @@ float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 3; i++) h += wave_a[i] 
         public float U, V;
         public int[] Bow = new int[3];
         public bool Emitting;
-        public float BowZ, BowOldY;
+        public float BowZ, BowOldY, FrontT;
         public int BowSound;
     }
 
@@ -271,7 +271,6 @@ void fragment() {
                 float z = f.BowZ * 0.92f + 0.1f + 0.25f * Math.Max(speed, 4f);
                 f.Bow[0] = ps.Create("seafoam", Vector3.Zero, Vector3.Up, 0f, s.Node, new Vector3(-0.35f, -0.2f, -z), true);
                 f.Bow[1] = ps.Create("seafoam2", Vector3.Zero, Vector3.Up, 0f, s.Node, new Vector3(0.35f, -0.2f, -z), true);
-                if (storm) f.Bow[2] = ps.Create("seafoam_front", Vector3.Zero, new Vector3(0f, 1f, -0.15f), 0f, s.Node, new Vector3(0f, -0.2f, -z), true);
                 f.Emitting = true;
             }
             else if (!want && f.Emitting)
@@ -287,6 +286,10 @@ void fragment() {
                 var bow = s.Node.GlobalTransform * new Vector3(0f, -0.2f, -z);
                 bool rising = dt > 0f && (bow.Y - f.BowOldY) / (dt * 1000f) >= 5e-4f;
                 f.BowOldY = bow.Y;
+                // the front emitter (the tall spray) runs only while the bow rises over a wave (doSplash), not all the time
+                if (rising) f.FrontT = 0.7f; else f.FrontT -= dt;
+                if (f.FrontT > 0f && f.Bow[2] == 0) f.Bow[2] = ps.Create("seafoam_front", Vector3.Zero, new Vector3(0f, 1f, -0.15f), 0f, s.Node, new Vector3(0f, -0.2f, -z), true);
+                else if (f.FrontT <= 0f && f.Bow[2] != 0) { ps.Delete(f.Bow[2], true); f.Bow[2] = 0; }
                 if (rising && !snd.VoiceAlive(f.BowSound)) f.BowSound = snd.Play3D("ship_bow", bow.X, SeaWaves.Height(bow.X, -bow.Z), -bow.Z);
             }
         }

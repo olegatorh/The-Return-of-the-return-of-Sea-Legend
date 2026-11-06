@@ -913,7 +913,7 @@ public partial class SeaView : Node3D
             var v = sc.Split(','); camDist = float.Parse(v[0], System.Globalization.CultureInfo.InvariantCulture); camPitch = float.Parse(v[1], System.Globalization.CultureInfo.InvariantCulture);
             camYawOff = v.Length > 2 ? float.Parse(v[2], System.Globalization.CultureInfo.InvariantCulture) : 0f;
         }
-        if (System.Environment.GetEnvironmentVariable("SEADOGS_SEACAM") == null) camYawOff *= MathF.Pow(0.97f, dt * 60f);           // drifts back behind the ship
+        // ship_camera.cpp: the angle is relative to the ship and stays where the player left it (it does not drift back behind the ship)
         camInit = true;
         float yaw = p.Ay + camYawOff;
         var target = new Vector3(p.X, p.Height * 0.55f, -p.Z);
