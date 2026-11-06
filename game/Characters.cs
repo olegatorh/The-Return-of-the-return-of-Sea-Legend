@@ -109,8 +109,8 @@ public partial class CharacterView : Node3D
     static readonly HashSet<string> paramsLogged = new();
     /// <summary>Test knob (env SEADOGS_NPCFIRE): multiplies the script's NPC fire rate, so a short test run sees an NPC shot.</summary>
     static readonly float FireRateScale = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_NPCFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr) ? fr : 1f;
-    public static int StatHeroHits, StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
-    public static string FightStats() => $"npc swings={StatNpcSwings} blocks raised={StatReactBlocks}+{StatGuardBlocks} hits: blocked={StatBlocked} parried={StatParried} body={StatHits} npc shots={StatNpcShots} param queries={StatParamQueries} FightGo={StatFightGo} FightStay={StatFightStay} failures={StatFightFail} script-driven={StatParamQueries > 0 && StatFightStay > 0 && StatHits + StatBlocked + StatParried > 0}";
+    public static int StatHeroLanded, StatHeroBlockedByNpc, StatHeroHits, StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
+    public static string FightStats() => $"hero blows landed={StatHeroLanded} blocked by the NPC={StatHeroBlockedByNpc}; npc swings={StatNpcSwings} blocks raised={StatReactBlocks}+{StatGuardBlocks} hits: blocked={StatBlocked} parried={StatParried} body={StatHits} npc shots={StatNpcShots} param queries={StatParamQueries} FightGo={StatFightGo} FightStay={StatFightStay} failures={StatFightFail} script-driven={StatParamQueries > 0 && StatFightStay > 0 && StatHits + StatBlocked + StatParried > 0}";
 
     float AskF(string ev, float def)
     {
@@ -224,7 +224,10 @@ public partial class CharacterView : Node3D
             if (!parryVs.IsAlive || parryVs.atkTarget != this || parryVs.atkHitIn < 0f) parryVs = null;
             else if (parryVs.atkHitIn <= 0.14f) { parryVs = null; NpcBlock(true); }
         }
-        if (atkHitIn >= 0f || shotIn >= 0f || blockUntil > 0f || (Busy && rig != null && !rig.Finished)) { PlayIdle(); return; }
+        // a hit reaction only stuns for hitUntil (0.35 s): the NPC may block or strike again then, even if the long reaction clip has not finished (it used to be locked for the whole clip, so a hero hitting every second was never answered)
+        bool reacting = (playing == "hit" || playing == "block_hit") && hitUntil > 0f;
+        bool clipBusy = Busy && rig != null && !rig.Finished && !((playing == "hit" || playing == "block_hit") && hitUntil <= 0f);
+        if (atkHitIn >= 0f || shotIn >= 0f || blockUntil > 0f || reacting || clipBusy) { PlayIdle(); return; }
         ay = TurnToward(ay, Angle(enemy.x - x, enemy.z - z), 12f * dt);
         if (!wantAtk && !wantDef) { PlayIdle(); return; }
         // everybody around: the best victim (hurt, in front) and who is swinging at us
@@ -1108,6 +1111,7 @@ void fragment() {
                 bool blocked = atkTarget.Defends(this);
                 bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < BlockRaise + 0.3f : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
                 if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
+                if (IsPlayer) { if (blocked) StatHeroBlockedByNpc++; else StatHeroLanded++; }
                 atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
                 float hpBefore = atkTarget.HpNow;
                 it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });

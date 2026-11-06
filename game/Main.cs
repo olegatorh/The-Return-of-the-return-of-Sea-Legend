@@ -90,6 +90,7 @@ public partial class Main : Node
     readonly List<int> seaDuels = new();                      // test hook --duel@N
     int actRetryUntil;
     readonly List<(int, string)> showHits = new();
+    readonly List<int> swings = new();
     readonly List<(int frame, float x, float z, float ay)> mapTeleports = new();      // test hook --mappos=x,z,ay@N: place the WORLD MAP ship once the map is built (retries every 10 frames)
     readonly List<(int frame, float dx, float dz)> mapStorms = new();   // test hook --mapstorm=dx,dz@N: a world-map storm placed at the ship + (dx, dz) (retries every 10 frames until the map is built)
     readonly List<int> mapMeets = new();                      // test hook --mapmeet@N: the world-map ship is put next to the first encounter ship
@@ -596,7 +597,6 @@ public partial class Main : Node
     Action? animalsClear;
     WideScreenView? wideScreen;
     AnimalsView? animalsView;
-    readonly List<int> swings = new();
     bool forceRun;
     int animalsAt = -1;                   // test hook --animals@N: what animals.c sends in fine weather (seagulls over the player, butterflies)
     int camMode = 1, camTarget = -1;      // locationcamera: 1 follow, 2 fixed position (script), 3 free
