@@ -143,6 +143,7 @@ public sealed class LanguageService
     /// </summary>
     public string? LiteralText(string scriptFile, string russian)
     {
+        if (PolishLiterals().TryGetValue(russian, out var pol)) return pol;   // hand-polished sentences (_polish.tsv) win over everything
         if (!literals.TryGetValue(scriptFile, out var d))
         {
             d = new Dictionary<string, string>();
@@ -162,6 +163,22 @@ public sealed class LanguageService
         if (d.TryGetValue(russian, out var t)) return t;
         if (GlobalLiterals().TryGetValue(russian, out t)) return t;       // translation memory: the same text anywhere
         return MachineLiterals().TryGetValue(russian, out t) ? t : null;  // machine-translated draft, lowest priority
+    }
+
+    Dictionary<string, string>? polishLiterals;
+
+    Dictionary<string, string> PolishLiterals()
+    {
+        if (polishLiterals != null) return polishLiterals;
+        polishLiterals = new Dictionary<string, string>();
+        string p = Path.Combine(overlayRoot, "strings", "_polish.tsv");
+        if (File.Exists(p))
+            foreach (var line in File.ReadAllLines(p, new UTF8Encoding(false)))
+            {
+                int tab = line.IndexOf('	');
+                if (tab > 0) polishLiterals[line.Substring(0, tab)] = line.Substring(tab + 1);
+            }
+        return polishLiterals;
     }
 
     Dictionary<string, string>? machineLiterals;
