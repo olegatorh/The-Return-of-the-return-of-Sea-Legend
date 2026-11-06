@@ -245,4 +245,16 @@ public sealed class InterpreterTests : IDisposable
             aref m; if (FindClass(&m, ""modelr"")) { n = 1; while (FindClassNext(&m)) { n++; } } }");
         Assert.Equal("2", Str(h, "n"));
     }
+
+    [Fact]
+    public void HandlerOfAnUnloadedSegmentIsSkippedSilently()
+    {
+        // ransack_main.c registers "LeaveConfirm" for exitCancel and never deletes it; once the screen's segment is gone the event must not count as an unresolved function
+        var h = Run(@"int n; void Test() { SetEventHandler(""ping"", ""Gone"", 0); }");
+        File.WriteAllText(Path.Combine(dir, "seg.c"), "void Gone() { }", System.Text.Encoding.Latin1);
+        Assert.True(h.LoadSegment("seg.c"));
+        h.It.SegmentUnloader!("seg.c");
+        h.It.FireEvent("ping");
+        Assert.Empty(h.It.UnresolvedFuncs);
+    }
 }

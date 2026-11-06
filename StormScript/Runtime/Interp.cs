@@ -69,10 +69,13 @@ public sealed partial class Interp
         catch (ScriptError e) { Error($"global {d.Name}: {e.Message}", d); }
     }
 
+    /// <summary>Functions of unloaded segments: an event handler left behind by a screen script (SetEventHandler without a matching DelEventHandler) is skipped silently, as the original compiler does for functions whose segment is gone.</summary>
+    public readonly HashSet<string> UnloadedFuncs = new(StringComparer.OrdinalIgnoreCase);
+
     public int RemoveSegment(string segment)
     {
         var del = Funcs.Where(kv => kv.Value.Segment == segment).Select(kv => kv.Key).ToList();
-        foreach (var k in del) Funcs.Remove(k);
+        foreach (var k in del) { Funcs.Remove(k); UnloadedFuncs.Add(k); }
         return del.Count;
     }
 
@@ -104,6 +107,7 @@ public sealed partial class Interp
         if (Funcs.TryGetValue(name, out var fd)) return Invoke(fd, args, at);
         if (Builtins.Table.TryGetValue(name, out var bf)) return bf(this, args.ToArray());
         if (HostFunctions.TryGetValue(name, out var hf0)) return hf0(args.ToArray());
+        if (UnloadedFuncs.Contains(name)) return V.Int(0);
         return Unresolved(name, args);
     }
 
