@@ -17,7 +17,7 @@ public partial class SeaView
 {
     sealed class FortCannon { public string Kind = "1"; public Vector3 Pos; public float Damage, Next, Dir, FireIn = -1f; public bool Dead; public Vector3 Aim; }
 
-    sealed class Fort { public Attr Chr = null!; public int Index; public List<FortCannon> Cannons = new(); public Attr? Island; }
+    sealed class Fort { public Attr Chr = null!; public int Index; public List<FortCannon> Cannons = new(); public Attr? Island; public float X, Z; }
 
     readonly List<Fort> forts = new();
 
@@ -28,7 +28,7 @@ public partial class SeaView
         if (d.Length < 4 || d[1].Attr is not { } isl || d[2].Attr is not { } loc || d[3].Attr is not { } chr) return V.Int(0);
         string models = isl.Find("filespath.models", false)?.Value?.Replace('/', '\\').Trim('\\') ?? "", locFile = loc.Find("fort.locators", false)?.Value ?? "";
         string file = GameAssets.Resource("MODELS\\" + models + "\\" + locFile + ".gm");
-        var f = new Fort { Chr = chr, Index = (int)F(chr, "index"), Island = isl };
+        var f = new Fort { Chr = chr, Index = (int)F(chr, "index"), Island = isl, X = F(loc, "x", 0f), Z = F(loc, "z", 0f) };   // AI_FORT: the position is the x / z of the island's fort label
         if (File.Exists(file))
         {
             try
@@ -39,7 +39,7 @@ public partial class SeaView
             catch (Exception ex) { GD.PrintErr("[sea] fort locators: " + ex.Message); }
         }
         forts.Add(f);
-        GD.Print($"[sea] fort {chr.Get("id")?.Value}: {f.Cannons.Count} cannons ({locFile})");
+        GD.Print($"[sea] fort {chr.Get("id")?.Value}: {f.Cannons.Count} cannons ({locFile}) at ({f.X:0},{f.Z:0}) radius {F(loc, "Radius", 0f):0}");
         it.FireEvent("FortCreate", new List<V> { V.A(chr), V.Int(f.Cannons.Count) });
         return V.Int(1);
     }

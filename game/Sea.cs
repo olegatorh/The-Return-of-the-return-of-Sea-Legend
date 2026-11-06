@@ -705,7 +705,16 @@ public partial class SeaView : Node3D
         var upd = p.Chr.Find("SeaAI.Update", true)!;
         upd.Remove("Ships"); upd.Remove("Forts");
         var list = upd.GetOrCreate("Ships");
-        upd.GetOrCreate("Forts");
+        var fl = upd.GetOrCreate("Forts");
+        // ai_ship.cpp SetSeaAIAttributes: every fort of the island (l<N>: idx, relation, distance, d_ay); AIShip decides from it whether the fort can be stormed (FORT_ABORDAGE) or entered (FORT_DEAD)
+        for (int fi = 0; fi < forts.Count; fi++)
+        {
+            var fn = fl.GetOrCreate("l" + fi);
+            fn.GetOrCreate("idx").Value = forts[fi].Index.ToString();
+            fn.GetOrCreate("relation").Value = Relation(p.Index, forts[fi].Index).ToString();
+            SetF(fn, "Distance", MathF.Sqrt((forts[fi].X - p.X) * (forts[fi].X - p.X) + (forts[fi].Z - p.Z) * (forts[fi].Z - p.Z)));
+            SetF(fn, "d_ay", MathF.Cos(p.Ay));
+        }
         int k = 0;
         foreach (var o in ships)
         {
