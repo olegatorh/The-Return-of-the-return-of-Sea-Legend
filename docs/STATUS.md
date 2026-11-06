@@ -17,17 +17,17 @@ Layers (where the behaviour comes from):
 
 ## Summary
 
-* Overall (mean of the 35 subsystems below): **77 %**
+* Overall (mean of the 35 subsystems below): **78 %**
 * Unit tests: **46** (plus the game scenarios of `run_tests.ps1 -Smoke / -Intro / -Sea`)
-* Port code: **23599** lines of C# (`StormScript/` library + `game/`)
+* Port code: **23604** lines of C# (`StormScript/` library + `game/`)
 * Original scripts: script-defined functions: 2504; native/extern/prototype decls: 60
 
 | Layer | Subsystems | Mean accuracy |
 |---|---|---|
 | SCRIPT | 3 | 91 % |
 | NATIVE | 1 | 90 % |
-| PORT | 23 | 78 % |
-| APPROX | 8 | 67 % |
+| PORT | 25 | 79 % |
+| APPROX | 6 | 68 % |
 | STUB | 0 | 0 % |
 | MISSING | 0 | 0 % |
 
@@ -49,7 +49,7 @@ Layers (where the behaviour comes from):
 | Interface | xinterface node engine (buttons, text, pictures, sliders, lists, scroll images, text input) | PORT | ████████░░ 83 % | T | most screens render; ship rename on the ship screen works end to end (-Sea 'rename': KEYCHOOSER + key_hook.c, Ukrainian letters from the system layout, Backspace/Enter/Esc); EDITBOX is a typed text field (NodeOk/NodeCancel) instead of the original on-screen alphabet grid; LOCK_NODE makes windows modal; SET_BLIND pulses pictures; DELETE_PICTURE/STRING, DEL_SCROLLIMAGE, REFRESH_SCROLL; XBOX, GLOWS, CONTEXTHELP (its chelp_* texts are not in the game data), VIDEO missing |
 | Interface | Main menu, options, character, items, quest book screens | PORT | ████████░░ 80 % | V | options fully usable (game/beta settings, sound, video, controls) |
 | Interface | Store, shipyard, trade, cargo transfer screens | PORT | ███████░░░ 72 % | T | store buy and sell work end to end (-Sea trade, tradenomoney, tradepoor, tradefull, tradesellall, tradecompanion (ship choice with Left / Right), itemstrade: money, cargo and capacity asserted); Shift + arrows are the speed actions; the hint line (CONTEXTHELP) works; the strip captions follow xi_scroll_image.cpp (str1/str2 translated, dwXOffset/dwYOffset, trade-state sell/buy markers, hold quantities); ship hold, shipyard, cargo transfer, items trade, hire crew, passengers and quest book open and render (shipyard: choosing and buying a ship works end to end); quest texts fall back to Russian where untranslated; perks screen (selectable list, descriptions) and help text lists work |
-| Interface | Key bindings | APPROX | ███████░░░ 70 % | T | own table in settings.ini instead of the script control system; mouse buttons not remappable |
+| Interface | Key bindings | PORT | ████████░░ 88 % | V | the original option pages (INTERFACE/controls.c) run on the real script control service: keys and mouse buttons remappable, inverse, defaults, key caps font, saved in saves/options.txt; the port's own actions are Port_* controls in the same table |
 | Interface | Land HUD (battle_land_interface) and command menu | PORT | ███████░░░ 75 % | T | test 'landhud': Enter menu -> fast travel -> talk; positions from BLI_SetShowParameters anchored to the real bottom left corner |
 | Interface | Sea HUD (battle_interface) and command menu | APPROX | ███████░░░ 78 % | V | no own panels any more: the bottom-left icon row is the original command list (BattleInterface.CommandShowParam: 64 px icons, notes, left/right buttons, state strips indicators.tga under the squadron ships, nation shields from BI_GetData, charge counts, Cancel icon), always showing the squadron; Enter opens it, levels ship / command / target (ships + island places) / charge / sail state / abilities run through BI_CommandEndChecking + BI_LaunchCommand (test seacmds); top-left fast-command icon from ILogAndActions.ActiveActions; navigator with island picture (top-down render) and fire-zone fans; not ported: PotC class layout is not in the reference (gerald position, tfactor dimming guessed), no best-course marks (this script sets no bestCourseTexture), no cooldown clocks (CoAS only) |
 | Sea | Ship model assembly (hull, masts, yards, sails, flags) | PORT | ████████░░ 80 % | V | hull, masts, yards, square/gaff/triangular sails, ropes, shrouds and flags from the model labels; sails roll/fold by the sail state, bulge and flap with the wind, yards brace to the wind (game/SeaSails.cs) |
@@ -65,7 +65,7 @@ Layers (where the behaviour comes from):
 | Map | Map encounters (merchant, follow, war) | PORT | ████████░░ 80 % | T | ported from wdm_enemy/merchant/follow/warring_ship.cpp: births ahead of the player (GeneratePosition), merchants sail between the ports of the islands along A* paths round the coast and fade out at the goal, follow ships (pirates, hunters, squadrons) steer for the player and attack within 16 units, merchants / warring pairs are met with Enter, lifetime 60-180 s, view-distance fade, island and ship pushes, cannon smoke of the war pair; tests maptraffic, mapfollow, mapmerchant; env SEADOGS_MAPLOG; the island walk patch of the later reference is replaced by the land mask; this game has no patrols / fleeing (docs/VERIFIED.md W1-W6) |
 | Effects | Particles (smoke, fire, blast, splash, torches, candles) | PORT | ███████░░░ 70 % | V | all 36 systems of RESOURCE/INI/PARTICLES read with the keys PARTICLES.dll reads (emission, lifetime, speed/size/alpha/spin/wind curves, weight, techniques Particles / Particles_Inv / ParticlesFire); units inferred from the data (no C++ source); flame texture drawn additively; geometry particles ([geo]) only through blast |
 | Sound | Sound system (aliases, music, ambient schemes, volumes) | PORT | ████████░░ 80 % | T | all INI/ALIASES files (incl. Greetings_alias.ini: NPC greetings on dialog start, speech volume); SOUND_WAV_3D at a position = Godot 3D player with the alias minDistance/maxDistance (inverse distance; aliases without distances stay stereo); character sounds: steps by .ptc material (snd_grass -> step_grass), sword swish/draw/sheathe from .ani events, hit/block clang, pistol, Event_ChrSnd_Attack/Hit/Dead/Body (SEADOGS_SOUNDLOG); no SET_3D_PARAM, thunder |
-| Engine | Controls and mouse look | APPROX | ██████░░░░ 60 % | E | sensitivity and invert from the options |
+| Engine | Controls and mouse look | PORT | ████████░░ 80 % | V | pcs_controls state machine (ControlTable): groups lock/unlock, events, flags, sensitivity, invert; land follow camera inertia (vAx) and ship camera inertia/mouse look from the C++; open: ship camera ellipsoid, world map hold-zoom/free camera |
 | Engine | Colour correction, screen effects | APPROX | ██████░░░░ 60 % | V | gamma, contrast, brightness shader |
 | Language | Quest book (RESOURCE/QUESTSTEXT) in Ukrainian | PORT | ██████░░░░ 60 % | E | 371 of 422 missing entries machine-translated + 59 titles by hand (docs/PLAYTEST.md); 51 long entries still Russian |
 | Core | Quest machinery (win_condition kinds, DoQuestCheckDelay, LAi actor tasks with quest callbacks, quest ships, map quest encounters, prison / hunters generator) | SCRIPT | ██████████ 100 % | T | driven by run_tests -Quests (English line steps 1, Pirate line to the captured Ford, necronomicon locator, Black Pearl map encounter, head hunters -> cell, delays across save/load); 244 dialog files fuzzed, 273 of 274 scripted locators exist |
