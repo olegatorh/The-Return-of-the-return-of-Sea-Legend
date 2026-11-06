@@ -122,6 +122,8 @@ public partial class DialogView : Control
         if (sig == signature) return;
         signature = sig;
 
+        for (int i = 0; i < items.Count; i++)
+            if (string.IsNullOrWhiteSpace(items[i].text)) GD.Print($"[dialog] EMPTY answer {i + 1} (go='{items[i].go}') in node '{Ent.Root.Get("CurrentNode")?.Value}' of {Speaker()}");
         nameLabel.Text = Speaker();
         text.Text = Display(t);
         foreach (var c in links.GetChildren()) c.QueueFree();

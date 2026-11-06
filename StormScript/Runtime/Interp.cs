@@ -363,7 +363,7 @@ public sealed partial class Interp
         {
             var c = sw.Cases[i];
             if (c.Value == null) { def = i; continue; }
-            if (Conv.ToBool(BinOp("==", subj, Eval(c.Value, f)))) { start = i; break; }
+            if (Conv.ToBool(BinOp("==", Eval(c.Value, f), subj))) { start = i; break; }   // STACK_COMPARE: the case value is the LEFT operand (a string case is converted to an int subject)
         }
         if (start < 0) start = def;
         if (start < 0) return Flow.Normal;

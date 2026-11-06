@@ -41,6 +41,14 @@ public sealed class InterpreterTests : IDisposable
     }
 
     [Fact]
+    public void SwitchOnIntMatchesStringCases()
+    {
+        // core compiler.cpp STACK_COMPARE: the case value is the left operand, so case "1" matches the int 1 (HeroStringReactionRepeat relies on it)
+        var h = Run(@"string r; void Test() { int t = 1; switch (t) { case ""0"": r = ""zero""; break; case ""1"": r = ""one""; break; } }");
+        Assert.Equal("one", Str(h, "r"));
+    }
+
+    [Fact]
     public void StringEqualityIsCaseInsensitive()
     {
         var h = Run(@"int r; void Test() { if (""AbC"" == ""aBc"") r = 1; else r = 2; }");
