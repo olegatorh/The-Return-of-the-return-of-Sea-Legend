@@ -454,6 +454,197 @@ if ($Quests) {
 --shot-frame=8900
 '@ -split "`r?`n"
         $fail += Invoke-Godot 'q_eng6' $eng6 800 @('State = "MorrisWillams_GoToMorrisBegin"', 'Group_SetAddress(Willams_Group, Redmond', 'node ''Step_6_2''', 'QuestComplete(MorrisWillams_InTavernWithWillams)', 'State = "MorrisWillams_ToModifordForCoolTalking"', 'node ''Step_6_5''', 'State = "MorrisWillams_ModifordPolitic"')
+        # English line 7 (seven treasures): Step_7_1 -> Step_7_3 (GenQuestBox of the caves) -> the box of Antigua_Cave opens (OpenBox, itemsbox.ini) -> the gold is handed over (Step_7_4..7_6) -> 70000, quest 8
+        $eng7 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=7@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--answer=1@1000
+--dump=Characters[0].questTemp.State@1100
+--call=DoReloadCharacterToLocation(Antigua_Cave,reload,reload1)@1200
+--goto=box.box1@1700
+--key=Space@1800
+--key=Escape@1900
+--dump=Characters[0].GenQuestBox.Antigua_Cave.box1.items.jewelry5@1950
+--set=Characters[0].items.jewelry5=2100@2000
+--call=LAi_SetFightMode(#Blaze,0)@2050
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@2100
+--dialog=eng_guber@2700
+--answer=1@2800
+--answer=1@2900
+--answer=1@3000
+--answer=1@3100
+--answer=1@3200
+--answer=1@3300
+--dump=Characters[0].questTemp.State@3400
+--dump=Characters[0].questTemp.CurQuestNumber@3400
+--dump=Characters[0].money@3400
+--shot-frame=3500
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng7' $eng7 500 @('State = "SevenTreasures_GoOn"', '[land] action: OpenBox', 'node ''Step_7_6''', 'CurQuestNumber = "8"', 'money = "170000"')
+        # English line 8 (Mansfield), land part: Step_8_1/8_2 -> Gaity_Pirate_town (SetLocationCapturedState, IntoTheTown: LAi_ActorRunToLocator + ActorSelfDialog) -> DialogMan Dik Manson (Step_E_11..17) -> state CatchToPardal -> leaving the town fires OutFromFort
+        $eng8 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=8@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--answer=1@1000
+--dump=Characters[0].questTemp.State@1100
+--call=DoReloadCharacterToLocation(Gaity_Pirate_town,reload,reload1)@1200
+--answer=1@2200
+--dump=Characters[0].location@2400
+--call=DoReloadCharacterToLocation(Gaity_Pirate_town_house_01,reload,reload1)@2500
+--dialog=DialogMan@3200
+--answer=1@3300
+--answer=1@3400
+--answer=1@3500
+--answer=1@3600
+--answer=1@3700
+--answer=1@3800
+--answer=1@3900
+--dump=Characters[0].questTemp.State@4000
+--call=DoReloadCharacterToLocation(Gaity_Pirate_town_exit,reload,reload1)@4100
+--dump=Characters[0].location@4800
+--shot-frame=4900
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng8' $eng8 500 @('State = "ToMansfield_GoOn"', 'QuestComplete(ToMansfield_MyselfDialog)', 'node ''Step_E_17''', 'State = "ToMansfield_CatchToPardal"', 'QuestComplete(<attr Characters[0].quest.ToMansfield_OutFromFort.win_condition>)')
+        # English line 8, sea part: the Spanish galleon appears at Cuba (location condition -> Group_SetAddress Spa_Attack), is sunk -> ToMansfield_GaleonSink -> governor Step_8_5 -> state empty, quest 9
+        $eng8sea = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--call=SetPlayerShipLocation(184)@320
+--goto=reload.reload1@400
+--ctl=ChrAction@450
+--sail=+1@700
+--seapos=-600,-101,4.71@720
+--call=LAi_SetImmortal(#Blaze,1)@721
+--set=Characters[0].questTemp.State=ToMansfield_CatchToPardal@722
+--set=Characters[0].questTemp.CurQuestNumber=8@722
+--call=SaveCurrentQuestDateParam(questTemp)@723
+--call=QuestComplete(ToMansfield_OutFromFort)@730
+--ctl=BI_MapEnter@1000
+--ctl=BI_MapEnter@1100
+--mappos=-53.7,-810.3,0@1200
+--act@1250
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3200
+--dump=Characters[0].questTemp.State@3800
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@3900
+--call=LAi_SetFightMode(#Blaze,0)@4400
+--dialog=eng_guber@4500
+--answer=1@4600
+--answer=1@4700
+--answer=1@4800
+--answer=1@4900
+--answer=1@5000
+--dump=Characters[0].questTemp.State@5200
+--dump=Characters[0].questTemp.CurQuestNumber@5200
+--shot-frame=5300
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng8sea' $eng8sea 500 @('Group_SetAddress(Spa_Attack, Cuba', 'State = "ToMansfield_GaleonSink"', 'node ''Step_8_5''', 'CurQuestNumber = "9"')
+        # English line 9 (Santiago), land part: Step_9_1..9_3 -> the governor of Santiago (Capture_Gover_dialog intercepts the node EngLine9Quest_Santiago_attack) -> Step_9: Albermal becomes the captive passenger, the Cuba condition is registered, back to the port
+        $eng9 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=9@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--answer=1@1000
+--answer=1@1050
+--dump=Characters[0].questTemp.State@1100
+--set=Characters[#Major_Santiago].Dialog.Filename=Capture_Gover_dialog.c@1150
+--call=LAi_SetFightMode(#Blaze,0)@1160
+--call=DoReloadCharacterToLocation(Santiago_Residence,reload,reload1)@1200
+--dialog=Major_Santiago@1700
+--answer=1@1800
+--answer=1@1900
+--answer=1@2000
+--answer=1@2100
+--answer=1@2200
+--dump=Characters[0].location@3000
+--dump=Characters[0].quest.AttackSantiago_FightWithPardal.win_condition.l1.location@3000
+--dump=Characters[0].questTemp.State@3000
+--shot-frame=3100
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng9' $eng9 500 @('State = "AttackSantiago_GoOn"', 'node ''Step_9''', 'QuestComplete(Return_Gover_Dialog)', 'location = "Cuba"')
+        # English line 9, sea part: Pardal's squadron (4 ships, Group_SetAddress Spa_Attack at Cuba), the 4 NPC_Death conditions -> AttackSantiago_GoodWork -> governor Step_9_4/9_5 -> quest 10
+        $eng9sea = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--call=SetPlayerShipLocation(184)@320
+--goto=reload.reload1@400
+--ctl=ChrAction@450
+--sail=+1@700
+--seapos=-600,-101,4.71@720
+--call=LAi_SetImmortal(#Blaze,1)@721
+--set=Characters[0].questTemp.State=AttackSantiago_GoOn@722
+--set=Characters[0].questTemp.CurQuestNumber=9@722
+--call=SaveCurrentQuestDateParam(questTemp)@723
+--set=Characters[0].quest.AttackSantiago_FightWithPardal.win_condition.l1=location@724
+--set=Characters[0].quest.AttackSantiago_FightWithPardal.win_condition.l1.location=Cuba@724
+--set=Characters[0].quest.AttackSantiago_FightWithPardal.win_condition=AttackSantiago_FightWithPardal@724
+--ctl=BI_MapEnter@1000
+--ctl=BI_MapEnter@1100
+--mappos=-53.7,-810.3,0@1200
+--act@1250
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3000
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_2,99999.0,1,0)@3050
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_3,99999.0,1,0)@3100
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_4,99999.0,1,0)@3150
+--dump=Characters[0].questTemp.State@3800
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@3900
+--call=LAi_SetFightMode(#Blaze,0)@4400
+--dialog=eng_guber@4500
+--answer=1@4600
+--answer=1@4700
+--answer=1@4800
+--answer=1@4900
+--answer=1@5000
+--answer=1@5100
+--dump=Characters[0].questTemp.State@5300
+--dump=Characters[0].questTemp.CurQuestNumber@5300
+--shot-frame=5400
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng9sea' $eng9sea 500 @('Group_SetAddress(Spa_Attack, Cuba', 'QuestComplete(<attr Characters[0].quest.AttackSantiago_AfterFight.win_condition>)', 'State = "AttackSantiago_GoodWork"', 'node ''Step_9_5''', 'CurQuestNumber = "10"')
         # Pirate line: Jurcksen -> James Ford in the tavern of Fort Orange -> escort fight (Story_Battle_Ford..5) -> Ford beaten (LAi_SetCheckMinHP) -> captured -> the passengers
         $pl = @('--ctl=Quick_Load@200', '--set=Characters[0].questTemp.Begin_Quests_Pirate=1@250', '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@300', '--dialog=Isenbrandt_Jurcksen@700') +
             @(800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--call=DoReloadCharacterToLocation(Orange_Tavern,reload,reload1)@1500', '--dialog=James_Ford@1900') + @(2000, 2100, 2200, 2300, 2400 | ForEach-Object { "--answer=1@$_" }) +
