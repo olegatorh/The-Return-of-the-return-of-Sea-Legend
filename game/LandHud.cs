@@ -401,7 +401,9 @@ public partial class LandHud : CanvasLayer
         GD.Print($"[land] command {ev} '{evName}'");
         CloseMenu(false);
         Sound("deactivate");
-        it.FireEvent("BI_LaunchCommand", new List<V> { V.Int(ch), V.Str(ev), V.Int(-1), V.Str(evName) });
+        Action fire = () => it.FireEvent("BI_LaunchCommand", new List<V> { V.Int(ch), V.Str(ev), V.Int(-1), V.Str(evName) });
+        if (ev == "BI_UseBox") LandTraps.OpenBox(it, fire);          // the Enter menu opens chests too: same trap rule as the Space action
+        else fire();
     }
 
     void CloseMenu(bool sound)
