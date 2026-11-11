@@ -692,6 +692,7 @@ public partial class Main : Node
     /// <summary>The character the player can talk to: the nearest living one within reach (the original engine finds it with FindDialogCharacter and offers the action "Talk").</summary>
     /// <summary>Character::FindDialogCharacter (character.cpp): within 3 m and 2 m of height, inside the 30 degree cone in front of the hero (half angle 15), the best by
     /// distance / cosine; nobody while the hero or the other one has the sword out or is dead.</summary>
+    static readonly bool TalkLog = System.Environment.GetEnvironmentVariable("SEADOGS_TALKLOG") != null;
     CharacterView? NearestTalkable()
     {
         var player = characters.Values.FirstOrDefault(c => c.IsPlayer);
@@ -706,6 +707,7 @@ public partial class Main : Node
             float d2 = dx * dx + dz * dz;
             if (MathF.Abs(dy) > 2f || d2 > 9f) continue;
             float d = MathF.Sqrt(d2), cs = d2 > 0f ? (dx * MathF.Sin(ay) + dz * MathF.Cos(ay)) / d : -1f;
+            if (TalkLog && d2 < 25f) GD.Print(FormattableString.Invariant($"[talk] {c.Ent.Root.Get("id")?.Value}: dist {MathF.Sqrt(d2):0.00} dy {dy:0.00} cos {cs:0.00} (need {testAng:0.00}) heading {ay:0.00}"));
             if (cs < testAng) continue;
             d /= cs;
             if (d < bestD) { bestD = d; best = c; }

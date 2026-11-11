@@ -194,14 +194,14 @@ if ($Sea) {
         Remove-Item Env:SEADOGS_DIALOGLOG
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
         $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
-                '--key=Enter@1000', '--key=Right@1010', '--key=Enter@1030', '--shot-frame=1150')
+                '--key=Enter@1000', '--key=Right@1010', '--key=Right@1020', '--key=Enter@1030', '--shot-frame=1150')       # the third entry: [Перехід, Використати (potion, the hero is hurt), Говорити, Відчинити]
         $fail += Invoke-Godot 'landhud' $lh 300 @("[land] command BI_FastReload 'reload3'", "[land] command BI_DialogStart", '[landhud] started=True show=False')
         # land melee by the script's rules: two townsmen of the port are put into hostile groups (LAi_group_FightGroups -> warrior type -> fight template);
         # the engine asks NPC_Event_GetAttackActive/GetDefenceActive/GetAggresive/GetFireActive/EnableFire (values = 0.3 + 0.7 / 0.3 + 0.35 x fight level),
         # reports FightStay, and the blows go back through Location_CharacterAttack/Block; E draws the hero's sword after Location_CharacterIsFight
         $ml = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300', '--call=LAi_SetWarriorType(#Gilles+Roche)@400', '--call=LAi_SetWarriorType(#Terry++Snider)@400',
                 '--call=LAi_group_MoveCharacter(#Gilles+Roche,TestA)@410', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(TestA,TestB,1)@420',
-                '--call=LAi_SetHP(#Gilles+Roche,400,400)@430', '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--key=E@450', '--shot-frame=1600')
+                '--call=LAi_SetHP(#Gilles+Roche,400,400)@430', '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--bring=Gilles_Roche:3@440', '--bring=Terry__Snider:5@445', '--key=E@450', '--shot-frame=1600')
         $fail += Invoke-Godot 'melee' $ml 300 @('[fight] Gilles Roche vs Terry  Snider: attack=1/s defence=0.65/s', '[fight] Terry  Snider vs Gilles Roche:', 'script-driven=True player fightMode=True')
         # a hostile soldier against the HERO (group 'player' made enemy of TestB): he must run up, swing and wound the hero within the run (the NPC rolls its
         # wishes every 0.2 s like np_character.cpp, so the attack rate of the script means a blow as soon as the last one is over). The hero is drawn while running:
