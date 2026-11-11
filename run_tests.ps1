@@ -645,6 +645,160 @@ if ($Quests) {
 --shot-frame=5400
 '@ -split "`r?`n"
         $fail += Invoke-Godot 'q_eng9sea' $eng9sea 500 @('Group_SetAddress(Spa_Attack, Cuba', 'QuestComplete(<attr Characters[0].quest.AttackSantiago_AfterFight.win_condition>)', 'State = "AttackSantiago_GoodWork"', 'node ''Step_9_5''', 'CurQuestNumber = "10"')
+        # English line 10 (Port Royal defence): the governor's text registers the Redmond condition -> the Spanish squadron of 7 ships (Group_SetAddress Spa_Attack, task attack, the fort squadron set on it) -> 7 NPC_Death conditions -> SpanishAttack_GoodWork -> governor Step_10_1/10_2 -> quest 11
+        $eng10 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=10@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@900
+--dump=Characters[0].questTemp.State@1000
+--call=DoReloadCharacterToLocation(Redmond_port,reload,reload_2_city)@1100
+--set=Characters[0].location.from_sea=Redmond_port@1400
+--goto=reload.sea_1@1500
+--ctl=ChrAction@1550
+--sail=+1@1800
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3550
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_2,99999.0,1,0)@3600
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_3,99999.0,1,0)@3650
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_4,99999.0,1,0)@3700
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_5,99999.0,1,0)@3750
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_6,99999.0,1,0)@3800
+--call=Ship_ApplyHullHitpoints(#CaptainAttack_7,99999.0,1,0)@3850
+--dump=Characters[0].questTemp.State@4200
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@4300
+--call=LAi_SetFightMode(#Blaze,0)@4800
+--dialog=eng_guber@4900
+--answer=1@5000
+--answer=1@5100
+--answer=1@5200
+--answer=1@5300
+--answer=1@5400
+--dump=Characters[0].questTemp.State@5600
+--dump=Characters[0].questTemp.CurQuestNumber@5600
+--shot-frame=5700
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng10' $eng10 600 @('State = "SpanishAttack_ShipsInShore"', 'Group_SetAddress(Spa_Attack, Redmond', 'State = "SpanishAttack_GoodWork"', 'node ''Step_10_2''', 'CurQuestNumber = "11"')
+        # English line 11 (Puerto Rico): Step_11_1 registers the Muelle_Canyon condition -> PuertoRico_SanDomingoAttack (GetCharIDXForTownAttack, SetLocationCapturedState, Capture_Forts) -> the two town governors (Capture_Gover_dialog nodes EngLine11Quest_*) set Q11_SanHuan / Q11_SantoDomingo -> governor Step_11_2 -> quest 12
+        $eng11 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=11@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--dump=Characters[0].questTemp.State@1000
+--call=DoReloadCharacterToLocation(Muelle_Canyon,reload,Reload1)@1100
+--dump=Characters[0].location@1800
+--set=Characters[#Major_Rico].Dialog.Filename=Capture_Gover_dialog.c@1850
+--set=Characters[#Major_SD].Dialog.Filename=Capture_Gover_dialog.c@1850
+--call=LAi_SetFightMode(#Blaze,0)@1860
+--call=DoReloadCharacterToLocation(Muelle_Residence,reload,reload1)@1900
+--dialog=Major_Rico@2400
+--answer=1@2500
+--answer=1@2600
+--answer=1@2700
+--dump=Characters[0].questTemp.Q11_SanHuan@2900
+--call=DoReloadCharacterToLocation(SD_townhall,reload,reload1)@3000
+--dialog=Major_SD@3500
+--answer=1@3600
+--answer=1@3700
+--answer=1@3800
+--dump=Characters[0].questTemp.Q11_SantoDomingo@4000
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@4100
+--dialog=eng_guber@4700
+--answer=1@4800
+--answer=1@4900
+--answer=1@5000
+--answer=1@5100
+--dump=Characters[0].questTemp.State@5300
+--dump=Characters[0].questTemp.CurQuestNumber@5300
+--shot-frame=5400
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng11' $eng11 600 @('State = "PuertoRico_GoOn"', 'QuestComplete(Capture_Forts)', 'Q11_SanHuan = "1"', 'Q11_SantoDomingo = "1"', 'node ''Step_11_2''', 'CurQuestNumber = "12"')
+        # English line 12 (Colonel Linch) and the end of the line: Step_12_1 -> Oxbay_townhall: Albermal becomes Linch and walks up (ColonelLinch_IntoTheResidence) -> Step_E_15..22 -> governor Step_12_2..12_4: the guard fight (EnemyFight group killed by a hook) -> ColonelLinch_AfterFight, prison of Redmond, ColonelLinch_Exit -> quest 13 -> Step_12_5/12_6 (+2000000), state EndOfQuestLine
+        $eng12 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=12@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--dump=Characters[0].questTemp.State@1000
+--call=DoReloadCharacterToLocation(Oxbay_townhall,reload,reload1)@1100
+--answer=1@2000
+--answer=1@2100
+--answer=1@2200
+--answer=1@2300
+--answer=1@2400
+--answer=1@2500
+--answer=1@2600
+--answer=1@2700
+--answer=1@2800
+--dump=Characters[0].questTemp.State@3000
+--call=LAi_SetFightMode(#Blaze,0)@3050
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@3100
+--dialog=eng_guber@3700
+--answer=1@3800
+--answer=1@3900
+--answer=1@4000
+--answer=1@4100
+--answer=1@4200
+--killgroup=EnemyFight@5000
+--killgroup=EnemyFight@5100
+--killgroup=EnemyFight@5200
+--dump=Characters[0].questTemp.State@5500
+--dump=Characters[0].location@5500
+--dialog=Albermal@5700
+--answer=1@5800
+--call=LAi_SetFightMode(#Blaze,0)@5850
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@5900
+--dialog=eng_guber@6500
+--answer=1@6600
+--answer=1@6700
+--answer=1@6800
+--dump=Characters[0].questTemp.CurQuestNumber@6900
+--set=Characters[0].questTemp.Waiting_time=0@6910
+--dialog=eng_guber@7000
+--answer=1@7100
+--answer=1@7200
+--answer=1@7300
+--answer=1@7400
+--answer=1@7500
+--dump=Characters[0].questTemp.State@7700
+--dump=Characters[0].money@7700
+--shot-frame=7800
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng12' $eng12 700 @('State = "ColonelLinch_GoToKingstown"', 'node ''Step_E_22''', 'State = "ColonelLinch_ArrestModiford"', 'QuestComplete(ColonelLinch_AfterFight)', 'State = "ColonelLinch_ModifordArrested"', 'CurQuestNumber = "13"', 'State = "EndOfQuestLine"', 'money = "2100000"')
         # Pirate line: Jurcksen -> James Ford in the tavern of Fort Orange -> escort fight (Story_Battle_Ford..5) -> Ford beaten (LAi_SetCheckMinHP) -> captured -> the passengers
         $pl = @('--ctl=Quick_Load@200', '--set=Characters[0].questTemp.Begin_Quests_Pirate=1@250', '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@300', '--dialog=Isenbrandt_Jurcksen@700') +
             @(800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--call=DoReloadCharacterToLocation(Orange_Tavern,reload,reload1)@1500', '--dialog=James_Ford@1900') + @(2000, 2100, 2200, 2300, 2400 | ForEach-Object { "--answer=1@$_" }) +
