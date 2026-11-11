@@ -616,6 +616,7 @@ public partial class Main : Node
     float? camLockPitch;                  // locationcamera MSG_CAMERA_MOVE
     bool camSleep;                        // locationcamera MSG_CAMERA_SLEEP
     readonly DialogCamera dialogCam = new();
+    TimeSkipNotice? timeNotice;
     float camYaw, camPitch = 0.4f, camDist = 3.0f;       // LocationCamera: ax = 0.4, radius = 3
     readonly LandCamera landCam = new();
     static readonly bool CamLog = System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG") != null;
@@ -1092,6 +1093,7 @@ public partial class Main : Node
                 profWorld = profAdv = profFrame = 0;
             }
         }
+        (timeNotice ??= new TimeSkipNotice(host.It)).Tick(logHud);
         frames++;
 
         foreach (var (f, id0) in showHits) if (f == frames) { var ip = id0.Split(':'); float dmg = ip.Length > 1 ? float.Parse(ip[1], System.Globalization.CultureInfo.InvariantCulture) : 4f; if (characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == ip[0]) is { } hn) { hn.Ent.Root.GetOrCreate("chr_ai.hp").Value = Math.Max(0f, hn.HpNow - dmg).ToString(System.Globalization.CultureInfo.InvariantCulture); hn.ShowHit(dmg, dmg <= 0f); } }

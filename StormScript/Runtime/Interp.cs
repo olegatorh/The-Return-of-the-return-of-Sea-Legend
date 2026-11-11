@@ -144,8 +144,13 @@ public sealed partial class Interp
 
     static readonly HashSet<string> traceCalls = new((Environment.GetEnvironmentVariable("SEADOGS_TRACE") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries), StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Host notification when one of the <see cref="WatchedCalls"/> script functions is entered (e.g. the time skip of WaitDate); costs one set lookup per call only while the set is not empty.</summary>
+    public Action<string>? CallHook;
+    public readonly HashSet<string> WatchedCalls = new(StringComparer.OrdinalIgnoreCase);
+
     V Invoke(FuncDef fd, List<V> args, Node? at, List<(int index, Slot caller)>? outs = null)
     {
+        if (CallHook != null && WatchedCalls.Count > 0 && WatchedCalls.Contains(fd.Decl.Name)) CallHook(fd.Decl.Name);
         if (traceCalls.Count > 0 && traceCalls.Contains(fd.Decl.Name)) Log($"CALL {fd.Decl.Name}({string.Join(", ", args.Select(a => a.ToString()))}) at t={Now}");
         if (++depth > 400) { depth--; throw Err("call stack too deep in " + fd.Decl.Name, at); }
         var fr = new Frame { Name = fd.Decl.Name };

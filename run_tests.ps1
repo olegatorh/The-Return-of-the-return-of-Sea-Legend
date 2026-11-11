@@ -183,6 +183,9 @@ if ($Sea) {
         $dc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--call=locCameraFollow()@500',
                 '--dialog=Ronald_Shorter@600', '--call=DialogExit()@900', '--shot-frame=1200')
         $fail += Invoke-Godot 'dialogcam' $dc 200 @('[dialogcam] focus on Ronald Shorter', '[dialogcam] dialog over')
+        # rest until morning (tavern / cabin script TavernWaitDate): the message log says that the next day has come (TimeSkipNotice.cs)
+        $tw = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--call=TavernWaitDate(wait_day)@500', '--shot-frame=900')
+        $fail += Invoke-Godot 'timeskip' $tw 200 @('[time] Настав наступний день')
         Remove-Item Env:SEADOGS_DIALOGLOG
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
         $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',

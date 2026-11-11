@@ -75,6 +75,9 @@ public partial class LogHud : Control
         return V.Int(0);
     }
 
+    /// <summary>A message from the engine itself (not from the script): shown like a script log line.</summary>
+    public void Say(string text) => AddLine(text);
+
     void AddLine(string text)
     {
         if (text.Length == 0) return;
