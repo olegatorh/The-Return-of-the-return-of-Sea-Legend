@@ -717,6 +717,7 @@ public partial class Main : Node
     {
         // an interface screen (the Esc menu, character, store ...) stops the game: seadogs.c EngineLayersOffOn(false) freezes the execute/realize layers while it is open
         float scale = UiOpen ? 0f : host.It.TimeScale;
+        if (scale == 0f && frames % 300 == 0 && System.Environment.GetEnvironmentVariable("SEADOGS_PAUSELOG") != null) GD.Print($"[pause] frame {frames}: an interface screen is open ({view?.Name}, {view?.GetChildCount()} children), the game is frozen");
         float dt = delta * scale;
         var list = characters.Values.ToList();
         var player = list.FirstOrDefault(c => c.IsPlayer);

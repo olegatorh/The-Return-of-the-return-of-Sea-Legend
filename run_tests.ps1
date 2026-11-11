@@ -85,6 +85,88 @@ if ($Sea) {
         # map traffic: the player's ship stands still near Quebradas Costillas, the script's war / pirate encounters are off, two merchants are asked to sail to the island Sent (260 units away);
         # the engine sails them round the coast (A* on the land mask) and removes them at the port ("arrived at Sent"); the map runs 4 steps per frame, the clock is slowed so the quests do not interfere
         $env:SEADOGS_MAPLOG = '1'; $env:SEADOGS_MAPSPEED = '4'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_MAPNOKILL = '1'; $env:SEADOGS_SEED = '7'
+        $tr = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=1@1010',
+                '--call=wdmCreateMerchantShip(0,Sent,0)@1300', '--call=wdmCreateMerchantShip(0,Sent,0)@1350', '--shot-frame=5000')
+        $fail += Invoke-Godot 'maptraffic' $tr 400 @('merchant type 0', 'bound for Sent', 'arrived at Sent', 'travelled ')
+        Remove-Item Env:SEADOGS_MAPNOKILL
+        # a pursuer (follow ship = pirate / hunter / war squadron) sails to the player and attacks within the action radius: the script gets WorldMap_ShipEncounter and leaves the map
+        $env:SEADOGS_MAPSAIL = '0'
+        $fo = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
+                '--call=wdmCreateFollowShip(1,0)@1300', '--shot-frame=3500')
+        $fail += Invoke-Godot 'mapfollow' $fo 300 @('+follow type 1', 'encounter with ship type 1 (Follow')
+        # a merchant never attacks: the player has to come close and press Enter (WdmPlayerShip::ExitFromMap); without it the ship only sails by
+        $me = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=1@1010',
+                '--call=wdmCreateMerchantShip(0,Sent,0)@1300', '--mapmeet@1400', '--key=Enter@1410', '--shot-frame=2000')
+        $env:SEADOGS_MAPSPEED = '1'
+        $fail += Invoke-Godot 'mapmerchant' $me 300 @('+merchant type 0', 'encounter with ship type 0 (Merchant')
+        # script-generated encounter -> "Sails on the horizon" -> Attack: SeaLogin must put the encounter group (fenc_*) into the sea and give it the attack task
+        $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_SEED = '3'
+        $ec = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.05@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
+                '--mapmeet@1500', '--key=Enter@1510', '--key=Enter@1700', '--shot-frame=3200')
+        $fail += Invoke-Godot 'mapencounter' $ec 300 @('encounter with ship type 0', '[sea] ship fenc_', 'task: attack Blaze')
+        Remove-Item Env:SEADOGS_MAPLOG, Env:SEADOGS_MAPSPEED, Env:SEADOGS_MAPSAIL, Env:SEADOGS_SEED
+        # Martinique: the French squadron is placed abeam and shot at; the script must apply the damage (a perfect gunner for this shot: the per-ball
+        # dispersion of Ball_AddBall grows with 1.2 - TmpSkill.Accuracy and the tutorial gunner would miss now and then)
+        $c = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+               '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250',
+               '--seapos=-110,100,0@2400', '--duel@2450', '--set=Characters[0].TmpSkill.Accuracy=1@2495', '--fire@2500', '--shot-frame=3000')
+        # trade: open the store, choose the ship, buy 3 portions of cannon balls
+        $t = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--click=BUY_BUTTON@650',
+               '--call=ProcessTradeIncrease()@700', '--call=ProcessTradeIncrease()@705', '--call=ProcessTradeIncrease()@710', '--click=OK_BUTTON@760', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901',
+              '--mouse=SELL_BUTTON@920', '--key=Right@940', '--key=Right@950', '--mouse=OK_BUTTON@980', '--dump=Characters[0].Ship.Cargo.Goods.Balls@1000', '--dump=Characters[0].Money@1001', '--shot-frame=1005')
+        # buy 60 balls (100 -> 160, money 5000 -> 4985), then sell 40 through the real SELL button / Right keys / OK (160 -> 120, money +4)
+        $fail += Invoke-Godot 'trade' $t 200 @('Balls = "160"', 'money = "4985"', 'Balls = "120"', 'money = "4989"')
+        # tradereal: the same purchase with REAL input only (mouse on BUY / OK, keys Right, Shift+Right): 1+1+10 units of 5 = 60 balls (160, money 4985)
+        $tr = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@710', '--key=Shift+Right@720', '--mouse=OK_BUTTON@760', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=905')
+        $fail += Invoke-Godot 'tradereal' $tr 200 @('Balls = "160"', 'money = "4985"')
+        # saving: (13) menu -> options -> back -> save -> menu again -> Resume: the main menu's IDoExit must still resolve after the other screens' segments were unloaded (the log must not hold
+        # 'UNRESOLVED function IDoExit'); (9) the same on the world map (saves\debug_map_lugger); (11) a dead hero (chr_ai.hp 0) cannot be saved, a living one can
+        if ((Test-Path "$root\saves\q_dl.sdsave") -and (Test-Path "$root\saves\debug_map_lugger.sdsave")) {
+            $ms = @('--load=q_dl@200', '--ctl=MainMenuDouble@500', '--mouse=B_OPTIONS@550', '--mouse=EXIT_BTN@600', '--mouse=B_SAVE@650', '--mouse=SAVE_BUTTON@750', '--ctl=MainMenuDouble@850', '--mouse=B_RESUMEGAME@900', '--shot-frame=960')
+            $fail += Invoke-Godot 'menusave' $ms 200 @('[save] saved SAVE')
+            $mm = @('--load=debug_map_lugger@200', '--ctl=MainMenuDouble@500', '--mouse=B_SAVE@550', '--mouse=SAVE_BUTTON@650', '--ctl=MainMenuDouble@750', '--mouse=B_RESUMEGAME@800', '--shot-frame=850')
+            $fail += Invoke-Godot 'mapsave' $mm 200 @('[save] saved SAVE')
+            $ds = @('--load=q_dl@200', '--set=Characters[0].chr_ai.hp=0@410', '--ctl=Quick_Save@420', '--set=Characters[0].chr_ai.hp=40@500', '--ctl=Quick_Save@520', '--shot-frame=600')
+            $fail += Invoke-Godot 'deadsave' $ds 200 @('[save] refused: the hero is dead', '[save] saved SAVE\quicksave')
+        }
+        # store, no money: the quantity cannot grow, OK changes nothing (Balls 100, money 0); 3 gold buy only 12 balls (112, money 0)
+        $t0 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=0@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradenomoney' $t0 200 @('TradeQuantity = "0"', 'Balls = "100"', 'money = "0"')
+        $t3 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=3@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradepoor' $t3 200 @('TradeQuantity = "12"', 'Balls = "112"', 'money = "0"')
+        # store, hold nearly full (capacity 250): "buy all" stops at the free space (1500 balls), the free space ends at 0 and the quantity cannot grow any more
+        $tc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=100000@410', '--set=ShipsTypes[169].Capacity=250@411', '--call=LaunchStore(0)@500', '--key=Enter@600',
+                '--mouse=BUY_BUTTON@650', '--mouse=B_BUYALL@700', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=GameInterface.strings.OnShipSpaceQuantity@902',
+                '--mouse=BUY_BUTTON@950', '--key=Right@1000', '--dump=GameInterface.strings.TradeQuantity@1050', '--shot-frame=1060')
+        $fail += Invoke-Godot 'tradefull' $tc 200 @('TradeQuantity = "1500"', 'Balls = "1600"', 'OnShipSpaceQuantity = "0"', 'TradeQuantity = "0"')
+        # store, "sell all": every good the store trades leaves the hold at once (the planks are not on the list), the money grows
+        $ts = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=SELLEVERYTHING_BUTTON@700',
+                '--dump=Characters[0].Ship.Cargo.Goods.Balls@800', '--dump=Characters[0].Ship.Cargo.Goods.Powder@801', '--dump=Characters[0].Money@802', '--shot-frame=810')
+        $fail += Invoke-Godot 'tradesellall' $ts 200 @('Balls = "0"', 'Powder = "0"', 'money = "10230"')
+        # store, a companion: a lugger (William Blaker's Victoria) joins, Right in the ship choice selects it (the four-image attributes are GameInterface.FourImage), the purchase goes into ITS hold (900 -> 960), not the hero's
+        $tp = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@405', '"--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Id=William Blaker@410"',
+                '--set=Characters[0].GenQuest.CallFunctionParam.CharacterIntoCompanion.Remove=1@411', '--call=Character_into_companion()@420', '--call=LaunchStore(0)@500', '--key=Right@550', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.ShipName@750', '--mouse=OK_BUTTON@800', '--dump=Characters[659].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Ship.Cargo.Goods.Balls@901', '--dump=Characters[0].Money@902', '--shot-frame=910')
+        $fail += Invoke-Godot 'tradecompanion' $tp 200 @('ShipName = "', 'Balls = "960"', 'Balls = "100"', 'money = "4985"')
+        # items trade (itemstrade.ini): the captain's potions: buy (Right +1, +1, Shift+Right +10 capped by the stock 5, Left -1 = 4: 5 -> 9, 4 x 139 gold), then sell: the quantity starts at everything (9), Left twice = 7 sold (9 -> 2, 7 x 75 gold)
+        $ti = @('--ctl=Quick_Load@200', '--set=Characters[0].Money=5000@405', '--call=LaunchItemsTrade(#William+Blaker)@500', '--key=Right@600', '--key=Right@610', '--mouse=BUY_BUTTON@650',
+                '--key=Right@700', '--key=Right@705', '--dump=GameInterface.strings.TradeQuantity@710', '--key=Shift+Right@720', '--dump=GameInterface.strings.TradeQuantity@730', '--key=Left@740', '--dump=GameInterface.strings.TradeQuantity@750',
+                '--mouse=OK_BUTTON@800', '--dump=Characters[0].Items.potion1@900', '--dump=Characters[0].Money@901', '--mouse=SELL_BUTTON@950', '--key=Left@1000', '--key=Left@1005', '--mouse=OK_BUTTON@1050', '--dump=Characters[0].Items.potion1@1100', '--dump=Characters[0].Money@1101', '--shot-frame=1110')
+        $fail += Invoke-Godot 'itemstrade' $ti 200 @('TradeQuantity = "3"', 'TradeQuantity = "5"', 'TradeQuantity = "4"', 'potion1 = "9"', 'money = "4444"', 'potion1 = "2"', 'money = "4969"')
+        # screens that must open without errors: ship hold and shipyard
+        $fail += Invoke-Godot 'hold' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipHold()@500', '--shot-frame=700') 200
+        $fail += Invoke-Godot 'yard' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--call=LaunchShipyard(#Esteban+Castillo)@500', '--shot-frame=700') 200
+        # controls: after a screen has been opened and closed the REAL keys must still work (the empty interface view used to swallow Space): the door is opened with the Space key
+        $d = @('--ctl=Quick_Load@200', '--ctl=Interface@300', '--key=Escape@450', '--goto=reload.reload1@600', '--key=Space@650', '--shot-frame=1000')
+        $fail += Invoke-Godot 'door' $d 300 @('[land] action: Reload')
+        # chest: the usurer's house of the port town, walk onto the box locator, Space opens the items box, give 2 coins into it, Escape, Space opens it again
         $tr = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_UsurerHouse,reload,reload1)@300', '--set=Characters[0].GenQuest.God_hit_us=0@650', '--set=Characters[0].chr_ai.hp=900@651', '--set=Characters[0].chr_ai.hp_max=900@651',
                 '--goto=box.box1@700', '--key=Space@800', '--key=Escape@900', '--set=Characters[0].GenQuest.God_hit_us=1@950', '--call=DoQuestCheckDelay(God_hit_us,0.2)@1000', '--key=Space@1300', '--shot-frame=1600')
         $fail += Invoke-Godot 'chesttrap' $tr 300 @('[traps] QC_UsurerHouse:box1: the last attempt was a trap', 'itemsbox.ini')
@@ -99,6 +181,13 @@ if ($Sea) {
         # rest until morning (tavern / cabin script TavernWaitDate): the message log says that the next day has come (TimeSkipNotice.cs)
         $tw = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--call=TavernWaitDate(wait_day)@500', '--shot-frame=900')
         $fail += Invoke-Godot 'timeskip' $tw 200 @('[time] ')
+        # officer in a fight: Gilles is the hero's officer (type officer, group player, follow template), Terry a hostile warrior of the hero's enemy group; the officer must take him on
+        $env:SEADOGS_FIGHTLOG = '1'
+        $of = @('--ctl=Quick_Load@200', '--call=LAi_SetOfficerType(#Gilles+Roche)@400', '--call=LAi_group_MoveCharacter(#Gilles+Roche,player)@405', '--call=LAi_SetWarriorType(#Terry++Snider)@400',
+                '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420', '--call=LAi_SetHP(#Terry++Snider,400,400)@430',
+                '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Gilles_Roche:2@440', '--bring=Terry__Snider:7@441', '--key=E@460', '--shot-frame=1500')
+        $fail += Invoke-Godot 'officerfight' $of 300 @('[fight] Gilles Roche vs Terry  Snider:')
+        Remove-Item Env:SEADOGS_FIGHTLOG
         # dice stakes: the partner may raise the scripted 50 / 200 stake (GameStakes.cs); the dice screen still opens
         $ds = @('--ctl=Quick_Load@200', '--set=Characters[0].Money=60000@250', '--set=Characters[0].GenQuest.Dice.iRate=200@250', '--set=Characters[0].GenQuest.Dice.npcharIdx=1@250', '--call=LaunchDiceGame()@400', '--shot-frame=800')
         $fail += Invoke-Godot 'dicestakes' $ds 200 @('[stakes] Dice: offered 200, cap 6666', 'boal_dice.ini')
@@ -120,13 +209,6 @@ if ($Sea) {
         $mh = @('--ctl=Quick_Load@200', '--call=LAi_SetWarriorType(#Terry++Snider)@400', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420',
                 '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Terry__Snider:7@440', '--key=E@460', '--shot-frame=1500')
         $fail += Invoke-Godot 'meleehero' $mh 300 @('[fight] Terry  Snider vs Blaze:', '[fight] the hero was hit by Terry  Snider')
-        # officer in a fight: Gilles is the hero's officer (type officer, group player, follow template), Terry a hostile warrior of the hero's enemy group; the officer must take him on
-        $env:SEADOGS_FIGHTLOG = '1'
-        $of = @('--ctl=Quick_Load@200', '--call=LAi_SetOfficerType(#Gilles+Roche)@400', '--call=LAi_group_MoveCharacter(#Gilles+Roche,player)@405', '--call=LAi_SetWarriorType(#Terry++Snider)@400',
-                '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420', '--call=LAi_SetHP(#Terry++Snider,400,400)@430',
-                '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Gilles_Roche:2@440', '--bring=Terry__Snider:7@441', '--key=E@460', '--shot-frame=1500')
-        $fail += Invoke-Godot 'officerfight' $of 300 @('[fight] Gilles Roche vs Terry  Snider:')
-        Remove-Item Env:SEADOGS_FIGHTLOG
         # healing: potions in the pack, health 10, the quick-heal key C (BOAL_UsePotion) drinks the first usable one, then the land command menu
         # (Enter, Right = "Use", Enter, Enter = first potion); the count drops by one each time and the health rises (log '[heal]', hp_bottle poured in by LAi_AllCharactersUpdate)
         $hl = @('--ctl=Quick_Load@200', '--call=GiveItem2Character(#Blaze,potion1)@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--set=Characters[0].chr_ai.hp=10@310',
