@@ -1029,7 +1029,18 @@ public partial class XView : Control
     }
 
     /// <summary>Executes command <paramref name="cmd"/> of <paramref name="node"/>: tells the script, runs the ini's event:/com:/select: entries.</summary>
+    /// <summary>A node command. An exception inside (a script handler or a view) is logged and must not leave the screen locked (a confirm window that never closes freezes every button).</summary>
     void Run(string node, string cmd, int depth)
+    {
+        try { RunCore(node, cmd, depth); }
+        catch (Exception e)
+        {
+            GD.PrintErr($"[xinterface] exception in command {cmd} of {node}: {e}");
+            if (locks.Count > 0) Unlock();
+        }
+    }
+
+    void RunCore(string node, string cmd, int depth)
     {
         if (depth > 4) return;
         it.FireEvent("ievnt_command", new List<V> { V.Str(cmd), V.Str(node) });

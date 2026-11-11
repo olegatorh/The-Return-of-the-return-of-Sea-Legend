@@ -219,6 +219,9 @@ public partial class Main : Node
         {
             try
             {
+                // a dead hero (chr_ai.hp < 1, the 5 s before the game over screen) cannot be saved: neither the quick save nor the menu
+                var mcAi = host.It.CallTop("GetMainCharacter").Attr?.Find("chr_ai.hp", false);
+                if (mcAi?.Value != null && Conv.ToFloat(V.Str(mcAi.Value)) < 1f) { GD.Print("[save] refused: the hero is dead (" + name + ")"); return false; }
                 host.It.CallTop("OnSave");              // the engine calls the script's OnSave() first (remembers where the player is, positions of people)
                 host.It.SaveState(SaveFiles.PathFor(name), host.LoadedSegments, "");
                 SaveFiles.WriteThumbnail(name, lastGameFrame ?? GrabFrame());
@@ -612,6 +615,7 @@ public partial class Main : Node
     Vector3 camToPos;
     float? camLockPitch;                  // locationcamera MSG_CAMERA_MOVE
     bool camSleep;                        // locationcamera MSG_CAMERA_SLEEP
+    readonly DialogCamera dialogCam = new();
     float camYaw, camPitch = 0.4f, camDist = 3.0f;       // LocationCamera: ax = 0.4, radius = 3
     readonly LandCamera landCam = new();
     static readonly bool CamLog = System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG") != null;
@@ -817,6 +821,7 @@ public partial class Main : Node
         if (cam != null) LocationLights.Tick((float)delta, cam.GlobalPosition);
         outdoor.Sync(host.It, cam, delta);
         weatherFx.Sync(host.It, cam, delta);
+        if (frames % 100 == 0 && CamLog) GD.Print($"[camdbg] f={frames} cam={cam != null} sleep={camSleep} mode={camMode} player={player != null} placed={player?.Placed}");
         if (cam == null) return;
         cam.Enabled = flyMode;
         if (landCamHook is { } lc && !flyMode) { cam.GlobalPosition = lc.pos; cam.LookAt(lc.look); return; }      // test hook SEADOGS_LANDCAM
@@ -850,6 +855,7 @@ public partial class Main : Node
         else if (lookMode) camYaw = -player.Heading;
         const float charHeight = CharacterView.CharHeight;
         var target = player.Position + new Vector3(0, charHeight * LandCamera.LookHeight, 0);
+        if (camMode == 1 && !lookMode) dialogCam.Update(list, player, dialogView != null || player.InDialog, (float)delta, ref camYaw, ref camPitch, ref target);          // the camera turns to the interlocutor
         landCam.Place(cam, target, player.Position.Y, charHeight, camYaw, camPitch, camDist, delta);
         if (CamLog && frames % 50 == 0) GD.Print($"[camera] frame {frames}: radius {landCam.Radius:0.00}/{camDist:0.0} yaw {camYaw:0.00} pitch {camPitch:0.00} heading {player.Heading:0.00} pos {cam.GlobalPosition} look={lookBlend:0.0} classic={Keys.Classic}");
         if (lookBlend > 0f)

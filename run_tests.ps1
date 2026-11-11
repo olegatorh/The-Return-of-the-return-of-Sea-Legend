@@ -32,7 +32,7 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
     if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "[$name] TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
     $text = (Get-Content $log, "$log.err" -Encoding UTF8 -ErrorAction SilentlyContinue) -join "`n"
-    $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception|^ERROR: Invalid polygon data' }
+    $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|UNRESOLVED function IDoExit|SCRIPT ERROR|^ERROR: System\.|Unhandled exception|^ERROR: Invalid polygon data' }
     if (-not (Test-Path $shot)) { Write-Host "[$name] no screenshot was produced (the run did not reach the end)" -ForegroundColor Red; return 1 }
     foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "[$name] expected in the log: $m" -ForegroundColor Red; return 1 } }
     if ($bad) { Write-Host "[$name] problems:" -ForegroundColor Red; $bad | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }; return 1 }
@@ -124,6 +124,16 @@ if ($Sea) {
         $tr = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=5000@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
                 '--key=Right@700', '--key=Right@710', '--key=Shift+Right@720', '--mouse=OK_BUTTON@760', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=905')
         $fail += Invoke-Godot 'tradereal' $tr 200 @('Balls = "160"', 'money = "4985"')
+        # saving: (13) menu -> options -> back -> save -> menu again -> Resume: the main menu's IDoExit must still resolve after the other screens' segments were unloaded (the log must not hold
+        # 'UNRESOLVED function IDoExit'); (9) the same on the world map (saves\debug_map_lugger); (11) a dead hero (chr_ai.hp 0) cannot be saved, a living one can
+        if ((Test-Path "$root\saves\q_dl.sdsave") -and (Test-Path "$root\saves\debug_map_lugger.sdsave")) {
+            $ms = @('--load=q_dl@200', '--ctl=MainMenuDouble@500', '--mouse=B_OPTIONS@550', '--mouse=EXIT_BTN@600', '--mouse=B_SAVE@650', '--mouse=SAVE_BUTTON@750', '--ctl=MainMenuDouble@850', '--mouse=B_RESUMEGAME@900', '--shot-frame=960')
+            $fail += Invoke-Godot 'menusave' $ms 200 @('[save] saved SAVE')
+            $mm = @('--load=debug_map_lugger@200', '--ctl=MainMenuDouble@500', '--mouse=B_SAVE@550', '--mouse=SAVE_BUTTON@650', '--ctl=MainMenuDouble@750', '--mouse=B_RESUMEGAME@800', '--shot-frame=850')
+            $fail += Invoke-Godot 'mapsave' $mm 200 @('[save] saved SAVE')
+            $ds = @('--load=q_dl@200', '--set=Characters[0].chr_ai.hp=0@410', '--ctl=Quick_Save@420', '--set=Characters[0].chr_ai.hp=40@500', '--ctl=Quick_Save@520', '--shot-frame=600')
+            $fail += Invoke-Godot 'deadsave' $ds 200 @('[save] refused: the hero is dead', '[save] saved SAVE\quicksave')
+        }
         # store, no money: the quantity cannot grow, OK changes nothing (Balls 100, money 0); 3 gold buy only 12 balls (112, money 0)
         $t0 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=0@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
                 '--key=Right@700', '--key=Right@705', '--key=Right@710', '--dump=GameInterface.strings.TradeQuantity@750', '--mouse=OK_BUTTON@800', '--dump=Characters[0].Ship.Cargo.Goods.Balls@900', '--dump=Characters[0].Money@901', '--shot-frame=910')
