@@ -14,7 +14,7 @@ Moved out of `CLAUDE.md` (2026-11-09) to keep the entry point short. How to run 
 | `--ctl=Name@N` | send a control to the script (`Quick_Save`, `Quick_Load`, `Interface`, `MainMenuDouble`, `ChrAction`) |
 | `--goto=group.locator@N` | teleport the player to a locator (e.g. `reload.reload3_back`) |
 | `--call=Func(arg,..)@N` | call a script function; ints, strings (`+` = space), `#CharacterId` |
-| `--set=var=value@N`, `--dump=Global[i].path@N` | set / print script variables |
+| `--set=var=value@N`, `--dump=Global[i].path@N` | set / print script variables; `Characters[#Henry+Morgan].x` is resolved to the index with `GetCharacterIndex` (no hard-coded indexes) |
 | `--dialog=Id_with_underscores@N` | start a dialog with a character |
 | `--fuzz@N` | talk to everyone in the location, click the first answer; prints missing engine functions |
 | `--shot=path.png --shot-frame=N` | save a screenshot (path **without spaces**) and print diagnostics, then quit |
