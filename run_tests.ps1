@@ -91,7 +91,7 @@ if ($Sea) {
         $fail += Invoke-Godot 'maptraffic' $tr 400 @('merchant type 0', 'bound for Sent', 'arrived at Sent', 'travelled ')
         Remove-Item Env:SEADOGS_MAPNOKILL
         # a pursuer (follow ship = pirate / hunter / war squadron) sails to the player and attacks within the action radius: the script gets WorldMap_ShipEncounter and leaves the map
-        $env:SEADOGS_MAPSAIL = '0'
+        $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_SEED = '3'   # fixed seed: the pursuer's birth must not depend on chance
         $fo = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
                 '--call=wdmCreateFollowShip(1,0)@1300', '--shot-frame=3500')
@@ -132,7 +132,10 @@ if ($Sea) {
             $mm = @('--load=debug_map_lugger@200', '--ctl=MainMenuDouble@500', '--mouse=B_SAVE@550', '--mouse=SAVE_BUTTON@650', '--ctl=MainMenuDouble@750', '--mouse=B_RESUMEGAME@800', '--shot-frame=850')
             $fail += Invoke-Godot 'mapsave' $mm 200 @('[save] saved SAVE')
             $ds = @('--load=q_dl@200', '--set=Characters[0].chr_ai.hp=0@410', '--ctl=Quick_Save@420', '--set=Characters[0].chr_ai.hp=40@500', '--ctl=Quick_Save@520', '--shot-frame=600')
+            # this scenario writes saves\quicksave*: keep a copy so the other scenarios still start from the owner's/baseline quicksave
+            $qsBak = Get-ChildItem "$root\saves" -Filter 'quicksave.*' | ForEach-Object { $b = "$($_.FullName).bak"; Copy-Item $_.FullName $b -Force; $b }
             $fail += Invoke-Godot 'deadsave' $ds 200 @('[save] refused: the hero is dead', '[save] saved SAVE\quicksave')
+            foreach ($b in $qsBak) { Move-Item $b ($b -replace '\.bak$', '') -Force }
         }
         # store, no money: the quantity cannot grow, OK changes nothing (Balls 100, money 0); 3 gold buy only 12 balls (112, money 0)
         $t0 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@400', '--set=Characters[0].Money=0@410', '--call=LaunchStore(0)@500', '--key=Enter@600', '--mouse=BUY_BUTTON@650',
@@ -334,7 +337,7 @@ if ($Quests) {
         $fail += Invoke-Godot 'q_albermal' (@('--ctl=Quick_Load@200', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1=location@250', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1.location=Oxbay_townhall@250',
             '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition=goto_Oxbay_Albermal@250', '--call=DoReloadCharacterToLocation(Oxbay_townhall,reload,reload1)@300', '--answer=1@1200', '--answer=1@1300', '--shot-frame=1700')) 200 @('CALL SetActorDialogAny2Pchar(Albermal', "node 'Albermal_go_out'")
         # English line 2: governor sends the hero to talk to four pirates (Morgan, Morris, Mansfield, Jackman: each dialog counts up questTemp.Count), then the governor pays 15000 (Step_2_4).
-        # Character indexes (Characters[595] Henry Morgan, [596] Jackman, [353] Major_Cumana) come from GetCharacterIndex, see docs/PLAYTEST.md part 4b.
+        # Character indexes in --set/--dump paths are written Characters[#Id] (looked up with GetCharacterIndex by the test hook, game/Main.cs ResolveCharIdx).
         $e2 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=LAi_SetImmortal(#Blaze,1)@251') + $pat + @('--set=Characters[0].questTemp.State=empty@256', '--set=Characters[0].questTemp.CurQuestNumber=2@256',
             '--set=Characters[0].questTemp.Waiting_time=0@256', '--call=SaveCurrentQuestDateParam(questTemp)@258', '--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300', '--dialog=eng_guber@600') + @(700, 800, 900, 1000, 1100, 1200 | ForEach-Object { "--answer=1@$_" })
         $f = 1300
@@ -349,10 +352,10 @@ if ($Quests) {
         $fail += Invoke-Godot 'q_eng2' $e2 700 @("node 'Step_2_2'", 'State = "after_talks_with_pirates"', "node 'Step_2_4'", 'State = "empty"', 'money = "115000"')
         # English line 3 (Cumana raid): Morgan "hot business" -> companion, Jackman joins; the governor of Cumana (Capture_Gover_dialog, node EngLine3Quest_Venesuela_attack) names the gold -> Any_fort_3 -> Morgan splits the gold -> state empty
         $e3 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=LAi_SetImmortal(#Blaze,1)@251') + $pat + @('--set=Characters[0].questTemp.State=empty@256', '--set=Characters[0].questTemp.CurQuestNumber=3@256', '--set=Characters[0].questTemp.Waiting_time=60@256',
-            '--call=SaveCurrentQuestDateParam(questTemp)@258', '--call=LAi_SetHuberType(#Henry+Morgan)@259', '--call=ChangeCharacterAddressGroup(#Henry+Morgan,Redmond_HouseInsideR20,sit,sit1)@259', '--set=Characters[595].dialog.currentnode=hot_business@259',
+            '--call=SaveCurrentQuestDateParam(questTemp)@258', '--call=LAi_SetHuberType(#Henry+Morgan)@259', '--call=ChangeCharacterAddressGroup(#Henry+Morgan,Redmond_HouseInsideR20,sit,sit1)@259', '--set=Characters[#Henry+Morgan].dialog.currentnode=hot_business@259',
             '--call=DoReloadCharacterToLocation(Redmond_HouseInsideR20,reload,reload1)@300', '--dialog=Henry_Morgan@800') + @(900, 1000, 1100, 1200, 1300, 1400 | ForEach-Object { "--answer=1@$_" }) +
             @('--dump=Characters[0].questTemp.State@1600', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@2400', '--dialog=Jackman@2900', '--answer=1@3000', '--answer=1@3100', '--dump=Characters[0].questTemp.CompanionQuantity@3300',
-            '--set=Characters[353].Dialog.Filename=Capture_Gover_dialog.c@3350', '--set=Characters[353].dialog.CurrentNode=EngLine3Quest_Venesuela_attack@3350', '--call=DoReloadCharacterToLocation(Conceicao_townhall,reload,reload1)@3400', '--dialog=Major_Cumana@3900') +
+            '--set=Characters[#Major_Cumana].Dialog.Filename=Capture_Gover_dialog.c@3350', '--set=Characters[#Major_Cumana].dialog.CurrentNode=EngLine3Quest_Venesuela_attack@3350', '--call=DoReloadCharacterToLocation(Conceicao_townhall,reload,reload1)@3400', '--dialog=Major_Cumana@3900') +
             @(4000, 4100, 4200, 4300, 4400 | ForEach-Object { "--answer=1@$_" }) + @('--dump=Characters[0].location@5100', '--dialog=Henry_Morgan@5200', '--answer=1@5300', '--answer=1@5400', '--answer=1@5500', '--dump=Characters[0].questTemp.State@5700', '--shot-frame=5800')
         $fail += Invoke-Godot 'q_eng3' $e3 700 @('State = "AttackCumana_GoOn"', "node 'Step_3_7'", "node 'Step_7'", "node 'Step_5'", 'location = "Any_fort_3"', "node 'out_fort'", 'State = "empty"')
         # English line 3 timeout: 31 days pass, the timer waits for the map, on MapEnter the hero lands on the Ship_deck, Morgan leaves the squadron (-50000), quest 4
