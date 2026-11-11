@@ -358,6 +358,8 @@ public partial class CharacterView : Node3D
     string scriptAction = "";
     string playing = "";
     bool inDialog;
+    /// <summary>The script announced a dialog to this character (EX_MSG "InDialog"); the dialog camera looks for the partner with it.</summary>
+    public bool InDialog => inDialog;
 
     // player control, set by the main loop every frame
     public Vector2 Input;           // x: strafe right, y: forward (camera relative)

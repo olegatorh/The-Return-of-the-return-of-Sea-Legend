@@ -821,7 +821,6 @@ public partial class Main : Node
         if (cam != null) LocationLights.Tick((float)delta, cam.GlobalPosition);
         outdoor.Sync(host.It, cam, delta);
         weatherFx.Sync(host.It, cam, delta);
-        if (frames % 100 == 0 && CamLog) GD.Print($"[camdbg] f={frames} cam={cam != null} sleep={camSleep} mode={camMode} player={player != null} placed={player?.Placed}");
         if (cam == null) return;
         cam.Enabled = flyMode;
         if (landCamHook is { } lc && !flyMode) { cam.GlobalPosition = lc.pos; cam.LookAt(lc.look); return; }      // test hook SEADOGS_LANDCAM
