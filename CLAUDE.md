@@ -114,7 +114,7 @@ this game remain the specification; use the C++ for formulas, constants, timings
 ## Status (see README.md for details)
 Works: boot, menu, hero selection, real intro, locations (3D, lighting, sky/sea/fog), characters + AI tasks + sitting poses, dialogs, locator detection and
 reloads, game clock, sound, save/load (`OnSave/OnLoad`), interfaces: character, items, quest book, options (sound), shipyard (empty), Ukrainian layer.
-Basic melee combat works (groups, NPC attacks, death/game over; player: F draws the sword, LMB attacks).
+Basic melee combat works (groups, NPC attacks, death/game over; player: E draws the sword (original ChrFightMode), LMB attacks).
 Sea mode basics work (own ship with sails sails around the island, mooring back to the port; see docs/ARCHITECTURE.md 6b).
 Missing (largest first): **world map, other ships + sea AI, cannons, sea HUD (battle interface)**, blocks/pistols/weapon models, trade/store flow,
 items/chests on the ground (code exists, untested), key-binding screen, save thumbnails, mouse look, polishing of the machine translation.

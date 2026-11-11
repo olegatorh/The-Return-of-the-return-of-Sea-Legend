@@ -555,7 +555,7 @@ public partial class Main : Node
         if (e is InputEventKey { Pressed: true, Echo: false } mk && worldMap.Active && locations.Count == 0 && dialogView == null && !UiOpen)
         {
             if (Keys.Is(mk, "SeaSailUp") || Keys.Is(mk, "SeaSailDown")) worldMap.SailKey(Keys.Is(mk, "SeaSailUp") ? 1 : -1);
-            if (Keys.Is(mk, "SeaAction")) worldMap.Enter();                   // WMapCancel
+            if (Keys.Is(mk, "SeaAction") || Keys.Is(mk, "SeaCommands")) worldMap.Enter();                   // WMapCancel (Space); Enter = BICommandsActivate opens the map's command list, which the port answers with the same action
             else if (Keys.Is(mk, "MapWait")) worldMap.OpenWaitMenu();
         }
         if (e is InputEventKey { Pressed: true, Echo: false } sk2 && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen)
