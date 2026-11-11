@@ -457,13 +457,7 @@ void fragment() {
 
     public string DebugState() => $"{Ent.Root.Get("id")?.Value} idx={Ent.Root.Get("index")?.Value} class={Ent.Class} placed={Placed} inDialog={inDialog} task={task} pos=({x:0.0},{y:0.0},{z:0.0}) target={target?.Ent.Root.Get("id")?.Value} anim={rig?.ActionName} hp={Ent.Root.Find("chr_ai.hp", false)?.Value}";
 
-    static float TurnToward(float cur, float want, float maxStep)
-    {
-        float d = want - cur;
-        while (d > MathF.PI) d -= 2 * MathF.PI;
-        while (d < -MathF.PI) d += 2 * MathF.PI;
-        return cur + Math.Clamp(d, -maxStep, maxStep);
-    }
+    static float TurnToward(float cur, float want, float maxStep) => CharacterMath.TurnToward(cur, want, maxStep);
 
     // ------------------------------------------------------------------ per-frame update (called by the main loop)
     void PlayMove(string action)
@@ -722,8 +716,7 @@ void fragment() {
                 }
             }
         }
-        static void Limit(ref float ax, ref float az) { float l = ax * ax + az * az; if (l > 1f) { l = 1f / MathF.Sqrt(l); ax *= l; az *= l; } }
-        Limit(ref sepX, ref sepZ); Limit(ref alX, ref alZ); Limit(ref arX, ref arZ);
+        CharacterMath.LimitLength(ref sepX, ref sepZ); CharacterMath.LimitLength(ref alX, ref alZ); CharacterMath.LimitLength(ref arX, ref arZ);
         float ks = fightMode ? 0.5f : 1.1f;
         float fx = sepX * ks + alX * 0.1f + arX * 0.1f + goX * 1.2f, fz = sepZ * ks + alZ * 0.1f + arZ * 0.1f + goZ * 1.2f;
         if (getPatch() is { } p && node >= 0) { var (ex, ez) = p.EdgeForce(node); fx += ex * 0.2f; fz += ez * 0.2f; }
@@ -1253,14 +1246,13 @@ void fragment() {
     }
 
     /// <summary>Position and heading in script space (Direct3D, y up) - for the save/load of character positions.</summary>
-    public string PositionText() => string.Join(",", new[] { x, y, z, ay }.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture)));
+    public string PositionText() => CharacterMath.FormatPosition(x, y, z, ay);
 
     public void RestorePosition(string text)
     {
-        var p = text.Split(',');
-        if (p.Length < 4) return;
-        float F(string t) => float.Parse(t, System.Globalization.CultureInfo.InvariantCulture);
-        x = F(p[0]); y = F(p[1]); z = F(p[2]); ay = F(p[3]); node = -1; vy = 0f;
+        if (!CharacterMath.TryParsePosition(text, out float px, out float py, out float pz, out float pay)) return;
+        x = px; y = py; z = pz; ay = pay;
+        node = -1; vy = 0f;
         Apply();
     }
 
@@ -1446,20 +1438,8 @@ void fragment() {
         it.FireEvent(ev, new List<V> { V.A(Ent.Root) });
     }
 
-    static readonly string[] StepKinds = { "grass", "ground", "stone", "sand", "wood", "echo", "carpet", "stairway", "iron", "church", "water" };
-
     /// <summary>Step sound alias for a patch material: "snd_grass" / "add_snd_stone" / truncated "GrexitT_snd_gras" -> step_grass; others -> step_ground.</summary>
-    public static string StepAlias(string material)
-    {
-        string m = material.ToLowerInvariant();
-        int i = m.IndexOf("snd_");
-        string k = i >= 0 ? m.Substring(i + 4) : m;
-        if (k.StartsWith("srairway")) k = "stairway";                 // a typo in some patches
-        if (k.Length >= 2)
-            foreach (var s in StepKinds)
-                if (s.StartsWith(k) || k.StartsWith(s)) return "step_" + s;
-        return "step_ground";
-    }
+    public static string StepAlias(string material) => CharacterMath.StepAlias(material);
 
     /// <summary>Events of the .ani tracks: steps, sword swish, drawing/sheathing the blade, the pistol, the body hitting the ground.</summary>
     void OnAnimEvent(string ev)

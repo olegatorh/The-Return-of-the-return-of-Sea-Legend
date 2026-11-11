@@ -23,3 +23,6 @@ game/*.err
 
 reports/
 reference/
+
+# local code knowledge graph (graphify), regenerate with: graphify update .
+graphify-out/

@@ -1,5 +1,9 @@
 # Where we stopped (handoff, 2026-11-06)
 
+> **Update 2026-11-11:** the controls hooks/docs listed below as "uncommitted" (`--mousemove`, `--btn`) are in git now (commit 6fa8753: also the tests draw the
+> sword with E, the original ChrFightMode key, instead of F — the probable cause of the failing `melee` / `meleehero` / `drawrun`), so next step 2 is done.
+> The four failing scenarios (step 1) are being re-run after the patch `sea-legend-changes.patch` was imported (Characters/Groups refactor into unit-tested `CharacterMath` / `GroupRelations`, +272 polished Ukrainian lines, docs split: `docs/TESTING.md`, `AGENTS.md`).
+
 The owner paused all agents ("постав на паузу, я потім вернусь"). Everything below is in git (`main`, not pushed) unless it says "uncommitted".
 
 ## Stopped in the middle (resume these first)
