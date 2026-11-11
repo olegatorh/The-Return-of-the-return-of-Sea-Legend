@@ -49,7 +49,7 @@ public sealed partial class Interp
 
     public void DeleteAllEntities(string? cls)
     {
-        foreach (var e in Entities)
+        foreach (var e in Entities.ToList())        // snapshot: an EntityDeleted handler may create / delete entities (was "Collection was modified" in q_engsea)
             if (!e.Deleted && (cls == null || string.Equals(e.Class, cls, StringComparison.OrdinalIgnoreCase)))
             { e.Deleted = true; e.Root.Entity = null; EntityDeleted?.Invoke(e); }
     }
