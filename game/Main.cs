@@ -708,7 +708,8 @@ public partial class Main : Node
 
     void UpdateWorld(float delta)
     {
-        float scale = host.It.TimeScale;
+        // an interface screen (the Esc menu, character, store ...) stops the game: seadogs.c EngineLayersOffOn(false) freezes the execute/realize layers while it is open
+        float scale = UiOpen ? 0f : host.It.TimeScale;
         float dt = delta * scale;
         var list = characters.Values.ToList();
         var player = list.FirstOrDefault(c => c.IsPlayer);
