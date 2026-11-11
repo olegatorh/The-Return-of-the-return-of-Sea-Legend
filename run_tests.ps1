@@ -333,6 +333,33 @@ if ($Quests) {
         # entering the townhall of Oxbay: Albermal walks up to the hero and talks by himself (SetActorDialogAny2Pchar + LAi_ActorFollow)
         $fail += Invoke-Godot 'q_albermal' (@('--ctl=Quick_Load@200', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1=location@250', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1.location=Oxbay_townhall@250',
             '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition=goto_Oxbay_Albermal@250', '--call=DoReloadCharacterToLocation(Oxbay_townhall,reload,reload1)@300', '--answer=1@1200', '--answer=1@1300', '--shot-frame=1700')) 200 @('CALL SetActorDialogAny2Pchar(Albermal', "node 'Albermal_go_out'")
+        # English line 2: governor sends the hero to talk to four pirates (Morgan, Morris, Mansfield, Jackman: each dialog counts up questTemp.Count), then the governor pays 15000 (Step_2_4).
+        # Character indexes (Characters[595] Henry Morgan, [596] Jackman, [353] Major_Cumana) come from GetCharacterIndex, see docs/PLAYTEST.md part 4b.
+        $e2 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=LAi_SetImmortal(#Blaze,1)@251') + $pat + @('--set=Characters[0].questTemp.State=empty@256', '--set=Characters[0].questTemp.CurQuestNumber=2@256',
+            '--set=Characters[0].questTemp.Waiting_time=0@256', '--call=SaveCurrentQuestDateParam(questTemp)@258', '--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300', '--dialog=eng_guber@600') + @(700, 800, 900, 1000, 1100, 1200 | ForEach-Object { "--answer=1@$_" })
+        $f = 1300
+        foreach ($d in @(@('Antigua_InsideHouseR14', 'Henry_Morgan', 6), @('Greenford_house_Figuiera', 'John_Morris', 6), @('Gaity_Pirate_town_residence', 'Edward_Mansfield', 8), @('QC_residence', 'Jackman', 7))) {
+            $e2 += "--call=DoReloadCharacterToLocation($($d[0]),reload,reload1)@$f"; $f += 500; $e2 += "--dialog=$($d[1])@$f"
+            1..$d[2] | ForEach-Object { $f += 100; $e2 += "--answer=1@$f" }; $f += 100
+        }
+        $e2 += @("--dump=Characters[0].questTemp.State@$f", "--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@$($f + 10)", "--dialog=eng_guber@$($f + 500)")
+        $f += 500
+        1..7 | ForEach-Object { $f += 100; $e2 += "--answer=1@$f" }
+        $e2 += @("--dump=Characters[0].questTemp.State@$($f + 100)", "--dump=Characters[0].money@$($f + 100)", "--shot-frame=$($f + 200)")
+        $fail += Invoke-Godot 'q_eng2' $e2 700 @("node 'Step_2_2'", 'State = "after_talks_with_pirates"', "node 'Step_2_4'", 'State = "empty"', 'money = "115000"')
+        # English line 3 (Cumana raid): Morgan "hot business" -> companion, Jackman joins; the governor of Cumana (Capture_Gover_dialog, node EngLine3Quest_Venesuela_attack) names the gold -> Any_fort_3 -> Morgan splits the gold -> state empty
+        $e3 = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=LAi_SetImmortal(#Blaze,1)@251') + $pat + @('--set=Characters[0].questTemp.State=empty@256', '--set=Characters[0].questTemp.CurQuestNumber=3@256', '--set=Characters[0].questTemp.Waiting_time=60@256',
+            '--call=SaveCurrentQuestDateParam(questTemp)@258', '--call=LAi_SetHuberType(#Henry+Morgan)@259', '--call=ChangeCharacterAddressGroup(#Henry+Morgan,Redmond_HouseInsideR20,sit,sit1)@259', '--set=Characters[595].dialog.currentnode=hot_business@259',
+            '--call=DoReloadCharacterToLocation(Redmond_HouseInsideR20,reload,reload1)@300', '--dialog=Henry_Morgan@800') + @(900, 1000, 1100, 1200, 1300, 1400 | ForEach-Object { "--answer=1@$_" }) +
+            @('--dump=Characters[0].questTemp.State@1600', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@2400', '--dialog=Jackman@2900', '--answer=1@3000', '--answer=1@3100', '--dump=Characters[0].questTemp.CompanionQuantity@3300',
+            '--set=Characters[353].Dialog.Filename=Capture_Gover_dialog.c@3350', '--set=Characters[353].dialog.CurrentNode=EngLine3Quest_Venesuela_attack@3350', '--call=DoReloadCharacterToLocation(Conceicao_townhall,reload,reload1)@3400', '--dialog=Major_Cumana@3900') +
+            @(4000, 4100, 4200, 4300, 4400 | ForEach-Object { "--answer=1@$_" }) + @('--dump=Characters[0].location@5100', '--dialog=Henry_Morgan@5200', '--answer=1@5300', '--answer=1@5400', '--answer=1@5500', '--dump=Characters[0].questTemp.State@5700', '--shot-frame=5800')
+        $fail += Invoke-Godot 'q_eng3' $e3 700 @('State = "AttackCumana_GoOn"', "node 'Step_3_7'", "node 'Step_7'", "node 'Step_5'", 'location = "Any_fort_3"', "node 'out_fort'", 'State = "empty"')
+        # English line 3 timeout: 31 days pass, the timer waits for the map, on MapEnter the hero lands on the Ship_deck, Morgan leaves the squadron (-50000), quest 4
+        $e3t = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--call=LAi_SetImmortal(#Blaze,1)@721',
+            '--set=Characters[0].questTemp.State=AttackCumana_GoOn@722', '--set=Characters[0].questTemp.CurQuestNumber=3@722', '--call=SetTimerCondition(time_over_Venesuela_attack,0,0,1,0)@730', '--call=WaitDate(nopost,0,0,2,0,0)@800',
+            '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--dump=Characters[0].location@1600', '--dialog=Henry_Morgan@1700', '--answer=1@1800', '--dump=Characters[0].questTemp.CurQuestNumber@2300', '--dump=Characters[0].money@2300', '--shot-frame=2500')
+        $fail += Invoke-Godot 'q_eng3late' $e3t 300 @('location = "Ship_deck"', "node 'Step_3_8'", 'CurQuestNumber = "4"', 'money = "50000"')
         # Pirate line: Jurcksen -> James Ford in the tavern of Fort Orange -> escort fight (Story_Battle_Ford..5) -> Ford beaten (LAi_SetCheckMinHP) -> captured -> the passengers
         $pl = @('--ctl=Quick_Load@200', '--set=Characters[0].questTemp.Begin_Quests_Pirate=1@250', '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@300', '--dialog=Isenbrandt_Jurcksen@700') +
             @(800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--call=DoReloadCharacterToLocation(Orange_Tavern,reload,reload1)@1500', '--dialog=James_Ford@1900') + @(2000, 2100, 2200, 2300, 2400 | ForEach-Object { "--answer=1@$_" }) +
