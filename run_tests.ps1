@@ -157,6 +157,10 @@ if ($Sea) {
                '--key=Space@760', '--mouse=ONEDOWN_BUTTON@820', '--mouse=ONEDOWN_BUTTON@840', '--dump=Characters[0].Money@870', '--dump=Locations[192].box1.Money@870',
                '--key=Escape@900', '--key=Space@1000', '--shot-frame=1100')
         $fail += Invoke-Godot 'chest' $x 300 @('[land] action: OpenBox', 'itemsbox.ini', 'money = "99998"', 'Money = "2"')
+        # chest trap: after a trap hit (health lost since the last attempt) the next use of the same chest skips the trap roll and opens it (LandTraps.cs)
+        $tr = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_UsurerHouse,reload,reload1)@300', '--set=Characters[0].GenQuest.God_hit_us=1@650', '--set=Characters[0].SkillFortune=0@650', '--goto=box.box1@700',
+                '--key=Space@800', '--call=DoQuestCheckDelay(God_hit_us,0.2)@1000', '--key=Space@1300', '--shot-frame=1600')
+        $fail += Invoke-Godot 'chesttrap' $tr 300 @('[traps] QC_UsurerHouse:box1: the last attempt was a trap', 'itemsbox.ini')
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
         $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
                 '--key=Enter@1000', '--key=Right@1010', '--key=Enter@1030', '--shot-frame=1150')

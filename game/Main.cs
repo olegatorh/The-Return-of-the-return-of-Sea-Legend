@@ -979,6 +979,7 @@ public partial class Main : Node
             host.It.FireEvent("Control Activation", new List<V> { V.Str("ChrAction") });       // a closed door answers with the knock
             return;
         }
+        if (act == "OpenBox") { LandTraps.OpenBox(host.It, () => host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) })); return; }
         host.It.FireEvent("BI_FastCommand", new List<V> { V.Str(act) });
     }
 
