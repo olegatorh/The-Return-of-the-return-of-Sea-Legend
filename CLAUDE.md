@@ -14,6 +14,16 @@ The game must be playable **in Ukrainian** (translation layer, see below). The o
    (`src=... loc=L..`). Grep is for exact strings and the original scripts (they are not in the graph). After changing code run `graphify update .`
    (seconds, no tokens) so the next session sees the new code. If `graphify-out/` is missing, see "Code graph" below.
 
+## Token economy (the owner pays for tokens — follow this; quality must not drop)
+* **Start small.** Read `docs/HANDOFF.md` and ONE area brief from `docs/briefs/` (`sea.md`, `land.md`, `interface.md`, `map_language.md`) instead of the big docs.
+  `docs/VERIFIED.md`, `AUDIT.md`, `CONTRACTS.md`, `PLAYTEST.md`, `STATUS.md` are large: grep the topic and read only the matching rows/lines.
+* **Read files in parts** (offset/limit) or grep first; never `cat` a big file or print a whole log. For a log use `grep` on the markers you need (`[errors]`, `[unresolved]`, your own tag).
+* **Prefer logs to screenshots.** Assert with log lines/hooks; take a screenshot only when the question is visual, one per question, and don't re-read an unchanged one.
+* **Tests:** build + one targeted check per change; the full suite once per batch. Use `run_tests.ps1 -Quiet` (prints only failures and the verdict) for the full suite.
+* **Reports to the owner are short** (what changed, what was verified and how, what is open). Don't repeat earlier reports or paste logs/diffs.
+* **Subagents are expensive** (each re-reads the project): use one only for a large independent task, give it the brief path and the exact files it owns, and ask for a short report.
+* Don't re-derive what the docs already state; when a contract is known (messages, events, formulas) cite it instead of re-reading the C++ again.
+
 ## Hard rules
 1. **Never modify the original game files** (everything one level above this folder: `PROGRAM`, `RESOURCE`, `stormex2.dll`, ...). All work lives in `port/`.
 2. **Ask before downloading anything** (name, source, size). Pip packages/models were approved once for the translation tools; nothing else.

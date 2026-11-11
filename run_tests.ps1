@@ -4,17 +4,22 @@
 #   ./run_tests.ps1 -Intro     + the reference intro run from the main menu into the first location (~3 min), same checks
 #   ./run_tests.ps1 -Sea       + sea scenarios from saves/quicksave (town port): leave the port, sail, moor again; sea -> world map -> sea (~2 min)
 #   ./run_tests.ps1 -Contracts + engine contract audit (tools/contract_audit.py -> docs/CONTRACTS.md), run after the other runs so it sees fresh logs
-param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests, [switch]$Rules, [switch]$Cameras)
+param([switch]$Smoke, [switch]$Intro, [switch]$Sea, [switch]$Hidden, [switch]$Contracts, [switch]$Quest, [switch]$Stages3, [switch]$Quests, [switch]$Rules, [switch]$Cameras, [switch]$Quiet)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $fail = 0
 
-Write-Host '== unit tests' -ForegroundColor Cyan
-dotnet test "$root\StormScript.Tests\StormScript.Tests.csproj" -nologo -v q
+# -Quiet: print only failures and the final verdict (saves tokens when an AI agent reads the output)
+function Say([string]$text, [string]$color = 'Cyan') { if (-not $Quiet) { Write-Host $text -ForegroundColor $color } }
+
+Say '== unit tests'
+if ($Quiet) { $o = dotnet test "$root\StormScript.Tests\StormScript.Tests.csproj" -nologo -v q 2>&1; if ($LASTEXITCODE -ne 0) { $o | Select-Object -Last 25 | ForEach-Object { Write-Host $_ } } }
+else { dotnet test "$root\StormScript.Tests\StormScript.Tests.csproj" -nologo -v q }
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
-Write-Host '== game build' -ForegroundColor Cyan
-dotnet build "$root\game\SeaDogs.csproj" -nologo -v q
+Say '== game build'
+if ($Quiet) { $o = dotnet build "$root\game\SeaDogs.csproj" -nologo -v q 2>&1; if ($LASTEXITCODE -ne 0) { $o | Select-Object -Last 25 | ForEach-Object { Write-Host $_ } } }
+else { dotnet build "$root\game\SeaDogs.csproj" -nologo -v q }
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [string[]]$mustContain = @()) {
@@ -22,16 +27,16 @@ function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [str
     $shot = "$root\game\smoke_$name.png"
     $log = "$root\game\smoke_$name.log"
     Remove-Item $shot, $log -ErrorAction SilentlyContinue
-    Write-Host "== godot run '$name'" -ForegroundColor Cyan
+    Say "== godot run '$name'"
     $p = Start-Process $godot -ArgumentList (@('--path', "`"$root\game`"") + $(if ($Hidden) { @('--position', '9000,9000', '--resolution', '1280x720') } else { @('--position', '320,180', '--resolution', '1280x720') }) + @('--') + $userArgs + @("--shot=smoke_$name.png")) `
         -RedirectStandardOutput $log -RedirectStandardError "$log.err" -PassThru -NoNewWindow
-    if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
+    if (-not $p.WaitForExit($timeoutSec * 1000)) { $p.Kill(); Write-Host "[$name] TIMEOUT after $timeoutSec s" -ForegroundColor Red; return 1 }
     $text = (Get-Content $log, "$log.err" -Encoding UTF8 -ErrorAction SilentlyContinue) -join "`n"
     $bad = $text -split "`n" | Where-Object { $_ -match '^\[errors\]|^\[unresolved\]|SCRIPT ERROR|^ERROR: System\.|Unhandled exception|^ERROR: Invalid polygon data' }
-    if (-not (Test-Path $shot)) { Write-Host 'no screenshot was produced (the run did not reach the end)' -ForegroundColor Red; return 1 }
-    foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "expected in the log: $m" -ForegroundColor Red; return 1 } }
-    if ($bad) { Write-Host 'problems:' -ForegroundColor Red; $bad | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }; return 1 }
-    Write-Host "ok (screenshot: game\smoke_$name.png, log: game\smoke_$name.log)" -ForegroundColor Green
+    if (-not (Test-Path $shot)) { Write-Host "[$name] no screenshot was produced (the run did not reach the end)" -ForegroundColor Red; return 1 }
+    foreach ($m in $mustContain) { if ($text -notmatch [regex]::Escape($m)) { Write-Host "[$name] expected in the log: $m" -ForegroundColor Red; return 1 } }
+    if ($bad) { Write-Host "[$name] problems:" -ForegroundColor Red; $bad | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }; return 1 }
+    Say "ok (screenshot: game\smoke_$name.png, log: game\smoke_$name.log)" 'Green'
     return 0
 }
 

@@ -1,5 +1,7 @@
 # Test hooks (Godot user args) and debug env vars
 
+`run_tests.ps1 -Quiet` prints only failures and the verdict (`ALL OK` / `FAILED (n)`): use it for full-suite runs to save tokens.
+
 Moved out of `CLAUDE.md` (2026-11-09) to keep the entry point short. How to run the suites: `CLAUDE.md`, section Build / run / test.
 
 **Manual test hooks** (Godot *user args* after `--`; frames are counted from start; the game window runs at ~60 fps, 1280x960):
