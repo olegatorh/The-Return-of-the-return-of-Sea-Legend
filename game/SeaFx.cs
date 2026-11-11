@@ -20,11 +20,11 @@ public partial class SeaView
     // the sea shader's wave function (OutdoorEnv.cs) for the effects that must follow the water surface
     const string WaveGlsl = @"
 uniform float sea_t;
-uniform float wave_k[3];
-uniform float wave_w[3];
-uniform float wave_a[3];
-uniform vec2 wave_dir[3];
-float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 3; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], p) - wave_w[i] * sea_t); return h; }
+uniform float wave_k[6];
+uniform float wave_w[6];
+uniform float wave_a[6];
+uniform vec2 wave_dir[6];
+float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 6; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], p) - wave_w[i] * sea_t); return h; }
 ";
 
     static void SetWaves(ShaderMaterial m)

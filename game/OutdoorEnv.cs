@@ -32,16 +32,16 @@ render_mode unshaded, cull_disabled;
 uniform vec3 water_color;
 uniform vec3 sky_color;
 uniform float t;
-uniform float wave_k[3];
-uniform float wave_w[3];
-uniform float wave_a[3];
-uniform vec2 wave_dir[3];
+uniform float wave_k[6];
+uniform float wave_w[6];
+uniform float wave_a[6];
+uniform vec2 wave_dir[6];
 varying vec3 wpos;
 varying vec2 slope;
 void vertex() {
     vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     float h = 0.0; vec2 s = vec2(0.0);
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 6; i++) {
         float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t;
         h += wave_a[i] * sin(ph);
         s += wave_a[i] * wave_k[i] * cos(ph) * wave_dir[i];
@@ -132,7 +132,7 @@ void fragment() {
             {
                 foreach (var prm in new[] { "water_color", "sky_color", "t" }) farMat.SetShaderParameter(prm, seaMat.GetShaderParameter(prm));
                 farMat.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); farMat.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
-                farMat.SetShaderParameter("wave_a", new float[3]); farMat.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
+                farMat.SetShaderParameter("wave_a", new float[SeaWaves.N]); farMat.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
             }
             float density = root.Find("Fog.Density", false)?.Value is { } d && float.TryParse(d, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv) ? dv : 0.001f;
             SetEnvironment(fog, density * 1.2f);
