@@ -165,6 +165,9 @@ if ($Sea) {
         $tr = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_UsurerHouse,reload,reload1)@300', '--set=Characters[0].GenQuest.God_hit_us=1@650', '--set=Characters[0].SkillFortune=0@650', '--goto=box.box1@700',
                 '--key=Space@800', '--call=DoQuestCheckDelay(God_hit_us,0.2)@1000', '--key=Space@1300', '--shot-frame=1600')
         $fail += Invoke-Godot 'chesttrap' $tr 300 @('[traps] QC_UsurerHouse:box1: the last attempt was a trap', 'itemsbox.ini')
+        # one dialog at a time: two more dialog starts while a dialog runs are refused, one greeting only
+        $od = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@300', '--dialog=Ines_Diaz@600', '--dialog=William_Blaker@640', '--dialog=QC_Diplomat@660', '--shot-frame=900')
+        $fail += Invoke-Godot 'onedialog' $od 200 @('starting dialog with Ines Diaz', 'a dialog is already running, not starting one with William Blaker', 'a dialog is already running, not starting one with QC Diplomat')
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
         $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
                 '--key=Enter@1000', '--key=Right@1010', '--key=Enter@1030', '--shot-frame=1150')

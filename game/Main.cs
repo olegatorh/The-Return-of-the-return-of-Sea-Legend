@@ -482,6 +482,7 @@ public partial class Main : Node
     /// <summary>Starts the script dialog with a character (what the engine does when the player talks to someone).</summary>
     void StartDialog(string id)
     {
+        if (dialogView != null) { GD.Print("[dialog] a dialog is already running, not starting one with " + id); return; }          // exactly one dialog at a time
         var chr = host.It.CallTop("CharacterFromID", V.Str(id));
         if (id.Contains(' ') && Conv.ToInt(host.It.CallTop("GetCharacterIndex", V.Str(id))) < 0)       // ids that really contain underscores (eng_guber): retry with the literal spelling
         {

@@ -62,17 +62,19 @@ public partial class DialogView : Control
         ent.Root.GetOrCreate("greeting").OnWrite = a =>
         {
             if (!IsInstanceValid(this) || string.IsNullOrEmpty(a.Value)) return;
-            if (greetingVoice > 0) SoundView.Instance?.StopVoice(greetingVoice);
-            greetingVoice = SoundView.Instance?.PlaySpeech(a.Value!) ?? 0;
+            if (lastGreeting > 0) SoundView.Instance?.StopVoice(lastGreeting);          // greetings never overlap, also across two dialogs in quick succession
+            greetingVoice = lastGreeting = SoundView.Instance?.PlaySpeech(a.Value!) ?? 0;
             GD.Print($"[dialog] greeting '{a.Value}'");
         };
     }
 
     int greetingVoice;
+    static int lastGreeting;
 
     public override void _ExitTree()
     {
         if (Ent.Root.Get("greeting") is { } g) g.OnWrite = null;
+        if (greetingVoice > 0 && greetingVoice == lastGreeting) { SoundView.Instance?.StopVoice(greetingVoice); lastGreeting = 0; }          // the voice ends with the dialog window
     }
 
     static string Display(string s) => s.Replace("\\n", "\n");
