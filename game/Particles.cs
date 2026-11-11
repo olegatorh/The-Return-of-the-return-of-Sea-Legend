@@ -149,7 +149,7 @@ public partial class ParticleService : Node3D
         foreach (var f in Directory.GetFiles(dir, "*.ini").OrderBy(x => x))
         {
             IniFile ini;
-            try { ini = IniFile.Load(f); } catch (Exception ex) { GD.PrintErr("[particles] " + f + ": " + ex.Message); continue; }
+            try { ini = IniFile.Load(f, true); } catch (Exception ex) { GD.PrintErr("[particles] " + f + ": " + ex.Message); continue; }
             foreach (var s in ini.Sections.Values)
                 if (s.Has("texture") && !defs.ContainsKey(s.Name.Trim())) defs[s.Name.Trim()] = ParticleDef.From(s);
         }

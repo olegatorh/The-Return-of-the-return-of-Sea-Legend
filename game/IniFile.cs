@@ -25,7 +25,8 @@ public sealed class IniFile
 
     public readonly Dictionary<string, Section> Sections = new(System.StringComparer.OrdinalIgnoreCase);
 
-    public static IniFile Load(string path)
+    /// <param name="firstWins">the original ini reader finds the FIRST section of a name; a duplicate later in the file is ignored (default: the last wins)</param>
+    public static IniFile Load(string path, bool firstWins = false)
     {
         var ini = new IniFile();
         Section? cur = null;
@@ -36,6 +37,7 @@ public sealed class IniFile
             if (line[0] == '[' && line.EndsWith(']'))
             {
                 cur = new Section(line.Substring(1, line.Length - 2));
+                if (firstWins && ini.Sections.ContainsKey(cur.Name)) { cur = new Section(cur.Name); continue; }   // orphan: its lines go nowhere
                 ini.Sections[cur.Name] = cur;
                 continue;
             }
