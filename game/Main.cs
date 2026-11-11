@@ -46,6 +46,11 @@ public partial class Main : Node
     readonly List<(int frame, string node)> clicks = new();
     readonly List<(int frame, string node)> mouseClicks = new();
     readonly List<(int frame, string id)> dialogTests = new();
+    /// <summary>Test hook: "Characters[#Henry+Morgan].x" -> "Characters[595].x" (index looked up with the script's GetCharacterIndex, so scenarios do not hard-code indexes).</summary>
+    string ResolveCharIdx(string path)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(path, @"\[#([^\]]+)\]", m => "[" + Conv.ToInt(host.It.CallTop("GetCharacterIndex", V.Str(m.Groups[1].Value.Replace('+', ' ')))) + "]");
+    }
     readonly List<(int frame, string name, string value)> sets = new();
     readonly List<(int frame, string fn)> calls = new();
     readonly List<(int frame, int answer)> answers = new();
@@ -1105,7 +1110,7 @@ public partial class Main : Node
         foreach (var (f, id0) in brings) if (f == frames) { var ip = id0.Split(':'); string id = ip[0]; float bdist = ip.Length > 1 ? float.Parse(ip[1], System.Globalization.CultureInfo.InvariantCulture) : 1.6f; if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } bp && characters.Values.FirstOrDefault(c => !c.IsPlayer && (c.Ent.Root.Get("id")?.Value ?? "") == id) is { } bn) bn.PlaceNear(bp, bdist); }       // --bring=Id@N or Id:metres@N
         foreach (var (f, n) in clicks) if (f == frames) view?.Click(n);
         foreach (var (f, n) in mouseClicks) if (f == frames) view?.MouseClick(n);
-        foreach (var (f, k, v) in sets) if (f == frames) host.It.SetGlobal(k, v);
+        foreach (var (f, k, v) in sets) if (f == frames) host.It.SetGlobal(ResolveCharIdx(k), v);
         foreach (var (f, fn) in calls)
             if (f == frames)
             {
@@ -1127,7 +1132,7 @@ public partial class Main : Node
         if (controlAt == frames) host.It.CallTop("LAi_SetPlayerType", host.It.CallTop("GetMainCharacter"));    // test hook: end the scripted intro
         if (fuzzList.Contains(frames)) { fuzzAt = frames; fuzzQueue = null; }       // several --fuzz@N: every one restarts the round in the current location
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
-        foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(p);
+        foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(ResolveCharIdx(p));
         foreach (var (f, n) in ctls) if (f == frames) { if (landHud?.Command(n) != true) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) }); }
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var (f, what) in rigTests) if (f == frames) sea.RigTest(what);
