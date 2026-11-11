@@ -276,6 +276,14 @@ public partial class XView : Control
             room = Math.Max(60, room);
         }
         int fpx = Fit(lab, lab.Text, px0, room);
+        // a value that starts at the top edge of a small frame picture (free skill points in the black plate 110x24) must not hang out of the plate's bottom
+        foreach (var fr in frameRects)
+            if (y - fr.Position.Y is >= -1 and <= 3 && x >= fr.Position.X - 2 && x <= fr.End.X + 2)
+            {
+                var ff = lab.GetThemeDefaultFont();
+                while (fpx > 9 && ff.GetHeight(fpx) > fr.End.Y - y + 1) fpx--;
+                break;
+            }
         lab.AddThemeFontSizeOverride("font_size", fpx);
         if (align == 1 && lab.Text.Length > 0)
         {
@@ -326,7 +334,7 @@ public partial class XView : Control
     {
         foreach (var c in GetChildren()) c.QueueFree();
         ctxHelp = null; locks.Clear(); lockSaved.Clear(); blinds.Clear(); preLockNode = "";
-        dynImages.Clear(); dynKeys.Clear(); snapped.Clear(); lastSnapExtra = new Vector2(-1, -1); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
+        dynImages.Clear(); dynKeys.Clear(); snapped.Clear(); lastSnapExtra = new Vector2(-1, -1); nodes.Clear(); cmds.Clear(); strings.Clear(); strInfo.Clear(); frameRects.Clear(); spinners.Clear(); collectionStrings.Clear(); collectionLabels.Clear(); questTitleNode = null; questTextLabel = null;
     }
 
     static Color Argb(string? s, Color def)
@@ -688,6 +696,8 @@ public partial class XView : Control
     }
 
     /// <summary>IMAGECOLLECTION: several atlas pictures; "picture = name,col:{a,r,g,b},pos:{x1,y1,x2,y2}".</summary>
+    readonly List<Rect2> frameRects = new();
+
     Control MakeCollection(IniFile.Section? sec, Func<string, string?> P)
     {
         var root = new Control { MouseFilter = MouseFilterEnum.Ignore };
@@ -702,6 +712,7 @@ public partial class XView : Control
             if (pi >= 0) rect = Floats(line.Substring(pi + 5, line.IndexOf('}', pi) - pi - 5), 4);
             int ci = line.IndexOf("col:{", StringComparison.OrdinalIgnoreCase);
             if (ci >= 0) color = Argb(line.Substring(ci + 5, line.IndexOf('}', ci) - ci - 5), Colors.White);
+            if (rect[3] - rect[1] is >= 16 and <= 40 && rect[2] - rect[0] is >= 40 and <= 200) frameRects.Add(new Rect2(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]));
             root.AddChild(new TextureRect
             {
                 Texture = Atlas.Get(group, name),
