@@ -19,7 +19,7 @@ public sealed class TimeSkipNotice
     {
         this.it = it;
         it.WatchedCalls.Add("WaitDatePostEventControl");
-        it.CallHook = n => { if (n.Equals("WaitDatePostEventControl", StringComparison.OrdinalIgnoreCase)) { Snapshot(out day, out month, out year, out time); pending = true; } };
+        it.CallHook += n => { if (n.Equals("WaitDatePostEventControl", StringComparison.OrdinalIgnoreCase)) { Snapshot(out day, out month, out year, out time); pending = true; } };
     }
 
     void Snapshot(out int d, out int m, out int y, out float t)

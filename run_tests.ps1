@@ -186,6 +186,9 @@ if ($Sea) {
         # rest until morning (tavern / cabin script TavernWaitDate): the message log says that the next day has come (TimeSkipNotice.cs)
         $tw = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--call=TavernWaitDate(wait_day)@500', '--shot-frame=900')
         $fail += Invoke-Godot 'timeskip' $tw 200 @('[time] Настав наступний день')
+        # dice stakes: the partner may raise the scripted 50 / 200 stake (GameStakes.cs); the dice screen still opens
+        $ds = @('--ctl=Quick_Load@200', '--set=Characters[0].Money=60000@250', '--set=Characters[0].GenQuest.Dice.iRate=200@250', '--set=Characters[0].GenQuest.Dice.npcharIdx=1@250', '--call=LaunchDiceGame()@400', '--shot-frame=800')
+        $fail += Invoke-Godot 'dicestakes' $ds 200 @('[stakes] Dice: offered 200, cap 6666', 'boal_dice.ini')
         Remove-Item Env:SEADOGS_DIALOGLOG
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
         $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
