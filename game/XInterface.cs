@@ -338,6 +338,14 @@ public partial class XView : Control
         return new Color(p[1] / 128f, p[2] / 128f, p[3] / 128f, p[0] / 255f);
     }
 
+    /// <summary>CXI_SCROLLBAR::Init: the arrow side width = sideWidth, else (width - barWidth) / 2, else the height; -1 = the view's own default.</summary>
+    static float ScrollSide(Func<string, string?> P, float[] pos)
+    {
+        if (float.TryParse(P("sideWidth"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float sw) && sw >= 0) return sw;
+        if (float.TryParse(P("barWidth"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float bw) && bw >= 0) return Math.Max(0, (pos[2] - pos[0] - bw) / 2);
+        return pos[3] - pos[1];
+    }
+
     static float[] Floats(string? s, int n)
     {
         var r = new float[n];
@@ -402,7 +410,7 @@ public partial class XView : Control
             {
                 "PICTURE" or "SLIDEPICTURE" => MakePicture(P, pos),
                 "TEXTBUTTON" => MakeButton(name, P, pos),
-                "SCROLLBAR" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("leftPicture") ?? "small left arrow", P("rightPicture") ?? "small right arrow", P("centerPicture") ?? "scrollbar", (n, c) => Run(n, c, 0)),
+                "SCROLLBAR" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("leftPicture") ?? "small left arrow", P("rightPicture") ?? "small right arrow", P("centerPicture") ?? "scrollbar", (n, c) => Run(n, c, 0), null, ScrollSide(P, pos)),
                 "LRCHANGER" => new ScrollBarView(name, pos[0], pos[1], pos[2], pos[3], P("group") ?? "ICONS", P("lpicture") ?? "left arrow", P("rpicture") ?? "right arrow", "", (n, c) => Run(n, c, 0),
                     (n, btn) => it.FireEvent("IEvnt_MouseClick", new List<V> { V.Str(n), V.Int(btn) })),
                 "SCROLLER" => new ScrollerView(pos[0], pos[1], pos[2], pos[3], P("baseTexture") ?? "", P("rollerTexture") ?? "", Floats(P("scrollTexPos"), 4), Floats(P("rollTexPos"), 4), Floats(P("rollerHeight"), 1)[0],

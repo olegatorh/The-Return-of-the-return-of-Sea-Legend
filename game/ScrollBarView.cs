@@ -16,13 +16,13 @@ public partial class ScrollBarView : Control
     string? holding;
     double held, next;
 
-    public ScrollBarView(string name, float x1, float y1, float x2, float y2, string group, string left, string right, string center, Action<string, string> run, Action<string, int>? mouseClick = null)
+    public ScrollBarView(string name, float x1, float y1, float x2, float y2, string group, string left, string right, string center, Action<string, string> run, Action<string, int>? mouseClick = null, float sideWidth = -1)
     {
         node = name; this.run = run; this.mouseClick = mouseClick; Name = name;
         Position = new Vector2(x1, y1); Size = new Vector2(x2 - x1, y2 - y1);
         FocusMode = FocusModeEnum.All;
         var lt = Atlas.Get(group, left); var rt = Atlas.Get(group, right); var ct = center == "" ? null : Atlas.Get(group, center);
-        float aw = Math.Min(Size.Y, 24);
+        float aw = sideWidth >= 0 ? Math.Min(sideWidth, Size.X / 2) : Math.Min(Size.Y, 24);        // xi_scrollbar.cpp: sideWidth, or (width - barWidth) / 2, or the height
         AddChild(new TextureRect { Texture = ct, Position = new Vector2(aw, 0), Size = new Vector2(Size.X - 2 * aw, Size.Y), ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale, MouseFilter = MouseFilterEnum.Ignore });
         AddChild(Arrow(lt, new Vector2(0, 0), new Vector2(aw, Size.Y), "leftstep"));
         AddChild(Arrow(rt, new Vector2(Size.X - aw, 0), new Vector2(aw, Size.Y), "rightstep"));
