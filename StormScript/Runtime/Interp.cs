@@ -12,6 +12,8 @@ public sealed partial class Interp
     {
         public FuncDecl Decl = decl;
         public string Segment = segment;
+        /// <summary>The definition this one replaced (same function name in an earlier segment): restored when this segment is unloaded.</summary>
+        public FuncDef? Shadowed;
     }
 
     sealed class Frame
@@ -51,7 +53,11 @@ public sealed partial class Interp
             if (it is FuncDecl fd && fd.Body != null)
             {
                 if (Funcs.ContainsKey(fd.Name) && Funcs[fd.Name].Segment == segment) DuplicateFuncs++;
-                Funcs[fd.Name] = new FuncDef(fd, segment);
+                {
+                    var nd = new FuncDef(fd, segment);
+                    if (Funcs.TryGetValue(fd.Name, out var old) && old.Segment != segment) nd.Shadowed = old;
+                    Funcs[fd.Name] = nd;
+                }
             }
         foreach (var it in unit.Items)
         {
@@ -74,9 +80,24 @@ public sealed partial class Interp
 
     public int RemoveSegment(string segment)
     {
-        var del = Funcs.Where(kv => kv.Value.Segment == segment).Select(kv => kv.Key).ToList();
-        foreach (var k in del) { Funcs.Remove(k); UnloadedFuncs.Add(k); }
-        return del.Count;
+        // several screens define functions of the same name (IDoExit, ProcessCommandExecute ...): the earlier definition comes back when the later segment goes away
+        int n = 0;
+        foreach (var k in Funcs.Keys.ToList())
+        {
+            bool hit = false;
+            for (var d = Funcs[k]; d != null; d = d.Shadowed) if (d.Segment == segment) hit = true;
+            if (!hit) continue;
+            FuncDef? head = null, tail = null;
+            for (var d = Funcs[k]; d != null; d = d.Shadowed)
+            {
+                if (d.Segment == segment) { n++; continue; }
+                var c = new FuncDef(d.Decl, d.Segment);
+                if (head == null) head = tail = c; else { tail!.Shadowed = c; tail = c; }
+            }
+            if (head == null) { Funcs.Remove(k); UnloadedFuncs.Add(k); }
+            else Funcs[k] = head;
+        }
+        return n;
     }
 
     // ------------------------------------------------------------------ errors

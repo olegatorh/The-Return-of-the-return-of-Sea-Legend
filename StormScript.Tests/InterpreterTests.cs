@@ -257,4 +257,19 @@ public sealed class InterpreterTests : IDisposable
         h.It.FireEvent("ping");
         Assert.Empty(h.It.UnresolvedFuncs);
     }
+
+    [Fact]
+    public void UnloadingASegmentRestoresTheSameNamedFunctionOfAnEarlierSegment()
+    {
+        // mainmenu.c and save_load.c both define IDoExit: after the save screen is unloaded the main menu's IDoExit(code, clear) must be callable again
+        var h = Run(@"int r; void Test() { }");
+        File.WriteAllText(Path.Combine(dir, "a.c"), "void IDoExit(int c, bool b) { r = 2; }", System.Text.Encoding.Latin1);
+        File.WriteAllText(Path.Combine(dir, "b.c"), "void IDoExit(int c) { r = 1; }", System.Text.Encoding.Latin1);
+        Assert.True(h.LoadSegment("a.c"));
+        Assert.True(h.LoadSegment("b.c"));
+        h.It.SegmentUnloader!("b.c");
+        h.It.CallTop("IDoExit", V.Int(0), V.Int(1));
+        Assert.Equal("2", Str(h, "r"));
+        Assert.Empty(h.It.UnresolvedFuncs);
+    }
 }
