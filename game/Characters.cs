@@ -1268,7 +1268,7 @@ void fragment() {
     // ------------------------------------------------------------------ messages from the script
     public V OnMessage(string fmt, V[] d)
     {
-        if (fmt == "s") { if (d.Length > 0) Snd(Conv.ToStr(d[0])); return V.Int(1); }   // LAi_CharacterPlaySound: an alias at the character
+        if (fmt == "s") { if (d.Length > 0) ChatterOrSnd(Conv.ToStr(d[0])); return V.Int(1); }   // LAi_CharacterPlaySound: an alias at the character
         int msg = d.Length > 0 ? Conv.ToInt(d[0]) : 0;
         string S(int i) => i < d.Length ? Conv.ToStr(d[i]) : "";
         float Fl(int i) => i < d.Length ? Conv.ToFloat(d[i]) : 0f;
@@ -1425,6 +1425,22 @@ void fragment() {
     }
 
     // ------------------------------------------------------------------ sounds
+    // The sit/dialog AI types roll "babble" per frame (rand(300), rand(100) near others): with several people in a tavern the voices pile up on the music.
+    // One babble per speaker at a time, a pause between phrases, and at most two babbles heard at once in the whole location.
+    static readonly List<int> babbles = new();
+    int myBabble; double nextBabble;
+    void ChatterOrSnd(string alias)
+    {
+        if (alias != "male-citizen" && alias != "female-citizen") { Snd(alias); return; }
+        var snd = SoundView.Instance; if (snd == null || !Placed || !Visible) return;
+        double now = Godot.Time.GetTicksMsec() / 1000.0;
+        babbles.RemoveAll(id => !snd.VoiceAlive(id));
+        if (now < nextBabble || (myBabble != 0 && snd.VoiceAlive(myBabble)) || babbles.Count >= 2) return;
+        nextBabble = now + 6 + idleRng.NextDouble() * 6;
+        myBabble = snd.Play3D(alias, x, y + 1.2f, z);
+        babbles.Add(myBabble);
+    }
+
     /// <summary>A sound alias at the character's chest (3D, attenuated by the alias distances).</summary>
     void Snd(string alias, float height = 1.2f)
     {

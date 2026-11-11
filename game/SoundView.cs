@@ -217,7 +217,7 @@ public partial class SoundView : Node
         // a one-shot 3D sound out of hearing range is not started at all (many walking people would otherwise create voices every step)
         if (gpos is { } g0 && !looped && GetViewport()?.GetCamera3D() is { } cam && cam.GlobalPosition.DistanceTo(g0) > al!.MaxDist) return nextId++;
         if (System.Environment.GetEnvironmentVariable("SEADOGS_SOUNDLOG") != null)
-            GD.Print($"[sound] play '{name}' -> {Path.GetFileName(file)} music={music} loop={looped} now={startNow}" + (speech ? " speech" : "") + (gpos is { } gp ? FormattableString.Invariant($" 3d=({pos!.Value.X:0.0} {pos.Value.Y:0.0} {pos.Value.Z:0.0}) min={al!.MinDist} max={al.MaxDist}") : ""));
+            GD.Print($"[sound] t={Godot.Time.GetTicksMsec()} play '{name}' -> {Path.GetFileName(file)} music={music} loop={looped} now={startNow}" + (speech ? " speech" : "") + (gpos is { } gp ? FormattableString.Invariant($" 3d=({pos!.Value.X:0.0} {pos.Value.Y:0.0} {pos.Value.Z:0.0}) min={al!.MinDist} max={al.MaxDist}") : ""));
         var v = new Voice { Id = nextId++, Name = name, Looped = looped, Music = music, Speech = speech, Volume = vol * avol, Stream = Load(file, looped) };
         voices[v.Id] = v;
         if (v.Stream != null)
