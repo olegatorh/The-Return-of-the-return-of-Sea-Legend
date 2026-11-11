@@ -1114,14 +1114,14 @@ public partial class Main : Node
         foreach (var (f, fn) in calls)
             if (f == frames)
             {
-                // "Func" or "Func(arg,arg)": integers, strings (+ = space) and #CharacterId
+                // "Func" or "Func(arg,arg)": integers, strings (+ = space), #CharacterId (reference) and $CharacterId (index in Characters[])
                 if (fn.StartsWith("seg:")) { host.LoadSegment(fn.Substring(4).Replace('/', '\\').Replace('+', ' ')); continue; }    // test hook: load a script segment (dialog file)
                 int lp = fn.IndexOf('(');
                 var args = new List<V>();
                 string name = lp < 0 ? fn : fn.Substring(0, lp);
                 if (lp >= 0)
                     foreach (var x in fn.Substring(lp + 1).TrimEnd(')').Split(',', StringSplitOptions.RemoveEmptyEntries))
-                        args.Add(x.StartsWith('#') ? host.It.CallTop("CharacterFromID", V.Str(x.Substring(1).Replace('+', ' '))) : int.TryParse(x, out int iv) ? V.Int(iv) : V.Str(x.Replace('+', ' ')));
+                        args.Add(x.StartsWith('$') ? host.It.CallTop("GetCharacterIndex", V.Str(x.Substring(1).Replace('+', ' '))) : x.StartsWith('#') ? host.It.CallTop("CharacterFromID", V.Str(x.Substring(1).Replace('+', ' '))) : int.TryParse(x, out int iv) ? V.Int(iv) : V.Str(x.Replace('+', ' ')));
                 var callResult = host.It.CallTop(name, args.ToArray());
                 if (System.Environment.GetEnvironmentVariable("SEADOGS_CALLLOG") == "1") GD.Print($"[call] {name}({string.Join(",", args.Select(a => a.ToString()))}) -> {callResult}");     // test hook: print what the script function returned
             }

@@ -380,6 +380,80 @@ if ($Quests) {
             '--dump=Characters[0].questTemp.State@3300', '--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@3400', '--call=LAi_SetFightMode(#Blaze,0)@3850', '--dialog=eng_guber@3900') + @(4000, 4100, 4150, 4200 | ForEach-Object { "--answer=1@$_" }) +
             @('--dump=Characters[0].questTemp.State@4300', '--dump=Characters[0].questTemp.CurQuestNumber@4300', '--shot-frame=4400')
         $fail += Invoke-Godot 'q_eng5' $e5 400 @('State = "AttackFortOrange_GoToFort"', 'QuestComplete(Capture_Forts)', "node 'Step_E_1'", 'QuestComplete(AttackFortOrange_AfterFightWithCommendant)', 'State = "AttackFortOrange_WeWin"', "node 'Step_5_3'", 'CurQuestNumber = "6"')
+        # English line 6 (Morris Williams, the political branch): Step_6_1 -> sea at Redmond (ShipToPort: Group_SetAddress Willams_Group) -> ship deck talk (Sea_DeckBoatLoad, Capitans_dialog Step_E_1..5, DeleteNPCfromDeck as the exit from the deck does) ->
+        # governor Step_6_2 (+5000) -> the port: boatswain walks up (MeetWithManFromWillams) -> tavern with Willams (InTavernWithWillams) -> governor Step_6_3..6_5 -> state ModifordPolitic. The arrest / pinnace branches are not driven.
+        $eng6 = @'
+--ctl=Quick_Load@200
+--call=initTutMainCharacterShip()@250
+--call=LAi_SetImmortal(#Blaze,1)@251
+--call=GiveItem2Character(#Blaze,patent_eng)@252
+--call=EquipCharacterbyItem(#Blaze,patent_eng)@254
+--set=Characters[0].questTemp.State=empty@256
+--set=Characters[0].questTemp.CurQuestNumber=6@256
+--set=Characters[0].questTemp.Waiting_time=0@256
+--call=SaveCurrentQuestDateParam(questTemp)@258
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@300
+--dialog=eng_guber@600
+--answer=1@700
+--answer=1@800
+--answer=1@850
+--answer=1@900
+--answer=1@950
+--dump=Characters[0].questTemp.State@1000
+--call=DoReloadCharacterToLocation(Redmond_port,reload,reload1)@1100
+--set=Characters[0].location.from_sea=Redmond_port@1400
+--goto=reload.sea_1@1500
+--ctl=ChrAction@1550
+--sail=+1@1800
+--call=Sea_DeckBoatLoad($Albermal)@2400
+--dialog=Albermal@3000
+--answer=1@3100
+--answer=1@3200
+--answer=1@3300
+--answer=1@3400
+--answer=1@3500
+--answer=1@3600
+--dump=Characters[0].questTemp.State@3800
+--dump=Characters[0].location@3800
+--call=DeleteNPCfromDeck()@3820
+--call=LAi_SetFightMode(#Blaze,0)@3850
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@3900
+--dialog=eng_guber@4500
+--answer=1@4600
+--answer=1@4700
+--answer=1@4800
+--answer=1@4900
+--answer=1@5000
+--dump=Characters[0].questTemp.State@5100
+--dump=Characters[0].money@5100
+--call=DoReloadCharacterToLocation(Redmond_port,reload,reload_2_city)@5200
+--answer=1@6100
+--answer=1@6200
+--answer=1@6300
+--answer=1@6400
+--answer=1@6500
+--answer=1@6600
+--answer=1@6700
+--answer=1@6800
+--answer=1@6900
+--answer=1@7000
+--answer=1@7100
+--answer=1@7200
+--dump=Characters[0].questTemp.State@7400
+--dump=Characters[0].location@7400
+--call=LAi_SetFightMode(#Blaze,0)@7450
+--call=DoReloadCharacterToLocation(Redmond_Residence,reload,reload1)@7500
+--dialog=eng_guber@8100
+--answer=1@8200
+--answer=1@8300
+--answer=1@8400
+--answer=1@8500
+--answer=1@8600
+--answer=1@8700
+--dump=Characters[0].questTemp.State@8800
+--shot-frame=8900
+'@ -split "`r?`n"
+        $fail += Invoke-Godot 'q_eng6' $eng6 800 @('State = "MorrisWillams_GoToMorrisBegin"', 'Group_SetAddress(Willams_Group, Redmond', 'node ''Step_6_2''', 'QuestComplete(MorrisWillams_InTavernWithWillams)', 'State = "MorrisWillams_ToModifordForCoolTalking"', 'node ''Step_6_5''', 'State = "MorrisWillams_ModifordPolitic"')
         # Pirate line: Jurcksen -> James Ford in the tavern of Fort Orange -> escort fight (Story_Battle_Ford..5) -> Ford beaten (LAi_SetCheckMinHP) -> captured -> the passengers
         $pl = @('--ctl=Quick_Load@200', '--set=Characters[0].questTemp.Begin_Quests_Pirate=1@250', '--call=LAi_SetImmortal(#Blaze,1)@260', '--call=DoReloadCharacterToLocation(QC_residence,reload,Reload1)@300', '--dialog=Isenbrandt_Jurcksen@700') +
             @(800, 900, 1000, 1100, 1200, 1300 | ForEach-Object { "--answer=1@$_" }) + @('--call=DoReloadCharacterToLocation(Orange_Tavern,reload,reload1)@1500', '--dialog=James_Ford@1900') + @(2000, 2100, 2200, 2300, 2400 | ForEach-Object { "--answer=1@$_" }) +
