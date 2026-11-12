@@ -184,6 +184,7 @@ public partial class Main : Node
         Keys.Load(settingsFile);
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
+        if (gs?.Get("WaveScale") is { } wsv && float.TryParse(wsv.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var wsc)) SeaWaves.WaveScale = Math.Clamp(wsc, 0.3f, 3f);
         GD.Print("[main] BetaTestMode = " + beta);
         // [video]: Fullscreen = 1 starts in full screen; WindowWidth / WindowHeight set the window size (F11 toggles full screen). The 2D interface adapts to any aspect ratio.
         if (settings.Sections.TryGetValue("video", out var vs) && !OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--shot")))

@@ -15,6 +15,8 @@ public static class SeaWaves
     public static float Time;
     public static readonly float[] K = { 0.14f, 0.12f, 0.18f, 0.5f, 0.7f, 0.9f }, W = new float[N], A = { 0.1f, 0.1f, 0.05f, 0, 0, 0 };
     public static readonly Vector2[] Dir = { new(0.72f, -0.69f), new(0.72f, 0.69f), new(0.3f, 0.95f), new(1f, 0f), new(0f, 1f), new(0.7f, 0.7f) };
+    /// <summary>settings.ini [game] WaveScale: the script's wave heights are used at half size; this factor (default 1.35) makes the swell a little bigger for looks, the cap of Sea.MaxSeaHeight still applies.</summary>
+    public static float WaveScale = 1.35f;
     public static float MaxAmp, TotalAmp;      // the cap given by Sea.MaxSeaHeight and the resulting sum of the amplitudes (the crest height above the mean level)
 
     static SeaWaves() { for (int i = 0; i < N; i++) W[i] = MathF.Sqrt(9.81f * K[i]); }
@@ -39,7 +41,7 @@ public static class SeaWaves
             if (p.Length < 5) continue;
             float f(int j) => float.TryParse(p[j].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0f;
             float fr = Math.Max(f(1), 1f);
-            list.Add((f(2) * 0.5f, Math.Clamp(450f / fr, 6f, 120f), f(4) * MathF.PI / 180f));
+            list.Add((f(2) * 0.5f * WaveScale, Math.Clamp(450f / fr, 6f, 120f), f(4) * MathF.PI / 180f));
         }
         if (list.Count == 0) return;
         list.Sort((x, y) => y.amp.CompareTo(x.amp));
