@@ -114,3 +114,9 @@ Generated from the script once; "keys" are Windows virtual key names of `ExternI
 There are no port-only controls on the pages any more: the land scheme is always the original one (mouse turns the hero and the camera, A / D turn, right / middle button walk, Shift = walk, left button = ChrAction), the sea camera and the map follow the original mouse controls, no arrow-key camera, no wheel. Port-only fixed keys without a control (not shown, `settings.ini [keys]`): F3 name tags, B map wait, F8 bug report, F9 free camera. F11 full screen. On the map: hold WMapForward / WMapBackward (left / right button) to zoom, Ctrl + mouse turns the camera.
 
 Test hooks: `--mousemove=dx,dy@A-B` (raw mouse motion per frame), `--btn=L+|L-|R+|R-|M+|M-@N` (real mouse button), env `SEADOGS_CTLLOG=1` (current key group and the locked controls every 100 frames).
+
+## Land movement and camera (checked against player.cpp / location_camera.cpp / camera_follow.cpp)
+* Hero: `Player::Rotate` turns by `(ChrTurnH.fValue + 12 for ChrTurnHR - 12 for ChrTurnHL) * 0.01` rad per frame (at most 0.3), at the action's "Turn speed" (run/walk 5.5, idle 4.0 rad/s); `ChrForward` / `ChrBackward` walk along the heading; run is the default, `ChrRun` (Shift) walks.
+* Camera: yaw follows the hero's heading with `rotInertia` 5 (angle decays like exp(-5 t)); the mouse Y only tilts it (`vAx` inertia). Test: scenario `landcamfollow` (`SEADOGS_CAMLOG=N` prints `[camera]` every N frames and `[camfollow] ok`).
+* The mouse counts are the raw window pixels (`ScreenRelative`, whole counts with the remainder carried), not the stretch-scaled `Relative` (it was 0.5-0.6 x and lost small moves). `--mousemove` now works without a captured mouse.
+* A save made by an earlier build can carry `ChrForward = KEY_W`, `ChrBackward = KEY_S` (old port defaults) in `objControlsState`; then the right/middle mouse button do not walk until the keys are reset on the options page.
