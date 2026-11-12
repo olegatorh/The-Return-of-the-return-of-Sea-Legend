@@ -667,6 +667,7 @@ public partial class Main : Node
                 var ist = host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr;
                 string Q(string n) => Conv.ToStr(host.It.Globals.TryGetValue(n, out var gv) ? gv.Val : V.Str("?"));
                 string qse = Conv.ToStr(host.It.CallTop("QuickSaveGameEnabled")), qsh = Conv.ToStr(host.It.CallTop("QuickSaveGameEnabledHardcore"));
+                sb.AppendLine("reload: " + ReloadWhy());
                 sb.AppendLine($"save: Buttons.Save.enable={ist?.Find("Buttons.Save.enable", false)?.Value} QuickSaveGameEnabled={qse} Hardcore-ok={qsh} bHardcoreGame={Q("bHardcoreGame")} dialogRun={Q("dialogRun")} bSeaActive={Q("bSeaActive")} questMovieProcess={Q("questMovieProcess")} questMovieOldSaveState={Q("questMovieOldSaveState")} tmpl={host.It.Globals.GetValueOrDefault("Characters").Val.Attr?.Find("0.chr_ai.tmpl", false)?.Value}");
             }
             catch (Exception e) { sb.AppendLine("save: (unavailable: " + e.Message + ")"); }
@@ -987,12 +988,20 @@ public partial class Main : Node
         }
     }
 
+    /// <summary>Every script input of chrCharacterKeys / chrIsNowEnableReload (characters_events.c): why a door / exit may not react.</summary>
+    string ReloadWhy()
+    {
+        string Q(string n) => Conv.ToStr(host.It.Globals.TryGetValue(n, out var gv) ? gv.Val : V.Str("?"));
+        var ist = host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr;
+        return $"[DialogRun={Q("DialogRun")} chrDisableReloadToLocation={Q("chrDisableReloadToLocation")} chrWaitReloadIsNoLink={Q("chrWaitReloadIsNoLink")} chrWaitReloadLocator={Q("chrWaitReloadLocator")} questMovieProcess={Q("questMovieProcess")} Launched={ist?.Get("Launched")?.Value} bAbordageStarted={Q("bAbordageStarted")}]";
+    }
+
     void LandAction()
     {
         // player.cpp Update: ChrAction while not fighting asks FindDialogCharacter and raises dlgReady -> the dialog with the character in front of the hero
         if (dialogView == null && !UiOpen && NearestTalkable() is { } talkTo) { StartDialog(talkTo.Ent.Root.Get("id")?.Value ?? ""); return; }
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
-        GD.Print("[land] action: " + (act.Length == 0 ? "Nothing" : act));
+        GD.Print("[land] action: " + (act.Length == 0 ? "Nothing" : act) + (act == "Reload" ? "  " + ReloadWhy() : ""));
         if (act.Length == 0 || act == "Nothing" || act == "Closed")
         {
             host.It.FireEvent("Control Activation", new List<V> { V.Str("ChrAction") });       // a closed door answers with the knock
