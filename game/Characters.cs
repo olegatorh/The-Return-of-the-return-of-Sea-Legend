@@ -1185,7 +1185,7 @@ void fragment() {
     }
 
     /// <summary>Begins a sword swing at a target in reach (no-op while the previous swing is still running).</summary>
-    public bool StartSwing(CharacterView enemy, Strike kind = Strike.Normal)
+    public bool StartSwing(CharacterView? enemy, Strike kind = Strike.Normal)
     {
         if (!IsAlive) return false;
         if (atkCooldown > 0f || atkHitIn >= 0f)
@@ -1194,7 +1194,7 @@ void fragment() {
             // and a block asked for meanwhile (held key) simply goes up when the animation ends
             return false;
         }
-        ay = Angle(enemy.x - x, enemy.z - z);
+        if (enemy != null) ay = Angle(enemy.x - x, enemy.z - z);          // no enemy in reach: the blow is struck at the air in the current heading
         atkTarget = enemy;
         string a;
         switch (kind)
@@ -1205,7 +1205,7 @@ void fragment() {
         }
         // the strike moment and the length of the blow come from the animation (man.ani: "Attack_slash" event, frames / (fps * speed)), as in the engine
         var tm = rig?.SwingTiming(a) ?? rig?.SwingTiming("attack_1") ?? (0.2f, 0.45f);
-        float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f);      // the script's speed factor (agility) speeds the animation up or down
+        float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f) * CharacterRig.CombatSpeed;      // the script's speed factor (agility) speeds the animation up or down
         atkHitIn = tm.hit / spd; atkCooldown = tm.duration / spd; swingStartMs = Time.GetTicksMsec();
         if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
         swingAnim = false;

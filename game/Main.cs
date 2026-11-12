@@ -866,7 +866,7 @@ public partial class Main : Node
             {
                 if (!Ctl.Is(landBtn.ButtonIndex, "ChrAttack")) return;
                 // a quick click strikes normally; sideways keys give a fast side cut; holding the button winds up a strong blow (released below)
-                if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { var en = pl.NearestInFront(2.2f); if (en != null) pl.StartSwing(en, CharacterView.Strike.Fast); }
+                if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { pl.StartSwing(pl.NearestInFront(2.2f), CharacterView.Strike.Fast); }
                 else lmbDownAt = Time.GetTicksMsec();
             }
             else if (pl != null && locations.Count > 0 && Ctl.Is(landBtn.ButtonIndex, "ChrAction")) LandAction();          // the original: the left mouse button is ChrAction
@@ -875,7 +875,7 @@ public partial class Main : Node
         {
             var pl2 = characters.Values.FirstOrDefault(c => c.IsPlayer);
             ulong held = Time.GetTicksMsec() - lmbDownAt; lmbDownAt = 0;
-            if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { var en = pl2.NearestInFront(2.2f); if (en != null) pl2.StartSwing(en, held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
+            if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { pl2.StartSwing(pl2.NearestInFront(2.2f), held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
         }
         // the deck camera: the right button walks forward, the middle one back (DeckCamera_Forward / _Backward), the mouse looks round without a button
         if (e is InputEventMouseButton db && sea.DeckCamera && (Ctl.Is(db.ButtonIndex, "DeckCamera_Forward") || Ctl.Is(db.ButtonIndex, "DeckCamera_Backward")))
