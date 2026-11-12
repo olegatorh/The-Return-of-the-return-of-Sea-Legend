@@ -21,7 +21,7 @@ public static class OptionsFile
     {
         var sb = new StringBuilder();
         Walk(root, "", sb);
-        sb.Append(ControlsMark).Append((char)9).Append(ControlsVersion).Append((char)10);
+        if (root.Find(ControlsMark, false) == null) sb.Append(ControlsMark).Append((char)9).Append(ControlsVersion).Append((char)10);       // (a loaded options tree already carries it)
         try { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath(name)))!); File.WriteAllText(FilePath(name), sb.ToString(), new UTF8Encoding(false)); }
         catch (Exception e) { Godot.GD.PrintErr("[options] cannot save: " + e.Message); }
     }
