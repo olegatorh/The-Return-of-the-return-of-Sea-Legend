@@ -1251,16 +1251,27 @@ void fragment() {
         Step(bx, bz);
     }
 
-    /// <summary>The nearest living person in front of this character within reach (for the player's own attacks).</summary>
+    /// <summary>
+    /// The target of the player's blow (player.cpp FindAttackCharacter): only ENEMIES of the hero's group (CharactersGroups IsEnemy; allies, neutrals and
+    /// townspeople are never taken), within reach, the ones already fighting first, then the best cosine to the heading. The port keeps it to the half plane
+    /// in front (cos > 0): the original would also spin the hero round to an enemy behind his back, which felt like the hero turning away from where the blow was aimed.
+    /// </summary>
     public CharacterView? NearestInFront(float reach)
     {
         CharacterView? best = null;
-        float bd = reach * reach;
+        float r2 = reach * reach, bestCos = -2f;
+        bool bestFights = false;
+        float sx = MathF.Sin(ay), cz = MathF.Cos(ay);
         foreach (var c in All.Values)
         {
-            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive) continue;
+            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive || !GroupsState.AreEnemies(Ent.Root, c.Ent.Root)) continue;
             float dx = c.x - x, dz = c.z - z, d2 = dx * dx + dz * dz;
-            if (d2 < bd) { bd = d2; best = c; }
+            if (d2 > r2) continue;
+            float cs = d2 > 1e-6f ? (dx * sx + dz * cz) / MathF.Sqrt(d2) : 1f;
+            if (cs <= 0f) continue;
+            bool fights = c.FightMode;
+            if (best != null && bestFights && !fights) continue;
+            if (best == null || (fights && !bestFights) || cs > bestCos) { best = c; bestCos = cs; bestFights = fights; }
         }
         return best;
     }
