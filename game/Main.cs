@@ -556,6 +556,7 @@ public partial class Main : Node
             string? ctl = Keys.Is(ck, "MainEsc") ? "MainMenuDouble" : Keys.Is(ck, "LandCommands") ? "LICommandsActivate"
                 : Keys.Is(ck, "MainMenu") ? "MainMenu" : Keys.Is(ck, "Interface") ? "Interface" : Keys.Is(ck, "QuickSave") ? "Quick_Save" : Keys.Is(ck, "QuickLoad") ? "Quick_Load" : null;
             if (ctl == null && locations.Count > 0 && Keys.Is(ck, "LandPotion")) ctl = "BOAL_UsePotion";       // init_pc.c: KEY_C = quick heal (seadogs.c picks the first usable potion)
+            if (ctl is "MainMenu" or "MainMenuDouble") AllowSaveForMenu();
             if (ctl == "LICommandsActivate" && locations.Count > 0) landHud?.Command(ctl);       // Enter opens the land command menu
             if (ctl != null) host.It.FireEvent("Control Activation", new List<V> { V.Str(ctl) });
             if (Keys.Is(ck, "SeaAction") && locations.Count > 0) LandAction();          // BIFastCommand
@@ -601,6 +602,40 @@ public partial class Main : Node
             nameTags = !nameTags;
             foreach (var c in characters.Values) c.ShowNameTag(nameTags);
         }
+    }
+
+
+    // ------------------------------------------------------------------ saving
+    // Owner's rule: the game can be saved everywhere unless the hero has his sword out, a dialog / cut-scene is running or enemies are after him in this
+    // location. The quest scripts switch InterfaceStates.Buttons.Save.enable off for whole story chapters (Tut_start, the mutiny ...) and rely on later
+    // quests to switch it on again; when one of those never comes the Save button stays grey for good. So while the main menu is open the flag is treated as 1
+    // when the script's own conditions (QuickSaveGameEnabled: no fight mode, hero under control, no dialog) hold and nobody hostile is active; the script's value returns after.
+    string? saveFlagBackup; bool saveFlagUiSeen;
+    void AllowSaveForMenu()
+    {
+        try
+        {
+            if (saveFlagBackup != null || (locations.Count == 0 && !worldMap.Active) || (sea.Active && !worldMap.Active)) return;       // not at sea (the script never saves there), but in a location and on the world map
+            var f = host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr?.Find("Buttons.Save.enable", false);
+            if (f == null || f.Value == "1") return;
+            bool Truthy(string fn) => Conv.ToInt(host.It.CallTop(fn)) != 0;
+            string movie = Conv.ToStr(host.It.Globals.TryGetValue("questMovieProcess", out var qm) ? qm.Val : V.Int(0));
+            if (!Truthy("QuickSaveGameEnabled") || Truthy("LAi_group_IsActivePlayerAlarm") || (movie != "0" && movie != "")) return;
+            saveFlagBackup = f.Value; saveFlagUiSeen = false;
+            f.Value = "1";
+            GD.Print("[save] the quest script had saving switched off; allowed for this menu (no fight, no dialog, no enemies)");
+        }
+        catch (Exception e) { GD.Print("[save] AllowSaveForMenu: " + e.Message); }
+    }
+
+    void RestoreSaveFlag()
+    {
+        if (saveFlagBackup == null) return;
+        if (UiOpen) { saveFlagUiSeen = true; return; }
+        if (!saveFlagUiSeen && frames % 60 != 0) return;                 // the menu opens a frame or two after the control event
+        var f = host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr?.Find("Buttons.Save.enable", false);
+        if (f != null && f.Value == "1") f.Value = saveFlagBackup;
+        saveFlagBackup = null;
     }
 
     // ------------------------------------------------------------------ engine loop for characters and the camera
@@ -730,6 +765,7 @@ public partial class Main : Node
 
     void UpdateWorld(float delta)
     {
+        RestoreSaveFlag();
         // an interface screen (the Esc menu, character, store ...) stops the game: seadogs.c EngineLayersOffOn(false) freezes the execute/realize layers while it is open
         float scale = UiOpen ? 0f : host.It.TimeScale;
         if (scale == 0f && frames % 300 == 0 && System.Environment.GetEnvironmentVariable("SEADOGS_PAUSELOG") != null) GD.Print($"[pause] frame {frames}: an interface screen is open ({view?.Name}, {view?.GetChildCount()} children), the game is frozen");

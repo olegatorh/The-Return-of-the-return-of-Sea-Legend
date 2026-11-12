@@ -130,6 +130,9 @@ if ($Sea) {
         if ((Test-Path "$root\saves\q_dl.sdsave") -and (Test-Path "$root\saves\debug_map_lugger.sdsave")) {
             $ms = @('--load=q_dl@200', '--ctl=MainMenuDouble@500', '--mouse=B_OPTIONS@550', '--mouse=EXIT_BTN@600', '--mouse=B_SAVE@650', '--mouse=SAVE_BUTTON@750', '--ctl=MainMenuDouble@850', '--mouse=B_RESUMEGAME@900', '--shot-frame=960')
             $fail += Invoke-Godot 'menusave' $ms 200 @('[save] saved SAVE')
+            # a quest script left the Save button switched off (InterfaceStates.Buttons.Save.enable = 0): with no fight, no dialog and no enemies the menu still saves
+            $sl = @('--load=q_dl@200', '--set=InterfaceStates.Buttons.Save.enable=0@300', '--ctl=MainMenuDouble@500', '--mouse=B_SAVE@650', '--mouse=SAVE_BUTTON@750', '--ctl=MainMenuDouble@850', '--mouse=B_RESUMEGAME@900', '--dump=InterfaceStates.Buttons.Save.enable@1100', '--shot-frame=1150')
+            $fail += Invoke-Godot 'savelock' $sl 200 @('[save] the quest script had saving switched off', '[save] saved SAVE', 'enable = "0"')
             $mm = @('--load=debug_map_lugger@200', '--ctl=MainMenuDouble@500', '--mouse=B_SAVE@550', '--mouse=SAVE_BUTTON@650', '--ctl=MainMenuDouble@750', '--mouse=B_RESUMEGAME@800', '--shot-frame=850')
             $fail += Invoke-Godot 'mapsave' $mm 200 @('[save] saved SAVE')
             $ds = @('--load=q_dl@200', '--set=Characters[0].chr_ai.hp=0@410', '--ctl=Quick_Save@420', '--set=Characters[0].chr_ai.hp=40@500', '--ctl=Quick_Save@520', '--shot-frame=600')
