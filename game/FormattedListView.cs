@@ -101,7 +101,10 @@ public partial class FormattedListView : Control
             float top = i * lineSpace;
             bool sel = first + i == cur;
             if (sel) DrawRect(new Rect2(0, top - 14, Size.X, lineSpace - 4), new Color(1f, 0.85f, 0.4f, 0.18f));
-            DrawString(font, new Vector2(left, top + 24), lines[first + i], HorizontalAlignment.Left, Size.X - left - 8, 20,
+            float room = Size.X - left - 8;
+            int fs = 20;
+            while (fs > 11 && font.GetStringSize(lines[first + i], HorizontalAlignment.Left, -1, fs).X > room) fs--;       // long titles are fitted to the window
+            DrawString(font, new Vector2(left, top + 24), lines[first + i], HorizontalAlignment.Left, room, fs,
                 sel ? new Color(1f, 0.92f, 0.6f) : colors.TryGetValue(first + i, out var lc) ? lc : Colors.White);
         }
     }

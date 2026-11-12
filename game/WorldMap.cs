@@ -217,10 +217,6 @@ public partial class WorldMapView : Node3D
         {
             if (Keys.Down("SeaLeft")) turn -= 1f;
             if (Keys.Down("SeaRight")) turn += 1f;
-            if (Keys.Down("SeaCamLeft")) camYawOff += 1.2f * dt;
-            if (Keys.Down("SeaCamRight")) camYawOff -= 1.2f * dt;
-            if (Keys.Down("SeaZoomIn")) camDist = Math.Max(CamHeightMin / MathF.Sin(CamPitch), camDist - 120f * dt);
-            if (Keys.Down("SeaZoomOut")) camDist = Math.Min(CamHeightMax / MathF.Sin(CamPitch), camDist + 120f * dt);
         }
         // an open interface screen or the map's own window freezes the map (the original freezes the execute layers: EngineLayersOffOn)
         bool run = input && !ui.IsOpen;
@@ -282,7 +278,7 @@ public partial class WorldMapView : Node3D
     }
 
     public void Look(float dx, float dy) { camYawOff -= dx * 0.005f; }          // the pitch of the original camera never changes
-    public void Zoom(int dir) { camDist = Math.Clamp(camDist + dir * 25f, CamHeightMin / MathF.Sin(CamPitch), CamHeightMax / MathF.Sin(CamPitch)); }
+    public void Zoom(int dir, float k = 1f) { camDist = Math.Clamp(camDist + dir * 25f * k, CamHeightMin / MathF.Sin(CamPitch), CamHeightMax / MathF.Sin(CamPitch)); }
 
     // ------------------------------------------------------------------ the player's ship (wdm_player_ship.cpp / wdm_ship.cpp)
     const float ShipMaxSpeed = 20f, ShipTurnSpeed = 1f, ShipIner = 2.5f, ShipBrake = 1.25f, ShipMaxTurn = 0.65f;

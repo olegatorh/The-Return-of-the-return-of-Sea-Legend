@@ -106,24 +106,14 @@ public static class Ctl
         }
     }
 
-    // ------------------------------------------------------------------ the port's own controls
     /// <summary>
-    /// The port's additions to the original table (modern WASD walking, camera on the arrow keys, ...) are real script controls (CI_CreateAndSetControls) in the groups of
-    /// the original pages, so that they show up on the key binding page and are saved with the other options. Re-created when the script rebuilt the table.
+    /// The key caption pictures: the script gives the keys without a cap picture all the image "s" (a blank cap). Every few frames the host writes a private character for
+    /// them into objControlsState.key_codes.*.img (the script rebuilds the table when the defaults are restored), which the key column draws with a caption.
     /// </summary>
-    public static void EnsurePortControls(long frame)
+    public static void PatchKeyImages(long frame)
     {
-        if (it == null || frame % 20 != 7 || !it.Funcs.ContainsKey("CI_CreateAndSetControls")) return;
-        if (!it.Globals.TryGetValue("objControlsState", out var st) || st.Val.Attr is not { } root) return;
-        if (root.Find("map.controls.ICancel", false) == null) return;          // the table is not built yet
-        foreach (var a in Keys.All)
-        {
-            if (a.Ctl == null || !a.Ctl.StartsWith("Port_")) continue;
-            if (root.Find("map.controls." + a.Ctl, false) != null) continue;
-            int vk = KeyChooserView.Vk(a.Default);
-            string[] groups = a.Group.Split(',');
-            it.CallTop("CI_CreateAndSetControls", V.Str(groups[0]), V.Str(a.Ctl), V.Int(vk), V.Int(0), V.Int(1));
-            for (int g = 1; g < groups.Length; g++) it.CallTop("MapControlToGroup", V.Str(a.Ctl), V.Str(groups[g]));
-        }
+        if (it == null || frame % 20 != 3 || !it.Globals.TryGetValue("objControlsState", out var st) || st.Val.Attr is not { } root) return;
+        foreach (var (name, (ch, _)) in KeyGlyphs.Captions)
+            if (root.Find("key_codes." + name + ".img", false) is { } img && img.Value == "s") img.Value = ch.ToString();
     }
 }

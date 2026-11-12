@@ -12,6 +12,21 @@ public static class KeyGlyphs
 {
     static Dictionary<char, Rect2>? rects;
 
+    /// <summary>Keys whose picture in the font is a blank cap (the script gives them all the image "s"): the host gives each its own private character and a caption.</summary>
+    public static readonly Dictionary<string, (char Ch, string Label)> Captions = new()
+    {
+        ["VK_SPACE"] = ('', "Space"), ["VK_PAUSE"] = ('', "Pause"), ["VK_CAPSLOCK"] = ('', "Caps"),
+        ["VK_L_BREAKE"] = ('', "["), ["VK_R_BREAKE"] = ('', "]"), ["VK_A_POINT"] = ('', ";"), ["VK_A_QUOTE"] = ('', "'"),
+        ["VK_A_SMALL"] = ('', ","), ["VK_A_BIG"] = ('', "."), ["VK_A_QWS"] = ('', "/"), ["VK_A_PLUS"] = ('', "="),
+        ["VK_A_MINUS"] = ('', "-"), ["VK_A_SLUSH"] = ('', "\\"), ["VK_A_TILDA"] = ('', "`"),
+    };
+
+    public static string? LabelOf(char c)
+    {
+        foreach (var (ch, label) in Captions.Values) if (ch == c) return label;
+        return null;
+    }
+
     public static Texture2D? Texture => GameAssets.Texture("fonts\\pc_keyboard.tga");
 
     public static Rect2? Rect(char c)
@@ -71,9 +86,18 @@ public partial class KeyGlyphLabel : Label
             float x = Size.X;
             for (int c = row.Length - 1; c >= 0; c--)
             {
-                if (KeyGlyphs.Rect(row[c]) is not { } src) continue;
-                x -= size;
-                DrawTextureRectRegion(tex, new Rect2(x, rowOffset + i * lineSpace, size, size), src);
+                string? cap = KeyGlyphs.LabelOf(row[c]);
+                if (KeyGlyphs.Rect(cap != null ? 's' : row[c]) is not { } src) continue;
+                float w = cap != null && cap.Length > 1 ? size * 1.9f : size;
+                x -= w;
+                // a blank cap gets its caption (Space is as wide as it is on the keyboard)
+                DrawTextureRectRegion(tex, new Rect2(x, rowOffset + i * lineSpace, w, size), src);
+                if (cap != null)
+                {
+                    var font = GetThemeDefaultFont();
+                    int fs = cap.Length > 1 ? 11 : 15;
+                    DrawString(font, new Vector2(x, rowOffset + i * lineSpace + size * 0.5f + fs * 0.35f), cap, HorizontalAlignment.Center, w, fs, new Color(0.45f, 0.1f, 0.05f));
+                }
             }
         }
     }

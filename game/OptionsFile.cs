@@ -39,7 +39,7 @@ public static class OptionsFile
         foreach (var line in File.ReadAllLines(FilePath(name)))
         {
             int t = line.IndexOf('\t');
-            if (t <= 0) continue;
+            if (t <= 0 || line.Contains(".Port_")) continue;        // controls of an earlier port version: only the original controls exist
             root.Find(line.Substring(0, t), true)!.Value = line.Substring(t + 1).Replace("\n", "\n");
         }
         return true;

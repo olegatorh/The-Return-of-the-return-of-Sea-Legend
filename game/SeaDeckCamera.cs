@@ -207,11 +207,7 @@ public partial class SeaView
     {
         if (inputEnabled)
         {
-            if (Keys.Down("SeaCamLeft")) deckYaw -= deckSensH * 15f * dt * 60f;      // DeckCamera_Left / _Right: Sensivity * 15 per frame
-            if (Keys.Down("SeaCamRight")) deckYaw += deckSensH * 15f * dt * 60f;
-            if (Keys.Down("SeaZoomIn")) deckPitch = Math.Clamp(deckPitch + 0.8f * dt, deckMinPitch, deckMaxPitch);
-            if (Keys.Down("SeaZoomOut")) deckPitch = Math.Clamp(deckPitch - 0.8f * dt, deckMinPitch, deckMaxPitch);
-            int walk = DeckWalkMouse + (Keys.Down("DeckForward") ? 1 : 0) - (Keys.Down("DeckBack") ? 1 : 0);
+            int walk = DeckWalkMouse;
             if (deckWalkTest > 0) { deckWalkTest--; walk = 1; }
             if (walk != 0)
             {
@@ -273,7 +269,7 @@ public partial class SeaView
             if (Input.IsKeyPressed(Key.Shift)) speed *= 4f;
             if (Input.IsKeyPressed(Key.Ctrl)) speed *= 8f;
             var fwd = new Vector3(-MathF.Sin(freeYaw) * MathF.Cos(freePitch), MathF.Sin(freePitch), -MathF.Cos(freeYaw) * MathF.Cos(freePitch));
-            int dir = (Input.IsMouseButtonPressed(MouseButton.Left) || Keys.Down("DeckForward") ? 1 : 0) - (Input.IsMouseButtonPressed(MouseButton.Right) || Keys.Down("DeckBack") ? 1 : 0);
+            int dir = (Input.IsMouseButtonPressed(MouseButton.Left) ? 1 : 0) - (Input.IsMouseButtonPressed(MouseButton.Right) ? 1 : 0);
             if (deckWalkTest > 0) { deckWalkTest--; dir = 1; }
             freePos += fwd * (speed * dir);
         }

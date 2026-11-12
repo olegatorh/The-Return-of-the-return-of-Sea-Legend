@@ -2,8 +2,7 @@
 
 Generated from the script once; "keys" are Windows virtual key names of `ExternInitKeyCodes`. A control with an empty group is global (never locked by the key group switch of `controls.c`). `INVERSE` = `INVERSE_CONTROL` (active while the key is released; for axes the value is negated), `R` = remappable on the options pages.
 
-| Group (+ also in) | Control | Default | Flags | R | Port |
-|---|---|---|---|---|---|
+| Group (+ also in) | Control | Default | Flags | R |---|---|---|---|---|---|
 | - | ICancel | VK_ESCAPE |  |  |  |
 | - | IAction | VK_SPACE |  |  |  |
 | - | TimeScalePause | KEY_R |  |  | script (R) |
@@ -112,6 +111,6 @@ Generated from the script once; "keys" are Windows virtual key names of `ExternI
 | DialogControls | DlgScrollUp | VK_PRIOR |  |  |  |
 | DialogControls | DlgScrollDown | VK_NEXT |  |  |  |
 
-The port's own controls (`Port_*`, created in the same table by `Ctl.EnsurePortControls`, remappable on the same pages): `Port_LandForward` W, `Port_LandBack` S, `Port_LandTalk` F, `Port_LandCam*` arrows, `Port_LandStyle` F10, `Port_NameTags` F3, `Port_SeaCam*` arrows, `Port_SeaZoomIn/Out` PgUp/PgDn, `Port_DeckForward/Back` Up/Down, `Port_MapWait` B. F8 (bug report) and F9 (free camera) stay in settings.ini `[keys]`.
+There are no port-only controls on the pages any more: the land scheme is always the original one (mouse turns the hero and the camera, A / D turn, right / middle button walk, Shift = walk, left button = ChrAction), the sea camera and the map follow the original mouse controls, no arrow-key camera, no wheel. Port-only fixed keys without a control (not shown, `settings.ini [keys]`): F3 name tags, B map wait, F8 bug report, F9 free camera. F11 full screen. On the map: hold WMapForward / WMapBackward (left / right button) to zoom, Ctrl + mouse turns the camera.
 
 Test hooks: `--mousemove=dx,dy@A-B` (raw mouse motion per frame), `--btn=L+|L-|R+|R-|M+|M-@N` (real mouse button), env `SEADOGS_CTLLOG=1` (current key group and the locked controls every 100 frames).
