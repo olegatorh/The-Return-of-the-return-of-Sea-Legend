@@ -22,3 +22,4 @@ Read this instead of the big docs; open `docs/VERIFIED.md`/`AUDIT.md` only for t
 
 ## Open (see `docs/PROGRESS.md`, `docs/HANDOFF.md`)
 Sea HUD/command menu details (submenus, hints), windward tactics, deck-camera wall sliding, sun-glow occlusion, windward foam/rain splashes, ship persistence between map and sea.
+* Water: `settings.ini [game] WaterShader = boujie | classic` (default boujie: `game/water/boujie/sea_boujie.gdshader` after the MIT Boujie Water Shader: our harmonics as Gerstner waves, foam texture crest foam, shore foam + depth fog + refraction from screen/depth textures; classic = the old shader in `SeaSurface.Shader`; env `SEADOGS_WATER=classic`, `SEADOGS_NOSCREEN=1`, `SEADOGS_WATERDBG=1`).

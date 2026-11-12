@@ -78,10 +78,10 @@ public partial class OutdoorEnv : Node3D
             var fog = Rgb(root.Find("Fog.Color", false)?.Value, new Color(0.86f, 0.86f, 0.9f));
             if (sea == null)
             {
-                seaMat = new ShaderMaterial { Shader = new Shader { Code = SeaSurface.Shader } };
+                seaMat = new ShaderMaterial { Shader = SeaSurface.MakeShader(), RenderPriority = SeaSurface.Boujie ? -100 : 0 };   // boujie reads the screen: the sea is first in the transparent pass, wakes and foam come after
                 // a fine grid near the camera carries the waves; the far sea is a flat plane under the fog
                 sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(1000, 1000), SubdivideWidth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg ? int.Parse(sg) : 199, SubdivideDepth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg2 ? int.Parse(sg2) : 399 }, MaterialOverride = seaMat, Name = "Sea", CustomAabb = new Aabb(new Vector3(-500, -20, -500), new Vector3(1000, 40, 1000)) };
-                farMat = new ShaderMaterial { Shader = seaMat.Shader };
+                farMat = new ShaderMaterial { Shader = seaMat.Shader, RenderPriority = seaMat.RenderPriority };
                 seaFar = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(26000, 26000) }, MaterialOverride = farMat, Name = "SeaFar" };
                 AddChild(seaFar);
                 AddChild(sea);
@@ -281,7 +281,16 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         m.SetShaderParameter("bump_frame", bumpFrame);
         m.SetShaderParameter("has_sky", SkySide != null);
         if (SkySide != null) m.SetShaderParameter("sky_tex", SkySide);
-        if (foamTex != null) m.SetShaderParameter("foam_tex", foamTex);
+        if (SeaSurface.Boujie)
+        {
+            // boujie look: its own foam and albedo textures; screen refraction / depth fog / shore foam only on the near mesh (Compatibility: screen + depth textures)
+            if (SeaSurface.BoujieTexture("foam.png") is { } bf) m.SetShaderParameter("foam_tex", bf);
+            if (SeaSurface.BoujieTexture("ocean_albedo.png") is { } ba) m.SetShaderParameter("albedo_tex", ba);
+            m.SetShaderParameter("debug_depth", System.Environment.GetEnvironmentVariable("SEADOGS_WATERDBG") == "1" ? 1f : 0f);
+            m.SetShaderParameter("use_screen", !far && !SeaSurface.NoScreen);
+            m.SetShaderParameter("shallow_color", new Color(Math.Min(1f, water.R * 2f + 0.06f), Math.Min(1f, water.G * 2.6f + 0.2f), Math.Min(1f, water.B * 2.2f + 0.2f)));
+        }
+        else if (foamTex != null) m.SetShaderParameter("foam_tex", foamTex);
         m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
         m.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); m.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
     }

@@ -1,0 +1,7 @@
+Boujie Water Shader (https://github.com/Chrisknyfe/boujie_water_shader), MIT licence, see LICENSE.md in this folder.
+Copyright (c) 2023-present Zach Bernal and contributors.
+
+Used here: foam.png (= shader/foam_2.png), ocean_albedo.png (= shader/ocean_albedo_white_highcontrast.png) and the ideas of water.gdshader
+(Gerstner crest foam, shore foam from the depth texture, Beer's-law depth fog between shallow and deep colour, screen-texture refraction, Fresnel).
+sea_boujie.gdshader is a rewrite for this port: the wave shape comes from SeaWaves.cs (the same harmonics the ships ride on), the colours,
+fog, sky reflection and bump map come from the game's weather scripts. Selected by settings.ini [game] WaterShader = boujie | classic.

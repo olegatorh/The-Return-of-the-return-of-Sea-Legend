@@ -51,6 +51,41 @@ public static class SeaSurface
         return res;
     }
 
+    /// <summary>settings.ini [game] WaterShader = boujie | classic (default boujie): the sea shader built after the Boujie Water Shader (game/water/boujie), or the earlier own one below.</summary>
+    public static bool Boujie = true;
+    /// <summary>SEADOGS_NOSCREEN=1: boujie without refraction / depth fog / shore foam (debug).</summary>
+    public static readonly bool NoScreen = System.Environment.GetEnvironmentVariable("SEADOGS_NOSCREEN") == "1";
+    static Shader? boujieShader;
+    static readonly Dictionary<string, ImageTexture?> boujieTex = new();
+
+    /// <summary>The shader the sea mesh uses (falls back to the classic one if the boujie file cannot be loaded).</summary>
+    public static Shader MakeShader()
+    {
+        if (Boujie)
+        {
+            boujieShader ??= GD.Load<Shader>("res://water/boujie/sea_boujie.gdshader");
+            if (boujieShader != null) return boujieShader;
+            GD.PrintErr("[seasurface] boujie shader missing, using classic");
+            Boujie = false;
+        }
+        return new Shader { Code = Shader };
+    }
+
+    /// <summary>A texture of game/water/boujie read straight from the file (no editor import needed), repeating, with mipmaps.</summary>
+    public static ImageTexture? BoujieTexture(string name)
+    {
+        if (boujieTex.TryGetValue(name, out var t)) return t;
+        ImageTexture? res = null;
+        try
+        {
+            var img = Image.LoadFromFile(ProjectSettings.GlobalizePath("res://water/boujie/" + name));
+            if (img != null) { img.GenerateMipmaps(); res = ImageTexture.CreateFromImage(img); }
+        }
+        catch (Exception e) { GD.PrintErr("[seasurface] " + name + ": " + e.Message); }
+        boujieTex[name] = res;
+        return res;
+    }
+
     public const string Shader = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled, fog_disabled;
