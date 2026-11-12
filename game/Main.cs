@@ -43,6 +43,8 @@ public partial class Main : Node
     string? programArg;
     string language = "Ukrainian";
     int shotAtFrame = -1;
+    static readonly bool FightLog = System.Environment.GetEnvironmentVariable("SEADOGS_FIGHTLOG") != null;
+    bool lastBlockLog;
     readonly List<(int frame, string node)> clicks = new();
     readonly List<(int frame, string node)> mouseClicks = new();
     readonly List<(int frame, string id)> dialogTests = new();
@@ -581,6 +583,14 @@ public partial class Main : Node
         // Q = pistol shot (the original ChrFire)
         if (e is InputEventKey { Pressed: true, Echo: false } qk && Keys.Is(qk, "LandFire") && dialogView == null && !UiOpen && locations.Count > 0)
             characters.Values.FirstOrDefault(c => c.IsPlayer)?.TryFire();
+        // the same actions bound to a mouse button on the options pages (Keys.Is only sees keyboard keys)
+        if (e is InputEventMouseButton { Pressed: true } mb2 && dialogView == null && !UiOpen && locations.Count > 0)
+        {
+            var pm = characters.Values.FirstOrDefault(c => c.IsPlayer);
+            if (Ctl.Is(mb2.ButtonIndex, "ChrRecoil") && Ctl.Allowed("ChrRecoil")) pm?.Recoil();
+            else if (Ctl.Is(mb2.ButtonIndex, "ChrFire")) pm?.TryFire();
+            else if (Ctl.Is(mb2.ButtonIndex, "ChrFightMode") && pm != null && pm.ToggleFightMode()) logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pm.FightMode ? "Шаблю добуто" : "Шаблю прибрано") });
+        }
         // E (ChrFightMode) = draw/sheathe the sword
         if (e is InputEventKey { Pressed: true, Echo: false } fk && Keys.Is(fk, "LandSword") && dialogView == null && !UiOpen)
             if (characters.Values.FirstOrDefault(c => c.IsPlayer) is { } pf && pf.ToggleFightMode()) { logHud?.OnMessage("", new V[] { V.Int(45020), V.Int(0), V.Str(pf.FightMode ? "Шаблю добуто" : "Шаблю прибрано") }); }
@@ -745,6 +755,7 @@ public partial class Main : Node
             player.Classic = true;
             player.TurnAdd += turnAdd;
             player.Blocking = free && player.FightMode && Keys.Down("LandBlock") && Ctl.Allowed("ChrBlock");      // the script locks the block of the hard levels (LockControl)
+            if (FightLog && player.Blocking != lastBlockLog) { lastBlockLog = player.Blocking; GD.Print("[block] hero blocking = " + player.Blocking); }
             player.Run = forceRun || !Keys.Down("LandRun");
             player.CameraYaw = camYaw;
         }

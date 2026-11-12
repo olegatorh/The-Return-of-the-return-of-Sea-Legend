@@ -63,7 +63,8 @@ public static class Keys
     public static bool Down(string id)
     {
         var k = Get(id);
-        return k != Key.None && (Input.IsPhysicalKeyPressed(k) || k == Key.Enter && Input.IsPhysicalKeyPressed(Key.KpEnter));
+        if (k == Key.None) return byId.TryGetValue(id, out var a) && ControlOf(id) is { } c && Ctl.T.Bound(c) is > 0 and < 7 && Ctl.Down(c);       // bound to a mouse button
+        return Input.IsPhysicalKeyPressed(k) || k == Key.Enter && Input.IsPhysicalKeyPressed(Key.KpEnter);
     }
 
     public static bool Is(InputEventKey e, string id)
