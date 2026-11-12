@@ -356,7 +356,9 @@ if ($Quests) {
         $seaq = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300') + $pat + @('--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
             '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition.l1=location@900', '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition.l1.location=Oxbay@900', '--set=Characters[0].quest.fight_withSpanish_Albermal.win_condition=fight_withSpanish_Albermal@900',
             '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=341.9,739.2,0@1200', '--act@1250', '--call=Ship_ApplyHullHitpoints(#CaptainAttack_1,99999.0,1,0)@3200', '--dump=Characters[0].quest.goto_Oxbay_Albermal@3800', '--shot-frame=4000')
+        $env:SEADOGS_WAVESCALE = '1'      # the sea battle must not depend on how tall the visual swell is (ball splashes)
         $fail += Invoke-Godot 'q_engsea' $seaq 400 @('CALL Group_SetAddress(Spa_Attack, Oxbay', '[sea] CaptainAttack_1 task: attack Blaze', '[sea] CaptainAttack_1 is dead: the ship sinks', 'win_condition = "goto_Oxbay_Albermal"')
+        Remove-Item Env:\SEADOGS_WAVESCALE -ErrorAction SilentlyContinue
         # entering the townhall of Oxbay: Albermal walks up to the hero and talks by himself (SetActorDialogAny2Pchar + LAi_ActorFollow)
         $fail += Invoke-Godot 'q_albermal' (@('--ctl=Quick_Load@200', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1=location@250', '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition.l1.location=Oxbay_townhall@250',
             '--set=Characters[0].quest.goto_Oxbay_Albermal.win_condition=goto_Oxbay_Albermal@250', '--call=DoReloadCharacterToLocation(Oxbay_townhall,reload,reload1)@300', '--answer=1@1200', '--answer=1@1300', '--shot-frame=1700')) 200 @('CALL SetActorDialogAny2Pchar(Albermal', "node 'Albermal_go_out'")
