@@ -23,6 +23,7 @@ else { dotnet build "$root\game\SeaDogs.csproj" -nologo -v q }
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 function Invoke-Godot([string]$name, [string[]]$userArgs, [int]$timeoutSec, [string[]]$mustContain = @()) {
+    if ($env:SEADOGS_ONLY -and $name -notmatch $env:SEADOGS_ONLY) { return 0 }   # run a subset: $env:SEADOGS_ONLY='q_eng4|q_pearl'
     $godot = "$root\godot\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe"
     $shot = "$root\game\smoke_$name.png"
     $log = "$root\game\smoke_$name.log"
@@ -837,7 +838,7 @@ if ($Quests) {
         $fail += Invoke-Godot 'q_hunters' @('--ctl=Quick_Load@200', '--set=Characters[0].enghunter=40@250', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@300', '--call=CompleteQuestName(Land_HuntersBegin)@600', '--answer=1@1400', '--answer=3@1600',
             '--answer=1@4300', '--answer=1@4500', '--dump=Characters[0].money@5400', '--shot-frame=5500') 300 @("node 'ToPrison'", 'QuestComplete(Hunters_GoToPrison_2)', 'QuestComplete(MoveToPrison_Cell)', 'QuestComplete(Prison_Cell_WaitTalk)', 'money = "0"')
         # quest map encounter: the Black Pearl is registered with Encounter_SetQuestMapEncounter, the pursuer of the map is the quest group; it fights at sea
-        $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_SEED = '3'; $env:SEADOGS_MEETFOLLOW = '1'; $env:SEADOGS_PLAYERHP = '90000'
+        $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_SEED = $(if ($env:PEARL_SEED) { $env:PEARL_SEED } else { '2' }); $env:SEADOGS_MEETFOLLOW = '1'; $env:SEADOGS_PLAYERHP = '90000'
         $fail += Invoke-Godot 'q_pearl' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
             '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--call=BlackPearlOnMap()@1150', '--set=worldMap.date.hourPerSec=0.05@1160', '--set=Characters[0].worldmapencountersoff=0@1160', '--mapmeet@1700', '--key=Enter@1710', '--key=Enter@1900', '--shot-frame=3000') 300 @('Encounter_SetQuestMapEncounter(Black_Pearl', '[sea] Barbossa task: attack Blaze')
         foreach ($v in 'SEADOGS_MAPSPEED', 'SEADOGS_MAPSAIL', 'SEADOGS_SEED', 'SEADOGS_MEETFOLLOW', 'SEADOGS_PLAYERHP', 'SEADOGS_TRACE') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
