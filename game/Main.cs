@@ -1046,6 +1046,7 @@ public partial class Main : Node
             if (Ctl.Down("WMapBackward")) worldMap.Zoom(1, (float)delta * 6f);
         }
         Ctl.PatchKeyImages(frames);
+        Ctl.PurgePortControls(Engine.GetFramesDrawn());
         Ctl.Frame(() => true);           // the control service: raises Control Activation / Deactivation for the controls the window does not route itself
         UpdateWorld((float)delta);
         RaiseCameraPosAng();

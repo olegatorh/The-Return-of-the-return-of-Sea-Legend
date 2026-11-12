@@ -116,4 +116,24 @@ public static class Ctl
         foreach (var (name, (ch, _)) in KeyGlyphs.Captions)
             if (root.Find("key_codes." + name + ".img", false) is { } img && img.Value == "s") img.Value = ch.ToString();
     }
+
+    // ------------------------------------------------------------------ controls of earlier port versions
+    /// <summary>
+    /// Saved games made by an earlier port build carry that build's "Port_*" duplicate controls (modern WASD, arrow-key camera, ...) inside the script's control state, so
+    /// the options pages listed them next to the original ones. Only the original controls exist now: remove every Port_* node from the state and unbind it in the table.
+    /// </summary>
+    public static void PurgePortControls(long frame)
+    {
+        if (it == null || frame % 20 != 3) return;
+        if (!it.Globals.TryGetValue("objControlsState", out var st) || st.Val.Attr is not { } root) return;
+        Purge(root);
+        foreach (var c in T.All.Where(c => c.Name.StartsWith("Port_", StringComparison.Ordinal)).ToList())
+            T.Delete(T.Find(c.Name));
+    }
+
+    static void Purge(Attr a)
+    {
+        foreach (var k in a.Children.Where(k => k.Name.StartsWith("Port_", StringComparison.Ordinal)).Select(k => k.Name).ToList()) a.Remove(k);
+        foreach (var k in a.Children.ToList()) Purge(k);
+    }
 }
