@@ -168,6 +168,7 @@ public partial class Main : Node
         GameAssets.GameDir = game;
         outdoor = new OutdoorEnv { Name = "Outdoor" };
         weatherFx = new WeatherFx();
+        weatherFx.DeckPoint = r => sea.RandomDeckPoint(r);
         AddChild(weatherFx);
         AddChild(outdoor);
         GD.Print("[main] game folder: " + game);

@@ -214,6 +214,7 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
             if (height <= 0f) height = 10f;
         }
         if (height != lastDomeH && System.Environment.GetEnvironmentVariable("SEADOGS_WEATHERLOG") != null) { lastDomeH = height; GD.Print($"[weather] dome fog height={height} num={Conv.ToInt(it.Globals["iCurWeatherNum"].Val)}"); }
+        FogDomeHeight = height;
         BakeFoggedReflection(col, height);
         fogDomeMat!.SetShaderParameter("fog_col", Sm("domefog", col));
         fogDomeMat.SetShaderParameter("height", height);
@@ -224,7 +225,8 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
     static float Fl(Attr a, string path, float def) => float.TryParse(a.Find(path, false)?.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : def;
     static Texture2DArray? bumpTex; static string bumpDir = "";
     static ImageTexture? foamTex;
-    public static ImageTexture? SkySide;
+    public static ImageTexture? SkySide, SkyUp;
+    public static float FogDomeHeight = 10f;
     float bumpFrame;
 
     /// <summary>Feeds the sea shader (SeaSurface.Shader) from the script's sea entity (colours, bump map, reflection) and the wave field.</summary>
@@ -306,7 +308,7 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         var side = GameAssets.Texture(dir.TrimEnd((char)92) + (char)92 + "sky_side.tga");
         var up = GameAssets.Texture(dir.TrimEnd((char)92) + (char)92 + "sky_up.tga");
         if (side == null) return null;
-        SkySide = side;
+        SkySide = side; SkyUp = up;
         const float R = 1500f, top = 1300f, bottom = -150f;
         var root = new Node3D { Name = "Sky" };
         var st = new SurfaceTool();

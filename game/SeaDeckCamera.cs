@@ -101,6 +101,18 @@ public partial class SeaView
         return dp;
     }
 
+    /// <summary>A random point of the player's deck (walk path triangle, area weighted) in Godot world coordinates, for rain splashes; null when the ship has no path.</summary>
+    public Vector3? RandomDeckPoint(Random rnd)
+    {
+        var p = ships.FirstOrDefault(s => s.IsPlayer);
+        if (p == null || p.Node == null || PathOf(p) is not { } dp || dp.Tris.Count == 0) return null;
+        var (a, b, c) = dp.Tris[rnd.Next(dp.Tris.Count)];
+        float u = rnd.NextSingle(), v = rnd.NextSingle();
+        if (u + v > 1f) { u = 1f - u; v = 1f - v; }
+        var q = a + (b - a) * u + (c - a) * v;
+        return p.Node.ToGlobal(new Vector3(q.X, q.Y, -q.Z));
+    }
+
     /// <summary>The floor of the path under (x, z) nearest to the height <paramref name="baseY"/> within StepUp (DECK_CAMERA::MultiTrace), or null.</summary>
     float? FloorAt(DeckPath dp, float x, float z, float baseY)
     {

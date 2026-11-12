@@ -936,7 +936,16 @@ if ($Sea) {
     if (Test-Path "$root\saves\quicksave.sdsave") {
         $env:SEADOGS_CLOCKSTEP = '0.1'
         $wc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--weather=#7@2300', '--shot-frame=2500')
-        $fail += Invoke-Godot 'weathercycle' $wc 300 @('[weather] begin', 'hour=12 ', 'hour=13 ', 'hour=14 ', "id='Day Storm'", 'rain=10000')
+        $fail += Invoke-Godot 'weathercycle' $wc 300 @('[weather] begin', 'hour=12 ', 'hour=13 ', 'hour=14 ', 'grade-check day-light', "id='Day Storm'", 'rain=10000')
+        Remove-Item Env:SEADOGS_CLOCKSTEP
+    }
+}
+
+# weather on LAND (the port): the day cycle runs there too, the baked light is re-tinted by the record's light (numeric check in the log: grade-check night-dark = tint < 0.6 at night)
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $env:SEADOGS_CLOCKSTEP = '0.1'
+        $fail += Invoke-Godot 'weatherland' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(22,50)@320', '--shot-frame=1500') 300 @('[weather] begin', 'hour=22 ', 'hour=23 ', 'grade-check night-dark')
         Remove-Item Env:SEADOGS_CLOCKSTEP
     }
 }

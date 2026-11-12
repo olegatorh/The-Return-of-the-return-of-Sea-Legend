@@ -109,7 +109,8 @@ void fragment() {
     public WeatherFx()
     {
         Name = "WeatherFx";
-        var layer = new CanvasLayer { Layer = 3 };
+        var layer = new CanvasLayer { Layer = -1 };       // under the HUD, over the 3D scene: an additive flash lights terrain, ships and sky alike
+        flash.Material = new CanvasItemMaterial { BlendMode = CanvasItemMaterial.BlendModeEnum.Add };
         flash.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         layer.AddChild(flash);
         AddChild(layer);
@@ -161,6 +162,11 @@ void fragment() {
             rain.GlobalPosition = Vector3.Zero;
         }
         SyncRings(it, cam, rain != null && rainBlend > 0.01f);
+        SplashSync(cam, dt, drops, rain != null && rainBlend > 0.05f);
+        LensSync(rain != null ? Math.Clamp(drops / 6000f, 0.12f, 0.6f) * rainBlend * 0.7f : 0f);
+        RainbowSync(rainEnt, cam);
+        TintSync(dt);
+        NightSync(it, cam);
         // ---- tornado (entity "Tornado": the script gives only the size; the engine moves it and reports the position with the event TornadoDamage)
         Entity? torEnt = null;
         foreach (var e in it.Entities) if (!e.Deleted && e.Class.Equals("Tornado", StringComparison.OrdinalIgnoreCase)) torEnt = e;
@@ -204,7 +210,7 @@ void fragment() {
             if (d <= 0f) { flashAlpha = Math.Max(flashAlpha, a); flashQueue.RemoveAt(i); } else flashQueue[i] = (d, a);
         }
         flashAlpha = Math.Max(0f, flashAlpha - dt * 3.5f);
-        flash.Color = new Color(0.85f, 0.9f, 1f, flashAlpha);
+        flash.Color = new Color(0.8f, 0.85f, 1f, flashAlpha * 0.9f);
     }
 
     // ---------------------------------------------------------------- the weather follows the game clock
@@ -304,6 +310,7 @@ void fragment() {
             if (e.Class.Equals("Weather", StringComparison.OrdinalIgnoreCase)) hasWeather = true;
             else if (e.Class.Equals("sea", StringComparison.OrdinalIgnoreCase)) atSea = true;
         }
+        wxHas = hasWeather; wxSea = atSea; wxWeather = it.Globals.TryGetValue("Weather", out var wgl) ? wgl.Val.Attr : null;
         if (!hasWeather) { lastHour = -1; return; }
         if (it.Globals.TryGetValue("Weather", out var wg) && wg.Val.Attr is { } wattr) SunArc(it, wattr, ea);
         int hour = (int)MathF.Floor(F(ea, "time", 0f));
@@ -315,14 +322,10 @@ void fragment() {
         bool wasRain = GInt(it, "bWeatherIsRain") != 0, wasStorm = GInt(it, "bWeatherIsStorm") != 0;
         Apply(it);
         if (atSea && (GInt(it, "bWeatherIsRain") != 0) != wasRain && GInt(it, "bWeatherIsStorm") == (wasStorm ? 1 : 0) && GInt(it, "seaAlarmed") == 0) it.CallTop("SetSchemeForSea");     // rain loop on / off (the script sets sounds only when the sea is created)
-        if (!atSea && GStr(it, "sLightingPath") != oldLight)
-        {
-            it.Globals["iNextWeatherNum"].Val = V.Int(oldNum);       // the location's baked light would not match: keep the old record
-            Apply(it);
-            Log(it, "hour changed, kept (lighting folder differs on land)");
-            return;
-        }
-        Log(it, "hour changed");
+        // the baked light (.col of the hour the scene was loaded at) is re-tinted by TintSync, so land and islands follow the new record too
+        if (atSea && it.Globals.TryGetValue("Island", out var isl) && isl.Val.Attr is { } ia) ia.GetOrCreate("LightingPath").Value = GStr(it, "sLightingPath");
+        TintSync(0f);
+        Log(it, "hour changed" + TintLog(hour));
     }
 
     void SyncRings(Interp it, Camera3D? cam, bool on)
@@ -390,7 +393,7 @@ void fragment() {
         }
         float dist = new Vector2(pos.X, pos.Z).Length();
         float amp = Math.Clamp(0.6f - dist / 6000f, 0.14f, 0.6f);
-        GD.Print($"[weather] lightning bolt at {dist:0} m, flash {amp:0.00}");
+        GD.Print($"[weather] lightning bolt at {dist:0} m, flash {amp:0.00}, thunder in {dist / 333f:0.0} s");
         flashAlpha = Math.Max(flashAlpha, amp);
         flashQueue.Add((0.13f, amp * 0.8f)); flashQueue.Add((0.27f, amp * 0.55f));      // the bolt flickers: main flash and two weaker returns
         return V.Int(1);
