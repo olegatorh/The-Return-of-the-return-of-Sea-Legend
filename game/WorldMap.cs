@@ -94,6 +94,34 @@ public partial class WorldMapView : Node3D
 
     Attr? Root => ent?.Root;
 
+    ShaderMaterial? seaMat;
+    float seaAni;
+    const string SeaShader = @"shader_type spatial;
+render_mode unshaded, cull_disabled;
+uniform sampler2D base_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D wave_a : filter_linear_mipmap, repeat_enable;
+uniform sampler2D wave_b : filter_linear_mipmap, repeat_enable;
+uniform float world = 2000.0;
+uniform float ani_tiling = 0.015;
+uniform float k = 0.0;
+varying vec2 wp;
+void vertex() { wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xz; }
+void fragment() {
+    vec3 c = texture(base_tex, wp / world + 0.5).rgb;
+    vec3 w = mix(texture(wave_a, wp * ani_tiling).rgb, texture(wave_b, wp * ani_tiling).rgb, k);
+    ALBEDO = c + w * 0.5;
+}";
+
+    /// <summary>Animated wave frame (8 fps, 32 frames, blended with the next one) as in WdmSea::LRender.</summary>
+    void SetSeaFrame(float f)
+    {
+        if (seaMat == null) return;
+        int a = (int)f % 32, b = (a + 1) % 32;
+        seaMat.SetShaderParameter("wave_a", GameAssets.Texture($"WorldMap\\Sea\\Ani\\wave_{a:0000}.tga"));
+        seaMat.SetShaderParameter("wave_b", GameAssets.Texture($"WorldMap\\Sea\\Ani\\wave_{b:0000}.tga"));
+        seaMat.SetShaderParameter("k", f - (int)f);
+    }
+
     // ------------------------------------------------------------------ scene
     void Build()
     {
@@ -103,12 +131,13 @@ public partial class WorldMapView : Node3D
         var root = Root!;
 
         // water
-        var seaTex = GameAssets.Texture("WorldMap\\Sea\\sea.tga");
-        var seaMat = new StandardMaterial3D
-        {
-            AlbedoTexture = seaTex, Uv1Scale = new Vector3(40, 40, 1), ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps, AlbedoColor = new Color(0.8f, 0.9f, 1f),
-        };
+        // original WdmSea: sea.tga is the picture of the WHOLE world (2000x2000 units, clamped, outside = its dark edge); an animated 32-frame wave
+        // texture (two frames lerped, tiled 90x over the 6000 sea) is added at alpha 0.5 (WdmSeaDraw3)
+        seaMat = new ShaderMaterial { Shader = new Shader { Code = SeaShader } };
+        seaMat.SetShaderParameter("base_tex", GameAssets.Texture("WorldMap\\Sea\\sea.tga"));
+        seaMat.SetShaderParameter("world", 2000f);
+        seaMat.SetShaderParameter("ani_tiling", 90f / 6000f);
+        SetSeaFrame(0f);
         scene.AddChild(new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(6000, 6000) }, MaterialOverride = seaMat, Name = "MapSea", Position = new Vector3(0, -0.5f, 0) });
 
         // land
@@ -211,6 +240,7 @@ public partial class WorldMapView : Node3D
         if (!built) Build();
         if (!built) return;
         var root = Root!;
+        seaAni = (seaAni + dt * 8f) % 32f; SetSeaFrame(seaAni);
 
         float turn = TestTurn;
         if (input)
@@ -487,7 +517,8 @@ public partial class WorldHud : CanvasLayer
     public WorldHud()
     {
         Layer = 5;
-        var panel = new PanelContainer { Position = new Vector2(12, 12) };
+        var panel = new PanelContainer { GrowHorizontal = Control.GrowDirection.Begin };
+        panel.SetAnchorsPreset(Control.LayoutPreset.TopRight); panel.OffsetLeft = -12; panel.OffsetRight = -12; panel.OffsetTop = 12;
         panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0.5f), ContentMarginLeft = 10, ContentMarginRight = 10, ContentMarginTop = 6, ContentMarginBottom = 6 });
         text.AddThemeFontSizeOverride("font_size", 16);
         text.AddThemeColorOverride("font_color", new Color(1f, 0.95f, 0.8f));
