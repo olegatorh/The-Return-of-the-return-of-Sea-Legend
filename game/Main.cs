@@ -661,6 +661,15 @@ public partial class Main : Node
             sb.AppendLine($"mode: sea={sea.Active} map={worldMap.Active} locations={locations.Count} dialog={dialogView != null} interfaceOpen={UiOpen}");
             sb.AppendLine($"player: location={pc?.Ent.Root.Get("location")?.Value} pos={pc?.PositionText()} fightMode={pc?.FightMode} hp={pc?.Ent.Root.Find("chr_ai.hp", false)?.Value}");
             sb.AppendLine($"action hint: {G("g_ActiveActionName")}, InterfaceStates.Launched={host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr?.Get("Launched")?.Value}");
+            try
+            {
+                // why "Save game" is greyed out (mainmenu.c / seadogs.c QuickSaveGameEnabled): every input of that decision
+                var ist = host.It.Globals.GetValueOrDefault("InterfaceStates").Val.Attr;
+                string Q(string n) => Conv.ToStr(host.It.Globals.TryGetValue(n, out var gv) ? gv.Val : V.Str("?"));
+                string qse = Conv.ToStr(host.It.CallTop("QuickSaveGameEnabled")), qsh = Conv.ToStr(host.It.CallTop("QuickSaveGameEnabledHardcore"));
+                sb.AppendLine($"save: Buttons.Save.enable={ist?.Find("Buttons.Save.enable", false)?.Value} QuickSaveGameEnabled={qse} Hardcore-ok={qsh} bHardcoreGame={Q("bHardcoreGame")} dialogRun={Q("dialogRun")} bSeaActive={Q("bSeaActive")} questMovieProcess={Q("questMovieProcess")} questMovieOldSaveState={Q("questMovieOldSaveState")} tmpl={host.It.Globals.GetValueOrDefault("Characters").Val.Attr?.Find("0.chr_ai.tmpl", false)?.Value}");
+            }
+            catch (Exception e) { sb.AppendLine("save: (unavailable: " + e.Message + ")"); }
             sb.AppendLine($"window: {GetWindow().Size}, version: {Engine.GetVersionInfo()["string"]}");
             File.WriteAllText(Path.Combine(dir, "state.txt"), sb.ToString());
             string log = ProjectSettings.GlobalizePath("user://logs/godot.log");
