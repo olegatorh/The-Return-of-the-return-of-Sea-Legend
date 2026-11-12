@@ -87,7 +87,15 @@ public static class Ctl
 
     // ------------------------------------------------------------------ the frame
     /// <summary>The mouse movement of this frame in pixels (only while the mouse is captured by the game).</summary>
-    public static void AddMouse(float dx, float dy) => T.AddMouse((int)MathF.Round(dx), (int)MathF.Round(dy));
+    public static void AddMouse(float dx, float dy)
+    {
+        // DirectInput gives whole counts; the window's relative motion may be fractional (stretch scale), so the remainder is carried to the next event instead of being rounded away
+        mouseRemX += dx; mouseRemY += dy;
+        int ix = (int)mouseRemX, iy = (int)mouseRemY;
+        mouseRemX -= ix; mouseRemY -= iy;
+        T.AddMouse(ix, iy);
+    }
+    static float mouseRemX, mouseRemY;
 
     /// <summary>Start of a frame: update the table and raise the control events the game window does not raise itself.</summary>
     static long frameNo;

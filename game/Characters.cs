@@ -69,7 +69,17 @@ public partial class CharacterView : Node3D
     public bool Blocking
     {
         get => blocking;
-        set { if (value && !blocking) blockAge = 0f; if (!value) parryIntent = false; blocking = value; }
+        set
+        {
+            if (value && !blocking)
+            {
+                blockAge = 0f;
+                // player.cpp (boal): pressing the block while a blow is playing stops the blow (StopFightAnimation) and the guard comes up at once
+                if (IsPlayer && swingAnim && !Stunned) { swingAnim = false; atkHitIn = -1f; atkTarget = null; atkCooldown = 0f; queuedSwing = null; playing = ""; }
+            }
+            if (!value) parryIntent = false;
+            blocking = value;
+        }
     }
     float atkDamage = 1f, swingAy;
     bool swingAnim;                                // the blow follows the rig playback (see TickSwing)
@@ -78,7 +88,7 @@ public partial class CharacterView : Node3D
     float SwingRecovery => IsPlayer ? 0f : 0.2f;
     (CharacterView enemy, Strike kind)? queuedSwing;
     float queuedUntil;
-    ulong swingStartMs;
+    ulong swingStartMs; long swingExpectMs;
     static readonly bool FightLog = System.Environment.GetEnvironmentVariable("SEADOGS_FIGHTLOG") != null;
     float fightLogT, dbgT;
     static readonly bool MeleeLog =System.Environment.GetEnvironmentVariable("SEADOGS_MELEELOG") != null;
@@ -91,10 +101,14 @@ public partial class CharacterView : Node3D
 
     /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock: the script decides whether the blow pierces the block)
     /// or takes the damage (Location_CharacterAttack). NPCs raise the block through their fight AI (<see cref="OnIncomingSwing"/>, <see cref="NpcFight"/>).</summary>
-    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && (!IsPlayer || (blockAge >= BlockRaise && atkHitIn < 0f && atkCooldown <= 0f));      // the hero cannot guard while his own blow is playing
+    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && !Stunned;      // character.cpp CheckAttackHit: blocked = the defender is in the block state right now (fgt_block / fgt_blockhit), no raise delay; fightTbl: a reeling character cannot go to block
+    /// <summary>fgt_hit_attack is running: fightTbl allows no other action (attack, block, recoil) until the reaction is over.</summary>
+    bool Stunned => playing == "hit" && hitUntil > 0f;
 
     /// <summary>The sword takes the "Blend time" of the block action (0.2 s in man.ani) to come up: the hero's guard holds only after that; NPCs react through their AI timing.</summary>
     const float BlockRaise = 0.2f;
+    /// <summary>A block raised within this time before the blow lands counts as a parry (the attacker is thrown off balance).</summary>
+    const float ParryWindow = 0.3f;
 
     // ---- NPC fight AI. The engine's NPCharacter asks the script for its fight behaviour (Loc_ai/LAi_fightparams.c, "NPC parameters"):
     //   NPC_Event_GetAttackActive  - probability of an attack, per second (0.3 + 0.7 * fight level)
@@ -302,7 +316,9 @@ public partial class CharacterView : Node3D
         if (rig == null || !IsAlive) return;
         if (!blocked) ChrSnd("Event_ChrSnd_Hit");                         // the script picks man_hit / woman_hit / skeleton_hit ... by sex
         string a = blocked ? "block_hit" : "hit_" + (idleRng.Next(3) + 1);
-        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = 0.35f; }
+        // Hit(): the reaction clip locks the character for its whole length (fightTbl); the hero reels only half of the time (stunChance, "COAS vanilla")
+        if (!blocked && IsPlayer && idleRng.Next(100) >= 50) return;
+        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Max(0.2f, rig.SecondsToEnd()); }
     }
 
     /// <summary>Pistol shot (the original control ChrFire): the nearest living target in front within reach; the script applies the damage.</summary>
@@ -1168,7 +1184,7 @@ void fragment() {
             if (atkTarget.IsAlive && IsAlive && d2 < 2.4f * 2.4f && ca >= 0.5f)
             {
                 bool blocked = atkTarget.Defends(this);
-                bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < BlockRaise + 0.3f : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
+                bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < ParryWindow : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
                 if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
                 if (IsPlayer) { if (blocked) StatHeroBlockedByNpc++; else StatHeroLanded++; }
                 atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
@@ -1177,6 +1193,7 @@ void fragment() {
                 if (IsPlayer) atkTarget.ShowHit(hpBefore - atkTarget.HpNow, blocked);
                 if (!IsPlayer && atkTarget.IsPlayer && StatHeroHits++ < 3) GD.Print(FormattableString.Invariant($"[fight] the hero was {(blocked ? "attacked (blocked)" : "hit")} by {Id}: hp {hpBefore:0.#} -> {atkTarget.HpNow:0.#}, kind={lastKind}"));
                 if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began (rig {swingAction} at frame {rig?.AnimFrame:0.00} of the strike frame, speed x{rig?.SpeedMul:0.00}),{(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
+                if (MeleeLog) GD.Print(FormattableString.Invariant($"[windup] {Id} {swingAction} hit_after_ms={Time.GetTicksMsec() - swingStartMs} expected_ms={swingExpectMs} blocked={blocked} target={atkTarget.Id}"));
                 atkTarget.PlayReaction(blocked);
                 if (parried) Stagger();
             }
@@ -1188,7 +1205,7 @@ void fragment() {
     public bool StartSwing(CharacterView? enemy, Strike kind = Strike.Normal)
     {
         if (!IsAlive) return false;
-        if (atkCooldown > 0f || atkHitIn >= 0f)
+        if (atkCooldown > 0f || atkHitIn >= 0f || Stunned)
         {
             // clicks made while a blow is still playing are NOT counted (no input queue): the next blow can only be started after the animation is over,
             // and a block asked for meanwhile (held key) simply goes up when the animation ends
@@ -1205,8 +1222,9 @@ void fragment() {
         }
         // the strike moment and the length of the blow come from the animation (man.ani: "Attack_slash" event, frames / (fps * speed)), as in the engine
         var tm = rig?.SwingTiming(a) ?? rig?.SwingTiming("attack_1") ?? (0.2f, 0.45f);
-        float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f) * CharacterRig.CombatSpeed;      // the script's speed factor (agility) speeds the animation up or down
+        float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f);      // the script's speed factor (agility) speeds the animation up or down
         atkHitIn = tm.hit / spd; atkCooldown = tm.duration / spd; swingStartMs = Time.GetTicksMsec();
+        swingExpectMs = (long)(tm.hit / spd * 1000f);
         if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
         swingAnim = false;
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) { playing = a; swingAnim = true; swingAction = rig.ActionName; }

@@ -184,8 +184,6 @@ public partial class Main : Node
         Keys.Load(settingsFile);
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
-        if (gs?.Get("CombatSpeed") is { } cs && float.TryParse(cs.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cmul))
-            CharacterRig.CombatSpeed = Math.Clamp(cmul, 0.3f, 1f);        // settings.ini [game] CombatSpeed: 1 = original animation speed, default 0.7
         GD.Print("[main] BetaTestMode = " + beta);
         // [video]: Fullscreen = 1 starts in full screen; WindowWidth / WindowHeight set the window size (F11 toggles full screen). The 2D interface adapts to any aspect ratio.
         if (settings.Sections.TryGetValue("video", out var vs) && !OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--shot")))
@@ -625,6 +623,7 @@ public partial class Main : Node
     float camYaw, camPitch = 0.4f, camDist = 3.0f;       // LocationCamera: ax = 0.4, radius = 3
     readonly LandCamera landCam = new();
     static readonly bool CamLog = System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG") != null;
+    static readonly int CamLogEvery = int.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_CAMLOG"), out var cle) && cle > 1 ? cle : 50;      // SEADOGS_CAMLOG=N: every N frames (default 50)
     float lookBlend, lookPitch;           // Tab: first-person view, blended in over a second like LocationCamera::kMorph
     bool lookMode, lookHidden;
     int lookAtFrame = -1, jumpAtFrame = -1;
@@ -746,7 +745,7 @@ public partial class Main : Node
                 if (Keys.Down("LandRight")) turnAdd += 12f * 0.01f;
                 if (Keys.Down("LandLeft")) turnAdd -= 12f * 0.01f;
                 // Player::GetRotateH / Rotate: ChrTurnH.fValue (the mouse x times the sensitivity) * 0.01 per frame; LocationCamera: dAx = -ChrCamTurnV.lValue * 0.05 (raw pixels, inverted by the control's flag)
-                if (mouseCaptured) { turnAdd += Ctl.T.Read("ChrTurnH").F * 0.01f; dAx = -Ctl.T.Read("ChrCamTurnV").L * 0.05f; }
+                if (mouseCaptured || mouseMoves.Count > 0) { turnAdd += Ctl.T.Read("ChrTurnH").F * 0.01f; dAx = -Ctl.T.Read("ChrCamTurnV").L * 0.05f; }
             }
             if (camLockPitch == null && !lookMode) camPitch = landCam.Pitch(camPitch, dAx, delta, false);
             else if (lookMode) lookPitch = landCam.Pitch(lookPitch, dAx, delta, !player.FightMode);
@@ -844,13 +843,14 @@ public partial class Main : Node
             while (dAng > MathF.PI) dAng -= 2f * MathF.PI;
             while (dAng < -MathF.PI) dAng += 2f * MathF.PI;
             if (MathF.Abs(dAng) > 0.001f) camYaw += dAng * Math.Min(delta * LandCamera.RotInertia, 1f);
+            if (CamLog) CamFollowCheck(dAng, player.Heading, (float)delta);
         }
         else if (lookMode) camYaw = -player.Heading;
         const float charHeight = CharacterView.CharHeight;
         var target = player.Position + new Vector3(0, charHeight * LandCamera.LookHeight, 0);
         if (camMode == 1 && !lookMode) dialogCam.Update(list, player, dialogView != null || player.InDialog, (float)delta, ref camYaw, ref camPitch, ref target);          // the camera turns to the interlocutor
         landCam.Place(cam, target, player.Position.Y, charHeight, camYaw, camPitch, camDist, delta);
-        if (CamLog && frames % 50 == 0) GD.Print($"[camera] frame {frames}: radius {landCam.Radius:0.00}/{camDist:0.0} yaw {camYaw:0.00} pitch {camPitch:0.00} heading {player.Heading:0.00} pos {cam.GlobalPosition} look={lookBlend:0.0} ");
+        if (CamLog && frames % CamLogEvery == 0) GD.Print($"[camera] frame {frames}: radius {landCam.Radius:0.00}/{camDist:0.0} yaw {camYaw:0.000} pitch {camPitch:0.000} heading {player.Heading:0.000} hero ({player.X:0.00},{player.Z:0.00}) pos {cam.GlobalPosition} look={lookBlend:0.0} fwd={Ctl.Down("ChrForward")}/{Ctl.T.Get("ChrForward")?.SystemCode}/{Input.IsMouseButtonPressed(MouseButton.Right)} cap={mouseCaptured} dAx={Ctl.T.Read("ChrCamTurnV").L} dH={Ctl.T.Read("ChrTurnH").L}");
         if (lookBlend > 0f)
         {
             // first person (ExecuteLook): the eyes, looking along the heading, tilted by the vertical angle
@@ -863,10 +863,26 @@ public partial class Main : Node
         }
     }
 
+    // test aid (SEADOGS_CAMLOG): once the hero's heading stops changing, the angle between the camera and the heading must decay like exp(-rotInertia * t) (camera_follow.cpp MoveCamera)
+    float cfPrevHeading, cfLag0, cfT; bool cfArmed;
+    void CamFollowCheck(float lag, float heading, float dt)
+    {
+        lag = MathF.Abs(lag);
+        bool still = MathF.Abs(heading - cfPrevHeading) < 1e-5f;
+        cfPrevHeading = heading;
+        if (!cfArmed) { if (still && lag > 0.3f) { cfArmed = true; cfLag0 = lag; cfT = 0f; } return; }
+        if (!still) { cfArmed = false; return; }
+        cfT += dt;
+        if (cfT < 0.4f) return;
+        cfArmed = false;
+        float ratio = lag / cfLag0, want = MathF.Exp(-LandCamera.RotInertia * cfT);
+        GD.Print(FormattableString.Invariant($"[camfollow] {(MathF.Abs(ratio - want) < 0.06f ? "ok" : "BAD")}: after {cfT:0.00} s the lag fell from {cfLag0:0.000} to {lag:0.000} rad, ratio {ratio:0.000}, original exp(-{LandCamera.RotInertia} t) = {want:0.000}"));
+    }
+
     public override void _UnhandledInput(InputEvent e)
     {
         if (e is InputEventMouseMotion sm && mouseCaptured && sea.Active && locations.Count == 0 && !sea.DeckCamera && !flyMode) { Ctl.AddMouse(sm.Relative.X, sm.Relative.Y); return; }        // ShipCamera_Turn_H / _V: at sea the mouse always turns the camera
-        if (e is InputEventMouseMotion cm && mouseCaptured && locations.Count > 0 && !flyMode) { Ctl.AddMouse(cm.Relative.X, cm.Relative.Y); return; }        // ChrTurnH / ChrCamTurnV
+        if (e is InputEventMouseMotion cm && mouseCaptured && locations.Count > 0 && !flyMode) { Ctl.AddMouse(cm.ScreenRelative.X, cm.ScreenRelative.Y); return; }        // ChrTurnH / ChrCamTurnV
         // the mouse buttons are the script's controls too (remapped on the options pages): Ship_Fire at sea, ChrAction / ChrAttack on land
         if (e is InputEventMouseButton { Pressed: true } fireBtn && Ctl.Is(fireBtn.ButtonIndex, "Ship_Fire") && sea.Active && locations.Count == 0 && dialogView == null && !UiOpen) { sea.FirePlayer(); return; }
         if (e is InputEventMouseButton { Pressed: true } landBtn && (Ctl.Is(landBtn.ButtonIndex, "ChrAttack") || Ctl.Is(landBtn.ButtonIndex, "ChrAction")) && dialogView == null && !UiOpen)

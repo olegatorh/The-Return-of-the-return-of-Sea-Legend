@@ -216,6 +216,17 @@ if ($Sea) {
         $mh = @('--ctl=Quick_Load@200', '--call=LAi_SetWarriorType(#Terry++Snider)@400', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420',
                 '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--bring=Terry__Snider:7@440', '--key=E@460', '--shot-frame=1500')
         $fail += Invoke-Godot 'meleehero' $mh 300 @('[fight] Terry  Snider vs Blaze:', '[fight] the hero was hit by Terry  Snider')
+        # wind-up before the damage (character.cpp: the blow lands on the animation's Attack event): the soldier's blows must land at the event frame of the real
+        # playback (hit_after_ms ~ expected_ms, no animation speed hack) and after a visible wind-up (>= 250 ms)
+        $env:SEADOGS_MELEELOG = '1'
+        $fail += Invoke-Godot 'windup' $mh 300 @('[windup] Terry  Snider')
+        Remove-Item Env:SEADOGS_MELEELOG
+        if (Test-Path "$root\game\smoke_windup.log") {
+            $w = Select-String -Path "$root\game\smoke_windup.log" -Pattern 'hit_after_ms=(\d+) expected_ms=(\d+)' | ForEach-Object { [pscustomobject]@{ got = [int]$_.Matches[0].Groups[1].Value; exp = [int]$_.Matches[0].Groups[2].Value } }
+            $badw = $w | Where-Object { $_.got -lt 250 -or [math]::Abs($_.got - $_.exp) -gt 120 }
+            if ($w -and $badw) { Write-Host "[windup] timing out of range: $(($badw | ForEach-Object { "$($_.got)/$($_.exp)" }) -join ', ')" -ForegroundColor Red; $fail += 1 }
+            elseif ($w) { Say "windup ok: $(@($w).Count) blows, e.g. $($w[0].got) ms (expected $($w[0].exp))" 'Green' }
+        }
         # healing: potions in the pack, health 10, the quick-heal key C (BOAL_UsePotion) drinks the first usable one, then the land command menu
         # (Enter, Right = "Use", Enter, Enter = first potion); the count drops by one each time and the health rises (log '[heal]', hp_bottle poured in by LAi_AllCharactersUpdate)
         $hl = @('--ctl=Quick_Load@200', '--call=GiveItem2Character(#Blaze,potion1)@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--set=Characters[0].chr_ai.hp=10@310',
@@ -224,6 +235,12 @@ if ($Sea) {
         $fail += Invoke-Godot 'heal' $hl 300 @('[heal] Blaze: health rose', 'potion1 = "6"', 'potion1 = "5"', "[land] command BI_ItemsUse 'potion1'", 'potion1 = "4"')
         $dr = @('--ctl=Quick_Load@200', '--run', '--move=0,1@480-1100', '--key=E@560', '--shot-frame=1200')
         $fail += Invoke-Godot 'drawrun' $dr 300 @('[move] hero stopped for the draw', '[move] hero moves again')
+        # the original follow camera (camera_follow.cpp): the mouse turns the hero (ChrTurnH x 0.01 rad per frame at the action's turn rate), the camera follows his heading with
+        # the inertia rotInertia = 5: after the turn the angle camera-heading decays like exp(-5 t) (log '[camfollow] ok')
+        $env:SEADOGS_CAMLOG = '100'
+        $cf = @('--ctl=Quick_Load@200', '--move=0,1@400-600', '--mousemove=6,0@450-520', '--shot-frame=640')
+        $fail += Invoke-Godot 'landcamfollow' $cf 300 @('[camfollow] ok')
+        Remove-Item Env:\SEADOGS_CAMLOG -ErrorAction SilentlyContinue
         # 'sail to' the port from the command menu: the squadron is moved next to the port's reload locator behind the fader, where mooring is offered
         $st = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--seapos=-500,-400,3.0@700', '--call=SeaAI_SailToLocator(reload_1)@800', '--act@1300', '--shot-frame=1500')

@@ -24,16 +24,6 @@ public partial class CharacterRig : Node3D
     string curName = "";
     bool loop = true;
     public float Fps => an.Fps;
-    /// <summary>Playback speed of melee/shooting animations (settings.ini [game] CombatSpeed, 1 = the file's speed): the port runs at a high frame rate and the
-    /// owner found blows, blocks and shots too fast to read and answer; the whole fight (own blow, enemy blow, block, recoil, shot, hit reaction) is slowed together.</summary>
-    public static float CombatSpeed = 0.7f;
-    float CombatMul()
-    {
-        if (CombatSpeed >= 0.999f || curName.Length == 0) return 1f;
-        string n = curName.ToLowerInvariant();
-        return n.StartsWith("attack") || n.StartsWith("fire") || n.StartsWith("shot") || n.StartsWith("recoil") || n.StartsWith("block") || n.StartsWith("hit") || n.StartsWith("parry") || n.StartsWith("strike")
-            ? CombatSpeed : 1f;
-    }
     public float SpeedMul = 1f;         // the character speed factor k (character.cpp Move: animation speed x k)
     public float TimeScale = 1f;        // 0 while a dialog is open (the script calls SetTimeScale)
 
@@ -65,7 +55,7 @@ public partial class CharacterRig : Node3D
     /// (frames from the action start). Negative once passed; a stopped clock (dialog) gives a large value.</summary>
     float SecondsTo(float animFrames)
     {
-        float rate = TimeScale * SpeedMul * CombatMul() * an.Fps * Math.Abs(cur == null || cur.Speed <= 0 ? 1f : cur.Speed);
+        float rate = TimeScale * SpeedMul * an.Fps * Math.Abs(cur == null || cur.Speed <= 0 ? 1f : cur.Speed);
         return rate > 1e-4f ? (animFrames - time) / rate : 999f;
     }
 
@@ -284,10 +274,19 @@ public partial class CharacterRig : Node3D
     /// <summary>A one-shot character action (draw, blow, reaction, shot) is still playing: the character does not move or turn meanwhile.</summary>
     public bool ActionLocked(bool busyState) => busyState && !Finished;
 
+    // Blend into a fight action (Character::SetAction with the action's "Blend time", 0.2 s in man.ani): the new action plays from its first frame at once while the
+    // pose of the previous action fades out, so a wind-up is seen as a motion instead of a jump to the first frame.
+    Quaternion[]? lastQ; Vector3 lastRoot; bool havePose;
+    Quaternion[]? fromQ; Vector3 fromRoot; float blendLeft, blendDur;
+    static bool IsFightAction(string n) => n.StartsWith("attack", StringComparison.OrdinalIgnoreCase) || n.StartsWith("hit", StringComparison.OrdinalIgnoreCase)
+        || n.StartsWith("block", StringComparison.OrdinalIgnoreCase) || n.StartsWith("recoil", StringComparison.OrdinalIgnoreCase) || n.StartsWith("shot", StringComparison.OrdinalIgnoreCase);
+
     public bool Play(string action, bool looping, bool restart = false)
     {
         if (!ani.Actions.TryGetValue(action, out var a) || a.End <= a.Start) return false;
         if (cur == a && !restart) return true;
+        float bt = IsFightAction(action) && havePose && IsVisibleInTree() ? Math.Max(0f, Fl(a.Data.GetValueOrDefault("Blend time"), 0.2f)) : 0f;
+        if (bt > 0.01f) { fromQ = (Quaternion[])lastQ!.Clone(); fromRoot = lastRoot; blendLeft = blendDur = bt; } else { fromQ = null; blendLeft = 0f; }
         cur = a; curName = action; loop = looping; time = 0;
         Pose(a.Start);
         return true;
@@ -302,7 +301,7 @@ public partial class CharacterRig : Node3D
         if (cur == null) return;
         float len = Math.Max(cur.End - cur.Start, 1);
         float prev = time;
-        time += (float)delta * TimeScale * SpeedMul * CombatMul() * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
+        time += (float)delta * TimeScale * SpeedMul * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
         bool wrapped = false;
         if (time >= len)
         {
@@ -315,6 +314,7 @@ public partial class CharacterRig : Node3D
                 float at = cur.Reverse ? cur.End - frame : frame - cur.Start;      // the event's place on the playback time line
                 if ((wrapped ? at > prev || at <= time : at > prev && at <= time) && Events.Count < 16) Events.Add(name);
             }
+        if (blendLeft > 0f) blendLeft = Math.Max(0f, blendLeft - (float)delta * TimeScale);
         Pose(cur.Reverse ? cur.End - time : cur.Start + time);
     }
 
@@ -329,18 +329,28 @@ public partial class CharacterRig : Node3D
         int f0 = (int)frame, f1 = Math.Min(f0 + 1, an.NFrames - 1);
         float k = frame - f0;
         int nf = an.NFrames;
+        lastQ ??= new Quaternion[an.NJoints];
+        float bk = blendLeft > 0f && fromQ != null ? 1f - blendLeft / blendDur : 1f;
+        bk = bk * bk * (3f - 2f * bk);
         for (int j = 0; j < an.NJoints; j++)
         {
             int a = (j * nf + f0) * 4, b = (j * nf + f1) * 4;
             var q0 = Unit(new Quaternion(-an.Quat[a], -an.Quat[a + 1], an.Quat[a + 2], an.Quat[a + 3]));       // Rat.an stores quaternions that are not exactly unit length
             var q1 = Unit(new Quaternion(-an.Quat[b], -an.Quat[b + 1], an.Quat[b + 2], an.Quat[b + 3]));
-            skel.SetBonePoseRotation(j, q0.Slerp(q1, k).Normalized());
+            var q = q0.Slerp(q1, k).Normalized();
+            if (bk < 1f) q = fromQ![j].Slerp(q, bk).Normalized();
+            lastQ[j] = q;
+            skel.SetBonePoseRotation(j, q);
             if (an.Parents[j] < 0)
             {
                 var p0 = new Vector3(an.RootPos[f0 * 3], an.RootPos[f0 * 3 + 1], -an.RootPos[f0 * 3 + 2]);
                 var p1 = new Vector3(an.RootPos[f1 * 3], an.RootPos[f1 * 3 + 1], -an.RootPos[f1 * 3 + 2]);
-                skel.SetBonePosePosition(j, p0.Lerp(p1, k));
+                var p = p0.Lerp(p1, k);
+                if (bk < 1f) p = fromRoot.Lerp(p, bk);
+                lastRoot = p;
+                skel.SetBonePosePosition(j, p);
             }
         }
+        havePose = true;
     }
 }
