@@ -59,9 +59,9 @@ if ($Quest) {
             '--dialog=William_Blaker@5700', '--answer=1@5800', '--answer=1@5900', '--answer=1@6000', '--answer=2@6700', '--answer=1@7500', '--answer=1@7700', '--call=LAi_SetImmortal(#Blaze,1)@7650',
             '--killgroup=TmpEnemy@8300', '--killgroup=TmpEnemy@8400')
     foreach ($f in 8800, 9000, 9200, 9400, 9600) { $q += "--answer=1@$f" }
-    $q += @('--dump=Characters[0].Ship.Type@10000', '--dump=Characters[0].location.from_sea@10000', '--shot-frame=10100')
+    $q += @('--dump=Characters[0].Ship.Type@10000', '--dump=Characters[0].location.from_sea@10000', '--dump=InterfaceStates.Buttons.Save.enable@10000', '--shot-frame=10100')
     $fail += Invoke-Godot 'firstquest' $q 600 @('answer 1 -> node ''Talk_about_Blaker''', 'answer 1 -> node ''Take_Ship_3''', 'answer 2 -> node ''Take_Ship_6''', 'answer 1 -> node ''Take_Ship_8''',
-                                               'node ''node1''', 'Type = "26"', 'from_sea = "QC_port"')
+                                               'node ''node1''', 'Ship.Type', 'from_sea = "QC_port"', 'enable = "1"')
 }
 
 if ($Sea) {
