@@ -182,6 +182,8 @@ public partial class Main : Node
         Keys.Load(settingsFile);
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
+        if (gs?.Get("CombatSpeed") is { } cs && float.TryParse(cs.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cmul))
+            CharacterRig.CombatSpeed = Math.Clamp(cmul, 0.3f, 1f);        // settings.ini [game] CombatSpeed: 1 = original animation speed, default 0.7
         GD.Print("[main] BetaTestMode = " + beta);
         // [video]: Fullscreen = 1 starts in full screen; WindowWidth / WindowHeight set the window size (F11 toggles full screen). The 2D interface adapts to any aspect ratio.
         if (settings.Sections.TryGetValue("video", out var vs) && !OS.GetCmdlineUserArgs().Any(a => a.StartsWith("--shot")))

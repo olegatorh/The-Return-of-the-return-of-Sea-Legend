@@ -24,6 +24,16 @@ public partial class CharacterRig : Node3D
     string curName = "";
     bool loop = true;
     public float Fps => an.Fps;
+    /// <summary>Playback speed of melee/shooting animations (settings.ini [game] CombatSpeed, 1 = the file's speed): the port runs at a high frame rate and the
+    /// owner found blows, blocks and shots too fast to read and answer; the whole fight (own blow, enemy blow, block, recoil, shot, hit reaction) is slowed together.</summary>
+    public static float CombatSpeed = 0.7f;
+    float CombatMul()
+    {
+        if (CombatSpeed >= 0.999f || curName.Length == 0) return 1f;
+        string n = curName.ToLowerInvariant();
+        return n.StartsWith("attack") || n.StartsWith("fire") || n.StartsWith("shot") || n.StartsWith("recoil") || n.StartsWith("block") || n.StartsWith("hit") || n.StartsWith("parry") || n.StartsWith("strike")
+            ? CombatSpeed : 1f;
+    }
     public float SpeedMul = 1f;         // the character speed factor k (character.cpp Move: animation speed x k)
     public float TimeScale = 1f;        // 0 while a dialog is open (the script calls SetTimeScale)
 
@@ -55,7 +65,7 @@ public partial class CharacterRig : Node3D
     /// (frames from the action start). Negative once passed; a stopped clock (dialog) gives a large value.</summary>
     float SecondsTo(float animFrames)
     {
-        float rate = TimeScale * SpeedMul * an.Fps * Math.Abs(cur == null || cur.Speed <= 0 ? 1f : cur.Speed);
+        float rate = TimeScale * SpeedMul * CombatMul() * an.Fps * Math.Abs(cur == null || cur.Speed <= 0 ? 1f : cur.Speed);
         return rate > 1e-4f ? (animFrames - time) / rate : 999f;
     }
 
@@ -292,7 +302,7 @@ public partial class CharacterRig : Node3D
         if (cur == null) return;
         float len = Math.Max(cur.End - cur.Start, 1);
         float prev = time;
-        time += (float)delta * TimeScale * SpeedMul * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
+        time += (float)delta * TimeScale * SpeedMul * CombatMul() * an.Fps * Math.Abs(cur.Speed <= 0 ? 1f : cur.Speed);
         bool wrapped = false;
         if (time >= len)
         {
