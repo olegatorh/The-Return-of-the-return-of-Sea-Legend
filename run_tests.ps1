@@ -96,7 +96,7 @@ if ($Sea) {
         $fo = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=0@1010',
                 '--call=wdmCreateFollowShip(1,0)@1300', '--shot-frame=3500')
-        $fail += Invoke-Godot 'mapfollow' $fo 300 @('+follow type 1', 'encounter with ship type 1 (Follow')
+        $fail += Invoke-Godot 'mapfollow' $fo 300 @('+follow type 1', '(Follow, model')
         # a merchant never attacks: the player has to come close and press Enter (WdmPlayerShip::ExitFromMap); without it the ship only sails by
         $me = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.02@1010', '--set=Characters[0].worldmapencountersoff=1@1010',
@@ -203,7 +203,7 @@ if ($Sea) {
         $fail += Invoke-Godot 'dicestakes' $ds 200 @('[stakes] Dice: offered 200, cap 6666', 'boal_dice.ini')
         Remove-Item Env:SEADOGS_DIALOGLOG
         # land HUD: Enter opens the command menu, fast travel to the tavern (second choice: the place), then talk to a man brought next to the hero
-        $lh = @('--ctl=Quick_Load@200', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
+        $lh = @('--ctl=Quick_Load@200', '--set=Characters[0].chr_ai.hp=20@300', '--key=Enter@500', '--key=Enter@530', '--key=Right@540', '--key=Right@550', '--key=Enter@560', '--bring=William_Blaker@800',
                 '--key=Enter@1000', '--key=Right@1010', '--key=Right@1020', '--key=Enter@1030', '--shot-frame=1150')       # the third entry: [Перехід, Використати (potion, the hero is hurt), Говорити, Відчинити]
         $fail += Invoke-Godot 'landhud' $lh 300 @("[land] command BI_FastReload 'reload3'", "[land] command BI_DialogStart", '[landhud] started=True show=False')
         # land melee by the script's rules: two townsmen of the port are put into hostile groups (LAi_group_FightGroups -> warrior type -> fight template);

@@ -311,14 +311,16 @@ public partial class CharacterView : Node3D
         HitFx.Show(this, damage, blocked, HpNow, Math.Max(1f, HpMax));
     }
 
+    float hitGrace;
     void PlayReaction(bool blocked)
     {
         if (rig == null || !IsAlive) return;
         if (!blocked) ChrSnd("Event_ChrSnd_Hit");                         // the script picks man_hit / woman_hit / skeleton_hit ... by sex
         string a = blocked ? "block_hit" : "hit_" + (idleRng.Next(3) + 1);
         // Hit(): the reaction clip locks the character for its whole length (fightTbl); the hero reels only half of the time (stunChance, "COAS vanilla")
-        if (!blocked && IsPlayer && idleRng.Next(100) >= 50) return;
-        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Max(0.2f, rig.SecondsToEnd()); }
+        if (!blocked && IsPlayer) hitGrace = 0.2f;          // a pack cannot chain-hit the hero: after a blow that lands he is spared for a moment (0.2 s, the owner's value) (no stun-lock to death)
+        if (!blocked && IsPlayer && idleRng.Next(100) >= 35) return;
+        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Clamp(rig.SecondsToEnd(), 0.2f, IsPlayer ? 0.6f : 2f); }
     }
 
     /// <summary>Pistol shot (the original control ChrFire): the nearest living target in front within reach; the script applies the damage.</summary>
@@ -351,6 +353,7 @@ public partial class CharacterView : Node3D
         gunCooldown -= dt;
         if (blocking) blockAge += dt;
         if (hitUntil > 0f) hitUntil -= dt;
+        if (hitGrace > 0f) hitGrace -= dt;
         if (blockUntil > 0f) { blockUntil -= dt; if (blockUntil <= 0f) Blocking = false; else Blocking = true; }
         // the engine recharges the gun after a shot: chr_ai.charge grows by charge_dlt per second while chargeprc = 1
         if (Ent.Root.Find("chr_ai.chargeprc", false) is { } cp && Conv.ParseFloatPrefix(cp.Value) > 0f)
@@ -1181,7 +1184,7 @@ void fragment() {
             float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
             // character.cpp CheckAttackHit: reach 2.4 m, 60 degrees either side of the heading the blow was started with (the turn is locked meanwhile)
             float ca = d2 > 1e-4f ? (MathF.Sin(swingAy) * (atkTarget.x - x) + MathF.Cos(swingAy) * (atkTarget.z - z)) / MathF.Sqrt(d2) : 1f;
-            if (atkTarget.IsAlive && IsAlive && d2 < 2.4f * 2.4f && ca >= 0.5f)
+            if (atkTarget.IsAlive && IsAlive && d2 < 2.4f * 2.4f && ca >= 0.5f && !(atkTarget.IsPlayer && atkTarget.hitGrace > 0f))
             {
                 bool blocked = atkTarget.Defends(this);
                 bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < ParryWindow : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
