@@ -928,5 +928,16 @@ if ($Cameras) {
     }
 }
 
+# weather follows the game clock (docs/VERIFIED.md "Weather"): at sea the clock runs 25x faster, the hour changes re-pick the weather record (script CreateWeatherEnvironment);
+# then a forced storm record (#7 Day Storm) must bring 10000 drops
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $env:SEADOGS_CLOCKSTEP = '0.1'
+        $wc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--weather=#7@2300', '--shot-frame=2500')
+        $fail += Invoke-Godot 'weathercycle' $wc 300 @('[weather] begin', 'hour=12 ', 'hour=13 ', 'hour=14 ', "id='Day Storm'", 'rain=10000')
+        Remove-Item Env:SEADOGS_CLOCKSTEP
+    }
+}
+
 if ($fail -gt 0) { Write-Host "FAILED ($fail)" -ForegroundColor Red; exit 1 }
 Write-Host 'ALL OK' -ForegroundColor Green

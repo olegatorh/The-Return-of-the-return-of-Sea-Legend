@@ -19,6 +19,7 @@ public partial class Main : Node
     LandHud? landHud;
     bool rebuildWorld;
     float clockAcc;
+    readonly float clockStep = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_CLOCKSTEP"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cs) && cs > 0.01f ? cs : 2.5f;     // real seconds per game minute (env SEADOGS_CLOCKSTEP: tests)
     SoundView? sound;
     readonly Dictionary<Entity, Node3D> modelNodes = new();
     readonly Dictionary<Entity, string> modelDirs = new();
@@ -60,6 +61,8 @@ public partial class Main : Node
     readonly List<(int from, int to, Vector2 d)> mouseMoves = new();       // test hook --mousemove=dx,dy@A-B: raw mouse motion per frame (ChrTurnH / ChrCamTurnV, ShipCamera_Turn_*)
     readonly List<(int frame, int vk, bool down)> mouseBtns = new();         // test hook --btn=L|R|M(+|-)@N: a real mouse button press / release
     readonly List<(int frame, string path)> dumps = new();
+    readonly List<(int frame, string id)> weatherForce = new();
+    int weatherTableAt = -1;                      // test hook --weathertable@N
     readonly List<(int frame, string name)> ctls = new();
     int fuzzAt = -1, fuzzNext, fuzzSince, fuzzAnswers;
     Queue<string>? fuzzQueue;
@@ -125,6 +128,8 @@ public partial class Main : Node
             else if (a.StartsWith("--bring=")) { var p = a.Substring(8).Split('@'); brings.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }       // test hook: put a character 1.6 m in front of the player
             else if (a.StartsWith("--dialog=")) { var p = a.Substring(9).Split('@'); dialogTests.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }
             else if (a.StartsWith("--set=")) { var p = a.Substring(6).Split('@'); var kv = p[0].Split('='); sets.Add((int.Parse(p[1]), kv[0], kv[1])); }
+            else if (a.StartsWith("--weathertable@")) weatherTableAt = int.Parse(a.Substring(15));
+            else if (a.StartsWith("--weather=")) { var p = a.Substring(10).Split('@'); weatherForce.Add((int.Parse(p[1]), p[0].Replace('_', ' '))); }       // test hook --weather=Blue_Sky@N: force that weather record (SetNextWeather + rebuild)
             else if (a.StartsWith("--call="))  { var p = a.Substring(7).Split('@'); calls.Add((int.Parse(p[1]), p[0])); }
             else if (a.StartsWith("--mousemove=")) { var p = a.Substring(12).Split('@'); var xy = p[0].Split(','); var fr = p[1].Split('-'); mouseMoves.Add((int.Parse(fr[0]), int.Parse(fr[1]), new Vector2(float.Parse(xy[0], System.Globalization.CultureInfo.InvariantCulture), float.Parse(xy[1], System.Globalization.CultureInfo.InvariantCulture)))); }
             else if (a.StartsWith("--btn=")) { var p = a.Substring(6).Split('@'); mouseBtns.Add((int.Parse(p[1]), p[0][0] == 'L' ? 1 : p[0][0] == 'R' ? 2 : 4, p[0].EndsWith('+'))); }
@@ -174,6 +179,8 @@ public partial class Main : Node
         string program = programArg ?? (Directory.Exists(merged) ? merged : Path.Combine(game, "PROGRAM"));
         GD.Print("[main] scripts: " + program + ", language: " + language);
         host = new ScriptHost(program);
+        // the interpreter's rand() starts from a fixed seed (reproducible tests); a real game gets a time seed, otherwise every new game rolls the same weather table
+        if (shotPath == null && System.Environment.GetEnvironmentVariable("SEADOGS_SEED") == null) host.It.Rng = new Random();
         Ctl.Attach(host.It);
         host.It.EntityHandlers["Lightning"] = (e, fmt, d) => weatherFx.OnLightning(d);
         // port settings (settings.ini next to the project): the hidden "beta/test" page of the options screen is enabled by the original #define MOD_BETTATESTMODE
@@ -811,13 +818,13 @@ public partial class Main : Node
         CharacterView.PostMove(list, dt);
 
         // the game clock (the engine's weather module kept Environment.time running): one game minute per 2.5 s of running game time, only while a
-        // location is shown and nothing (dialog, interface screen) freezes the game
-        if (locations.Count > 0 && dt > 0f && !UiOpen && dialogView == null && host.It.Globals.ContainsKey("Environment"))
+        // location or the open sea is shown (the day cycle goes on at sea too, the weather follows it: WeatherFx.CycleWeather) and nothing (dialog, interface screen) freezes the game
+        if ((locations.Count > 0 || (sea.Active && !worldMap.Active)) && dt > 0f && !UiOpen && dialogView == null && host.It.Globals.ContainsKey("Environment"))
         {
             clockAcc += dt;
-            while (clockAcc >= 2.5f)
+            while (clockAcc >= clockStep)
             {
-                clockAcc -= 2.5f;
+                clockAcc -= clockStep;
                 host.It.CallTop("AddTimeToCurrent", V.Int(0), V.Int(1));
             }
         }
@@ -1186,6 +1193,8 @@ public partial class Main : Node
         if (controlAt == frames) host.It.CallTop("LAi_SetPlayerType", host.It.CallTop("GetMainCharacter"));    // test hook: end the scripted intro
         if (fuzzList.Contains(frames)) { fuzzAt = frames; fuzzQueue = null; }       // several --fuzz@N: every one restarts the round in the current location
         if (fuzzAt >= 0 && frames >= fuzzAt) FuzzStep();
+        if (weatherTableAt == frames) WeatherFx.DumpTable(host.It);
+        foreach (var (f, id) in weatherForce) if (f == frames) weatherFx.Force(host.It, id);
         foreach (var (f, p) in dumps) if (f == frames) host.It.DumpPath(ResolveCharIdx(p));
         foreach (var (f, n) in ctls) if (f == frames) { if (landHud?.Command(n) != true) host.It.FireEvent("Control Activation", new List<V> { V.Str(n) }); }
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
