@@ -177,6 +177,9 @@ if ($Sea) {
         # one dialog at a time: two more dialog starts while a dialog runs are refused, one greeting only
         $od = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@300', '--dialog=Ines_Diaz@600', '--dialog=William_Blaker@640', '--dialog=QC_Diplomat@660', '--shot-frame=900')
         $fail += Invoke-Godot 'onedialog' $od 200 @('starting dialog with Ines Diaz', 'a dialog is already running, not starting one with William Blaker', 'a dialog is already running, not starting one with QC Diplomat')
+        # talking with the original control: the left mouse button (ChrAction) starts the dialog with the character the hero faces (player.cpp Update)
+        $tk = @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@300', '--goto=goto.goto3@400', '--bring=William_Blaker:1.5@600', '--btn=L+@900', '--btn=L-@905', '--shot-frame=1100')
+        $fail += Invoke-Godot 'talkclick' $tk 200 @('starting dialog with William Blaker')
         # dialog camera: it swings to the interlocutor when the dialog starts and back to the follow angles when it ends (DialogCamera.cs)
         $env:SEADOGS_DIALOGLOG = '1'
         $dc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--set=Characters[0].location.from_sea=Antigua_port@256', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--call=locCameraFollow()@500',

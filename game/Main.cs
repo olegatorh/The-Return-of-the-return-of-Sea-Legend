@@ -964,6 +964,8 @@ public partial class Main : Node
 
     void LandAction()
     {
+        // player.cpp Update: ChrAction while not fighting asks FindDialogCharacter and raises dlgReady -> the dialog with the character in front of the hero
+        if (dialogView == null && !UiOpen && NearestTalkable() is { } talkTo) { StartDialog(talkTo.Ent.Root.Get("id")?.Value ?? ""); return; }
         string act = host.It.Globals.TryGetValue("g_ActiveActionName", out var g) ? Conv.ToStr(g.Val) : "";
         GD.Print("[land] action: " + (act.Length == 0 ? "Nothing" : act));
         if (act.Length == 0 || act == "Nothing" || act == "Closed")
