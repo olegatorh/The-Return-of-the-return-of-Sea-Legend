@@ -124,7 +124,8 @@ public sealed class LanguageService
 
     public string Convert(int id, string key)
     {
-        if (id >= 0 && id < open.Count && open[id] != null && open[id]!.TryGetValue(key, out var v)) return v;
+        if (id >= 0 && id < open.Count && open[id] != null)
+            return open[id]!.TryGetValue(key, out var v) ? v : "";      // LanguageConvertString: a key the file lacks gives "" (the control page skips such rows, e.g. ChrBlock_Unlock)
         return Global(key, key);
     }
 

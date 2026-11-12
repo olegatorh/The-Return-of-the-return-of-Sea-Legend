@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,12 +13,15 @@ namespace SeaDogs;
 /// </summary>
 public static class OptionsFile
 {
+    // key bindings saved by earlier port builds (modern WASD scheme, unbound or mouse-bound defaults) are dropped once: the original defaults of CONTROLS/init_pc.c apply
+    const string ControlsMark = "portControlsVersion", ControlsVersion = "2";
     static string FilePath(string name) => Path.Combine(SaveFiles.Dir.Length > 0 ? SaveFiles.Dir : ".", name + ".txt");
 
     public static void Save(string name, Attr root)
     {
         var sb = new StringBuilder();
         Walk(root, "", sb);
+        sb.Append(ControlsMark).Append((char)9).Append(ControlsVersion).Append((char)10);
         try { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath(name)))!); File.WriteAllText(FilePath(name), sb.ToString(), new UTF8Encoding(false)); }
         catch (Exception e) { Godot.GD.PrintErr("[options] cannot save: " + e.Message); }
     }
@@ -36,8 +40,11 @@ public static class OptionsFile
     public static bool Load(string name, Attr root)
     {
         if (!File.Exists(FilePath(name))) return false;
-        foreach (var line in File.ReadAllLines(FilePath(name)))
+        var lines = File.ReadAllLines(FilePath(name));
+        bool keepControls = lines.Contains(ControlsMark + "	" + ControlsVersion);
+        foreach (var line in lines)
         {
+            if (!keepControls && line.StartsWith("controls.")) continue;
             int t = line.IndexOf('\t');
             if (t <= 0 || line.Contains(".Port_")) continue;        // controls of an earlier port version: only the original controls exist
             root.Find(line.Substring(0, t), true)!.Value = line.Substring(t + 1).Replace("\n", "\n");
