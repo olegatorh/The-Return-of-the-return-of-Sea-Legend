@@ -7,8 +7,8 @@ namespace SeaDogs;
 
 /// <summary>
 /// The camera of a dialog on land. While the hero talks the camera swings round behind his shoulder so that the interlocutor is in the middle of the picture
-/// (the look point is between the two heads, a little closer to the NPC), the vertical angle drops to eye level; when the dialog ends the camera swings back to the
-/// angles it had before and the ordinary follow camera takes over again.
+/// (the look point is between the two heads, a little closer to the NPC), the vertical angle drops to eye level; when the dialog ends the pitch goes back and the ordinary follow camera
+/// (behind the hero's heading) takes over again.
 /// </summary>
 public sealed class DialogCamera
 {
@@ -49,9 +49,10 @@ public sealed class DialogCamera
         }
         if (returning)
         {
-            yaw += Wrap(savedYaw - yaw) * k;
+            // only the pitch goes back: the yaw belongs to the follow camera again (it swings behind the hero's heading, which has changed during the talk).
+            // Pulling the yaw toward the old angle as well fought the follow camera and left it stuck half-way, side-on to the hero.
             pitch += (savedPitch - pitch) * k;
-            if (MathF.Abs(Wrap(savedYaw - yaw)) < 0.01f && MathF.Abs(savedPitch - pitch) < 0.01f) returning = false;
+            if (MathF.Abs(savedPitch - pitch) < 0.01f) returning = false;
         }
         return false;
     }
