@@ -959,3 +959,11 @@ if ($Sea) {
         $fail += Invoke-Godot 'rainindoor' @('--ctl=Quick_Load@200', '--weather=#7@300', '--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@700', '--shot-frame=1000') 300 @('[rain] indoor=0 entity=1 node=1', '[rain] indoor=1 entity=', 'node=0 lens=0 splash=0 rainbow=0 blend=0')
     }
 }
+
+# grass (game/Grass.cs, the engine's Grass entity from the location's .grs density map): blades in a jungle, none in an interior ("[grass] state ... blades=N total=N")
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $fail += Invoke-Godot 'grassjungle' @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(Antigua_Jungle_01,reload,reload1)@300', '--shot-frame=700') 300 @('[grass] jungle01_g.grs: 39117 blades', '[grass] state location=Antigua_Jungle_01 blades=39117')
+        $fail += Invoke-Godot 'grassindoor' @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--shot-frame=700') 300 @('[grass] state location=Antigua_Tavern blades=0 total=0 indoor=True')
+    }
+}

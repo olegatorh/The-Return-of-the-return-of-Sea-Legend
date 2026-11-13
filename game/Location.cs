@@ -54,6 +54,7 @@ public partial class LocationView : Node3D
     {
         float dt = (float)delta;
         animTime += dt;
+        if (grassLog > 0f && (grassLog -= dt) <= 0f) GD.Print($"[grass] state location={Ent.Root.Get("id")?.Value} blades={grass?.BladeCount ?? 0} total={GrassView.Blades} indoor={Indoor}");
         LandFlags.Tick(it);
         foreach (var (node, sp) in spinners) node.Rotation += sp * dt;
         foreach (var (mats, sp) in sliders)
@@ -103,7 +104,8 @@ public partial class LocationView : Node3D
             case 30120:                                                          // SET_CHRS_PATCH: walkable surface
                 try { Patch = PtcFile.Parse(File.ReadAllBytes(ModelFile(S(1), ".ptc"))); GD.Print($"[location] patch {S(1)}: {Patch.Tris.Length} triangles"); return V.Int(1); }
                 catch (Exception e) { GD.PrintErr($"[location] patch {S(1)}: {e.Message}"); return V.Int(0); }
-            case 30121: case 30123: return V.Int(1);
+            case 30121: return V.Int(1);
+            case 30123: return V.Int(LoadGrass(S(1), S(2)) ? 1 : 0);                    // SET_GRS_PATCH "lss": the grass density map (*.grs) and its texture
             case 30122: return V.Int(LoadJumpPatch(S(1)) ? 1 : 0);                       // SET_JMP_PATCH
             case 30125: groupRadius[S(1)] = Conv.ToFloat(d[2]); return V.Int(1);
             case 30126: locRadius[(S(1).ToLowerInvariant(), S(2).ToLowerInvariant())] = Conv.ToFloat(d[3]); return V.Int(1);
@@ -154,6 +156,18 @@ public partial class LocationView : Node3D
         catch (Exception e) { GD.PrintErr($"[location] jump patch {name}: {e.Message}"); return false; }
     }
 
+    GrassView? grass;
+    float grassLog = 1.5f;
+    bool LoadGrass(string name, string tex)
+    {
+        grass?.QueueFree(); grass = null;
+        if (name.Length == 0) return true;
+        var g = new GrassView(it);
+        if (!g.Load(ModelFile(name, ".grs"), tex)) { g.Free(); return false; }
+        AddChild(g); grass = g;
+        return true;
+    }
+
     LocAnimals? animals;
     LocAnimals Animals() => animals ??= AddAndReturn(new LocAnimals(Patch, () => CharacterView.All.Values.FirstOrDefault(c => c.IsPlayer && c.Placed)?.Position));
     LocAnimals AddAndReturn(LocAnimals a) { AddChild(a); return a; }
@@ -176,6 +190,7 @@ public partial class LocationView : Node3D
             case "addeagle": Animals().AddEagle(); return 1;
             case "addflys": Animals().AddFlys(F(2), F(3), F(4)); return 1;
             case "delflys": animals?.DelFlys(); return 1;
+            case "setgrassparams": grass?.SetParams(F(2), F(3), F(4), F(5), F(6), F(7)); return 1;
         }
         return 0;
     }
@@ -204,10 +219,11 @@ public partial class LocationView : Node3D
         GD.Print($"[location] paths: textures='{texturesPath}' light='{lightPath}' shadow='{shadowPath}'");
         var node = ModelFactory.Build(g, name, texturesPath, cols, shadowPath.Length > 0 ? "lighting" + (char)92 + shadowPath.Trim((char)92) + (char)92 + modelsPath.Trim((char)92) : null);
         if (GameAssets.Prof) GD.Print($"[load] model {name}: {(System.Diagnostics.Stopwatch.GetTimestamp() - tModel) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms (textures {GameAssets.DecodeMs - texBefore:0} ms; textures so far {GameAssets.DecodeCount}, {GameAssets.DecodeMs:0} ms)");
-        if (IsFoamModel(name)) node.Visible = false;       // shore/sea-bottom mesh for the sea shader's foam: not drawn on its own
+        bool foamModel = IsFoamModel(name);
+        if (foamModel) LocationWater.PrepareSeabed(node);   // shore/sea-bottom mesh under the sea: feeds the water shader's depth (colour, shore foam)
         AddChild(node);
         // collision for the follow camera (it must not look through walls): triangle meshes of the visible parts, no characters
-        if (node.Visible && !name.EndsWith("_l", StringComparison.OrdinalIgnoreCase))
+        if (node.Visible && !foamModel && !name.EndsWith("_l", StringComparison.OrdinalIgnoreCase))
         {
             foreach (var c in node.GetChildren())
                 if (c is MeshInstance3D { Visible: true } mi && mi.Mesh != null && mi.Mesh.GetSurfaceCount() > 0) mi.CreateTrimeshCollision();

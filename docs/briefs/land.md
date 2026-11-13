@@ -3,7 +3,7 @@
 Read this instead of the big docs; grep `docs/VERIFIED.md` rows L1–L27 only when you touch combat/physics.
 
 ## Where the code is (`game/`)
-* Locations: `Location.cs` (view, locators, reloads), `ModelFactory.cs`, `GameAssets.cs` (textures/mipmaps, `Prefetch`), `LocationLights.cs` (ADD_LIGHT, per-character lighting), `CharShadow.cs`, `LocAnimals.cs`/`Animals.cs`, `LandFlags.cs`, `OutdoorEnv.cs`.
+* Locations: `Location.cs` (view, locators, reloads), `ModelFactory.cs`, `GameAssets.cs` (textures/mipmaps, `Prefetch`), `LocationLights.cs` (ADD_LIGHT, per-character lighting), `CharShadow.cs`, `LocAnimals.cs`/`Animals.cs`, `LandFlags.cs`, `OutdoorEnv.cs`, `Grass.cs` (the engine's Grass entity: models.always.grassPatch -> *.grs density map, 4x4 atlas Textures\Grass\grass.tga; static chunk meshes + a shader that repeats grass.fx and the wind/LOD/character push of grass.cpp; light = LocationLights ambient+sun; log `[grass]`, scenarios grassjungle/grassindoor).
 * Characters: `Characters.cs` (CharacterView: tasks, fight AI, strikes, blocks), `CharacterRig.cs` (skinned model + .ani playback), `CharacterJump.cs`, `Groups.cs` (+ `StormScript/Runtime/GroupRelations.cs`, `CharacterMath.cs`), `HitFx.cs`.
 * Camera/input: `LandCamera.cs` (camera_follow.cpp), `Controls.cs` + `KeyBindings.cs` (original control table, `docs/CONTROLS.md`), `Main.cs` (input routing, `LandAction`).
 * UI on land: `LandHud.cs` (battle_land_interface: portraits, bars, Enter command menu), `Dialog.cs`, `LogHud.cs` (action hint).
