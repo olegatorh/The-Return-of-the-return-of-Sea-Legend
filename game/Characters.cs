@@ -330,7 +330,8 @@ public partial class CharacterView : Node3D
         HitFx.Show(this, damage, blocked, HpNow, Math.Max(1f, HpMax));
     }
 
-    float hitGrace;
+    float hitGrace, reactLock;
+    const float PoiseAfterStun = 0.6f;          // s an enemy cannot be stunned again after a hit reaction has ended
     void PlayReaction(bool blocked)
     {
         if (rig == null || !IsAlive) return;
@@ -339,6 +340,9 @@ public partial class CharacterView : Node3D
         // Hit(): the reaction clip locks the character for its whole length (fightTbl); the hero reels only half of the time (stunChance, "COAS vanilla")
         if (!blocked && IsPlayer) hitGrace = 0.2f;          // a pack cannot chain-hit the hero: after a blow that lands he is spared for a moment (0.2 s, the owner's value) (no stun-lock to death)
         if (!blocked && IsPlayer && idleRng.Next(100) >= 35) return;
+        // anti stun-lock (owner's request): a hit during an enemy's reaction clip does not restart it, and after the clip the enemy is "poised" for a moment: further
+        // hits still hurt but do not stun/cancel, so the enemy gets time to answer (a real exchange instead of 15 blows against one frozen enemy)
+        if (!blocked && !IsPlayer && reactLock > 0f) return;
         if (rig.Play(a, false, true))
         {
             // fightTbl: an attack may be left for fgt_hit_attack - the blow that was started is gone, and with it its damage (the strike frame never comes)
@@ -349,6 +353,7 @@ public partial class CharacterView : Node3D
                 swingAnim = false; atkHitIn = -1f; atkTarget = null; queuedSwing = null; atkCooldown = SwingRecovery;
             }
             playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Clamp(rig.SecondsToEnd(), 0.2f, IsPlayer ? 0.6f : 2f);
+            if (!blocked && !IsPlayer) reactLock = hitUntil + PoiseAfterStun;
         }
     }
 
@@ -383,6 +388,7 @@ public partial class CharacterView : Node3D
         if (blocking) blockAge += dt;
         if (hitUntil > 0f) hitUntil -= dt;
         if (hitGrace > 0f) hitGrace -= dt;
+        if (reactLock > 0f) reactLock -= dt;
         if (blockUntil > 0f) { blockUntil -= dt; if (blockUntil <= 0f) Blocking = false; else Blocking = true; }
         // the engine recharges the gun after a shot: chr_ai.charge grows by charge_dlt per second while chargeprc = 1
         if (Ent.Root.Find("chr_ai.chargeprc", false) is { } cp && Conv.ParseFloatPrefix(cp.Value) > 0f)
