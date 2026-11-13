@@ -936,7 +936,7 @@ if ($Quests) {
         # quest map encounter: the Black Pearl is registered with Encounter_SetQuestMapEncounter, the pursuer of the map is the quest group; it fights at sea
         $env:SEADOGS_MAPSPEED = '1'; $env:SEADOGS_MAPSAIL = '0'; $env:SEADOGS_SEED = $(if ($env:PEARL_SEED) { $env:PEARL_SEED } else { '2' }); $env:SEADOGS_MEETFOLLOW = '1'; $env:SEADOGS_PLAYERHP = '90000'
         $fail += Invoke-Godot 'q_pearl' @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
-            '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--call=BlackPearlOnMap()@1150', '--set=worldMap.date.hourPerSec=0.05@1160', '--set=Characters[0].worldmapencountersoff=0@1160', '--mapmeet@1700', '--key=Enter@1710', '--key=Enter@1900', '--shot-frame=3000') 300 @('Encounter_SetQuestMapEncounter(Black_Pearl', '[sea] Barbossa task: attack Blaze')
+            '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--call=BlackPearlOnMap()@1150', '--set=worldMap.date.hourPerSec=0.05@1160', '--set=Characters[0].worldmapencountersoff=0@1160', '--set=wdmTimeOfLastMerchant=-1000000@1160', '--set=wdmTimeOfLastWarring=-1000000@1160', '--set=wdmTimeOfLastFollow=5000@1160', '--mapmeet@1250', '--key=Enter@1710', '--key=Enter@1900', '--shot-frame=3000') 300 @('Encounter_SetQuestMapEncounter(Black_Pearl', '[sea] Barbossa task: attack Blaze')
         foreach ($v in 'SEADOGS_MAPSPEED', 'SEADOGS_MAPSAIL', 'SEADOGS_SEED', 'SEADOGS_MEETFOLLOW', 'SEADOGS_PLAYERHP', 'SEADOGS_TRACE') { Remove-Item "Env:$v" -ErrorAction SilentlyContinue }
     }
 }
@@ -1018,6 +1018,10 @@ if ($Sea) {
         $env:SEADOGS_CLOCKSTEP = '0.1'
         $fail += Invoke-Godot 'weatherland' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(22,50)@320', '--shot-frame=1500') 300 @('[weather] begin', 'hour=22 ', 'hour=23 ', 'grade-check night-dark')
         Remove-Item Env:SEADOGS_CLOCKSTEP
+        # evening town lamps: at 19:00 the lamp / torch locators of an open-air location are lit by LocationLamps even though the weather record has no Lights
+        $env:SEADOGS_LAMPLOG = '1'
+        $fail += Invoke-Godot 'lamps' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(19,0)@320', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@500', '--shot-frame=1500') 300 @('[lamps] QC_town: group')
+        Remove-Item Env:SEADOGS_LAMPLOG
     }
 }
 

@@ -56,6 +56,7 @@ public partial class LocationView : Node3D
         animTime += dt;
         if (grassLog > 0f && (grassLog -= dt) <= 0f) GD.Print($"[grass] state location={Ent.Root.Get("id")?.Value} blades={grass?.BladeCount ?? 0} total={GrassView.Blades} indoor={Indoor}");
         LandFlags.Tick(it);
+        LocationLamps.Tick(this, it, dt);
         foreach (var (node, sp) in spinners) node.Rotation += sp * dt;
         foreach (var (mats, sp) in sliders)
         {

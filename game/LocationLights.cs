@@ -32,6 +32,7 @@ public static class LocationLights
         public float Fast, SlowFrom, SlowTo, SlowT, FastT;
         public float Itens, ItensSlow, ItensDlt, I, CoronaVis;   // lights.cpp LightState: fast and slow flicker, their sum, corona visibility
         public float K = 1f;                // current flicker factor
+        public float Gain = 1f;             // 0..1 switch level (evening lamps fade in and out, see LocationLamps)
         public Node? Owner;
         public MeshInstance3D? CoronaNode;
         public StandardMaterial3D? CoronaMat;
@@ -166,7 +167,7 @@ public static class LocationLights
                 if (d < 0.3f) a *= 0.2f + 0.8f * d / 0.3f;
                 if (d > 0.4f) { a *= 1f - (d - 0.4f) / 0.6f; a *= a; }
                 float dev = 1f + Math.Clamp(l.I * 0.4f, -0.1f, 0.1f);
-                a = Math.Clamp(a * l.CoronaVis * dev, 0f, 1f);
+                a = Math.Clamp(a * l.CoronaVis * dev * l.Gain, 0f, 1f);
                 l.CoronaMat.AlbedoColor = new Color(1f, 1f, 1f, a);
                 l.CoronaNode.Scale = new Vector3(dev, dev, dev);
             }
@@ -180,6 +181,7 @@ public static class LocationLights
         foreach (var l in Lights)
         {
             var t = l.Type;
+            if (l.Gain < 0.02f) continue;
             float d = l.Pos.DistanceTo(p);
             if (d > t.Range + 0.5f) continue;
             float lum = (t.Color.R + t.Color.G + t.Color.B) / Math.Max(t.Att0 + d * t.Att1 + d * d * t.Att2, 0.01f);
@@ -317,7 +319,7 @@ void fragment() {
             {
                 var l = pick[i]; var t = l.Type;
                 pos[i] = new Vector4(l.Pos.X, l.Pos.Y, l.Pos.Z, t.Range);
-                col[i] = new Vector4(t.Color.R * l.K, t.Color.G * l.K, t.Color.B * l.K, 0);
+                col[i] = new Vector4(t.Color.R * l.K * l.Gain, t.Color.G * l.K * l.Gain, t.Color.B * l.K * l.Gain, 0);
                 att[i] = new Vector4(t.Att0, t.Att1, t.Att2, 0);
             }
             foreach (var m in mats)
