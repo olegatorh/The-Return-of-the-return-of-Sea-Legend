@@ -453,6 +453,35 @@ public partial class LandHud : CanvasLayer
         }
     }
 
+    // ------------------------------------------------------------------ hit feedback (port aid: the original shows the hero's wound only in the health bar)
+    TextureRect? hurt;
+    Tween? hurtTween;
+
+    /// <summary>The hero took a blow: a red vignette flashes at the screen edge (stronger for a bigger share of his health), a blocked blow gives a short pale flash.</summary>
+    public void HeroHurt(float damage, bool blocked, float hpMax)
+    {
+        if (hurt == null)
+        {
+            var g = new Gradient();
+            g.SetColor(0, new Color(0.8f, 0f, 0f, 0f)); g.SetColor(1, new Color(0.8f, 0f, 0f, 1f)); g.SetOffset(0, 0.35f); g.SetOffset(1, 1f);
+            hurt = new TextureRect
+            {
+                Name = "HeroHurt", MouseFilter = Control.MouseFilterEnum.Ignore, StretchMode = TextureRect.StretchModeEnum.Scale, Modulate = new Color(1, 1, 1, 0),
+                Texture = new GradientTexture2D { Gradient = g, Fill = GradientTexture2D.FillEnum.Radial, FillFrom = new Vector2(0.5f, 0.5f), FillTo = new Vector2(1.05f, 0.5f), Width = 256, Height = 256 },
+            };
+            hurt.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            root.AddChild(hurt); root.MoveChild(hurt, 0);
+        }
+        float k = blocked ? 0.25f : Mathf.Clamp(0.45f + 1.5f * damage / Math.Max(1f, hpMax), 0.45f, 1f);
+        hurt.SelfModulate = blocked ? new Color(0.8f, 0.85f, 1f) : Colors.White;
+        hurtTween?.Kill();
+        hurt.Modulate = new Color(1, 1, 1, k);
+        hurtTween = hurt.CreateTween();
+        hurtTween.TweenProperty(hurt, "modulate:a", 0f, blocked ? 0.2f : 0.4f);
+        LastHurtAlpha = k;
+    }
+    public float LastHurtAlpha;
+
     // ------------------------------------------------------------------ per frame
     public override void _Process(double delta)
     {

@@ -66,9 +66,20 @@ public sealed class LandCamera
         float minY = groundY + charHeight * LookHeight * 0.5f;       // lc->camPos.y < pos.y + lheight * 0.5
         if (pos.Y < minY) pos.Y = minY;
         Position = pos; LookTo = lookTo;
-        cam.GlobalPosition = pos;
+        var shown = pos;
+        if (shakeT > 0f)                                         // a short shake when the hero is hurt (port aid)
+        {
+            shakeT = Math.Max(0f, shakeT - dt);
+            float a = shakeAmp * shakeT / ShakeDur;
+            shown += new Vector3((float)Random.Shared.NextDouble() - 0.5f, (float)Random.Shared.NextDouble() - 0.5f, (float)Random.Shared.NextDouble() - 0.5f) * (2f * a);
+        }
+        cam.GlobalPosition = shown;
         cam.LookAt(lookTo);
     }
+
+    const float ShakeDur = 0.18f;
+    float shakeT, shakeAmp;
+    public void Shake(float amp) { shakeAmp = amp; shakeT = ShakeDur; }
 
     /// <summary>
     /// LocationCamera::Execute: the vertical angle ax has an angular velocity vAx. Every frame the mouse adds 10 * dAx * dt to it (3 * dAx in the first-person view), the angle moves

@@ -230,6 +230,50 @@ if ($Sea) {
             if ($w -and $badw) { Write-Host "[windup] timing out of range: $(($badw | ForEach-Object { "$($_.got)/$($_.exp)" }) -join ', ')" -ForegroundColor Red; $fail += 1 }
             elseif ($w) { Say "windup ok: $(@($w).Count) blows, e.g. $($w[0].got) ms (expected $($w[0].exp))" 'Green' }
         }
+        # crowd fight (np_character.cpp: every enemy walks up to NPC_FIGHT_GO_DIST 2.4 m and fights): the hero stands (900 hp) and three enemies run at him from 4, 5.5 and 7 m in a line; the one
+        # held up behind the others must find a free place of the ring round the hero, so all three swing within 9 s of the first swing (before: the third queued behind the first for 6-12 s)
+        $env:SEADOGS_FIGHTLOG = '1'; $env:SEADOGS_MELEELOG = '1'
+        $cfBase = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300',
+                '--call=ChangeCharacterAddressGroup(#Jakob+Nickerson,QC_port,goto,goto1)@380', '--call=ChangeCharacterAddressGroup(#Gilles+Roche,QC_port,goto,goto1)@380', '--call=ChangeCharacterAddressGroup(#Natan+Bueno,QC_port,goto,goto1)@380',
+                '--call=LAi_SetWarriorType(#Jakob+Nickerson)@400', '--call=LAi_SetWarriorType(#Gilles+Roche)@400', '--call=LAi_SetWarriorType(#Natan+Bueno)@400',
+                '--call=LAi_group_MoveCharacter(#Jakob+Nickerson,TestB)@410', '--call=LAi_group_MoveCharacter(#Gilles+Roche,TestB)@410', '--call=LAi_group_MoveCharacter(#Natan+Bueno,TestB)@410',
+                '--call=LAi_group_FightGroups(player,TestB,1)@420', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431',
+                '--call=LAi_SetHP(#Jakob+Nickerson,300,300)@432', '--call=LAi_SetHP(#Gilles+Roche,300,300)@432', '--call=LAi_SetHP(#Natan+Bueno,300,300)@432',
+                '--bring=Jakob_Nickerson:4@440', '--bring=Gilles_Roche:5.5@441', '--bring=Natan_Bueno:7@442', '--key=E@460')
+        $fail += Invoke-Godot 'crowdfight' ($cfBase + @('--shot-frame=2000')) 300 @('[swing] ')
+        if (Test-Path "$root\game\smoke_crowdfight.log") {
+            $sw = Select-String -Path "$root\game\smoke_crowdfight.log" -Pattern '^\[swing\] t=(\d+) (.+?) npc ' | ForEach-Object { [pscustomobject]@{ t = [int]$_.Matches[0].Groups[1].Value; id = $_.Matches[0].Groups[2].Value } }
+            $first = $sw | Group-Object id | ForEach-Object { [pscustomobject]@{ id = $_.Name; t = $_.Group[0].t } }
+            $t0 = ($sw | Select-Object -First 1).t
+            $late = $first | Where-Object { ($_.t - $t0) -gt 9000 }
+            if (@($first).Count -lt 3 -or $late) { Write-Host "[crowdfight] not all three enemies fight: swinging=$(@($first).Count), late: $(($late | ForEach-Object { $_.id }) -join ', ')" -ForegroundColor Red; $fail += 1 }
+            else { Say "crowdfight ok: first swings at +$((($first | ForEach-Object { [math]::Round(($_.t - $t0) / 1000, 1) }) -join 's, +'))s" 'Green' }
+        }
+        # a landed blow interrupts the victim's blow (character.cpp fightTbl: attack -> fgt_hit_attack): the same crowd, the hero swinging every 20 frames; there must be '[cancel]' lines and every
+        # blow that did land must land at its animation frame (hit_after_ms ~ expected_ms: no blow lands during the reaction)
+        $hcSwings = 480..2600 | Where-Object { $_ % 20 -eq 0 } | ForEach-Object { "--swing@$_" }
+        $fail += Invoke-Godot 'hitcancel' ($cfBase + $hcSwings + @('--shot-frame=2800')) 300 @('[cancel] ')
+        if (Test-Path "$root\game\smoke_hitcancel.log") {
+            $w = Select-String -Path "$root\game\smoke_hitcancel.log" -Pattern 'hit_after_ms=(\d+) expected_ms=(\d+)' | ForEach-Object { [pscustomobject]@{ got = [int]$_.Matches[0].Groups[1].Value; exp = [int]$_.Matches[0].Groups[2].Value } }
+            $badw = $w | Where-Object { $_.got -lt 250 -or [math]::Abs($_.got - $_.exp) -gt 120 }
+            if ($badw) { Write-Host "[hitcancel] blows landed off their strike frame (during a reaction?): $(($badw | ForEach-Object { "$($_.got)/$($_.exp)" }) -join ', ')" -ForegroundColor Red; $fail += 1 }
+            elseif ($w) { Say "hitcancel ok: $(@($w).Count) landed blows, all on their strike frame" 'Green' }
+        }
+        # the hero's blow starts on the PRESS of the left button (player.cpp CST_ACTIVATED), and the button held for 0.45 s after the press chains the heavy blow
+        $hpr = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300', '--call=ChangeCharacterAddressGroup(#Jakob+Nickerson,QC_port,goto,goto1)@380', '--call=LAi_SetWarriorType(#Jakob+Nickerson)@400', '--call=LAi_group_MoveCharacter(#Jakob+Nickerson,TestB)@410',
+                '--call=LAi_group_FightGroups(player,TestB,1)@420', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--call=LAi_SetHP(#Jakob+Nickerson,900,900)@432', '--bring=Jakob_Nickerson:2@600', '--key=E@460',
+                '--btn=L+@1200', '--btn=L-@2000', '--shot-frame=2300')
+        $fail += Invoke-Godot 'heropress' $hpr 200 @('[press] ')
+        if (Test-Path "$root\game\smoke_heropress.log") {
+            $lg = Get-Content "$root\game\smoke_heropress.log" -Encoding UTF8
+            $pr = $lg | Select-String '^\[press\] t=(\d+)' | ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -First 1
+            $hs = $lg | Select-String '^\[swing\] t=(\d+) .* hero (\S+) kind=(\w+)' | ForEach-Object { [pscustomobject]@{ t = [int]$_.Matches[0].Groups[1].Value; kind = $_.Matches[0].Groups[3].Value } }
+            $firstHs = $hs | Select-Object -First 1
+            if (-not $firstHs -or ($firstHs.t - $pr) -gt 100) { Write-Host "[heropress] the blow did not start on the press (press $pr, first hero swing $($firstHs.t))" -ForegroundColor Red; $fail += 1 }
+            elseif (-not ($hs | Where-Object kind -eq 'Strong')) { Write-Host "[heropress] holding the button gave no heavy blow" -ForegroundColor Red; $fail += 1 }
+            else { Say "heropress ok: blow $($firstHs.t - $pr) ms after the press, heavy blow after the hold" 'Green' }
+        }
+        Remove-Item Env:SEADOGS_FIGHTLOG, Env:SEADOGS_MELEELOG -ErrorAction SilentlyContinue
         # healing: potions in the pack, health 10, the quick-heal key C (BOAL_UsePotion) drinks the first usable one, then the land command menu
         # (Enter, Right = "Use", Enter, Enter = first potion); the count drops by one each time and the health rises (log '[heal]', hp_bottle poured in by LAi_AllCharactersUpdate)
         $hl = @('--ctl=Quick_Load@200', '--call=GiveItem2Character(#Blaze,potion1)@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--set=Characters[0].chr_ai.hp=10@310',

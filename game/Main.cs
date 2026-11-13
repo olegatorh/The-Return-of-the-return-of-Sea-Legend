@@ -423,6 +423,7 @@ public partial class Main : Node
                 cv = new CharacterView(host.It, e, (g, n) => CurrentLocation()?.FindLocator(g, n), () => CurrentLocation()?.Patch);
                 cv.LocationRoot = () => CurrentLocation()?.Ent.Root;
                 characters[e] = cv;
+                cv.OnHeroHurt = (d, b) => { landHud?.HeroHurt(d, b, cv.HpMax); HitFx.ShowHero(cv, d, b); if (!b) landCam.Shake(Mathf.Clamp(0.04f + 0.25f * d / Math.Max(1f, cv.HpMax), 0.04f, 0.15f)); };
                 AddChild(cv);
             }
             return cv.OnMessage(fmt, d);
@@ -686,6 +687,8 @@ public partial class Main : Node
     }
     bool camInit, flyMode;
     ulong lmbDownAt;
+    CharacterView? ringTarget;
+    const ulong HeavyHoldMs = 450;
     string portDirCached = "";
     readonly List<(int frame, string id)> brings = new();
     bool nameTags;
@@ -811,7 +814,12 @@ public partial class Main : Node
             player.Input = mv;
             player.Classic = true;
             player.TurnAdd += turnAdd;
+            // the button is still down 0.45 s after the press and the first blow is over: the next one is the heavy blow (one per press; the engine has no hold in ChrAttack, this is the port's stand-in for "force")
+            if (lmbDownAt > 0 && Time.GetTicksMsec() - lmbDownAt >= HeavyHoldMs && free && player.FightMode && player.Placed && !player.Blocking
+                && player.StartSwing(player.NearestInFront(2.64f), CharacterView.Strike.Strong)) lmbDownAt = 0;
             player.Blocking = free && player.FightMode && Keys.Down("LandBlock") && Ctl.Allowed("ChrBlock");      // the script locks the block of the hard levels (LockControl)
+            var ringT = free && player.FightMode && player.Placed ? player.NearestInFront(2.64f) : null;          // the enemy the next blow is aimed at gets a ring
+            if (!ReferenceEquals(ringT, ringTarget)) { if (ringTarget != null && GodotObject.IsInstanceValid(ringTarget)) ringTarget.SetTargetRing(false); ringT?.SetTargetRing(true); ringTarget = ringT; }
             if (FightLog && player.Blocking != lastBlockLog) { lastBlockLog = player.Blocking; GD.Print("[block] hero blocking = " + player.Blocking); }
             player.Run = forceRun || !Keys.Down("LandRun");
             player.CameraYaw = camYaw;
@@ -955,17 +963,14 @@ public partial class Main : Node
             {
                 if (!Ctl.Is(landBtn.ButtonIndex, "ChrAttack")) return;
                 // a quick click strikes normally; sideways keys give a fast side cut; holding the button winds up a strong blow (released below)
-                if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { pl.StartSwing(pl.NearestInFront(2.2f), CharacterView.Strike.Fast); }
-                else lmbDownAt = Time.GetTicksMsec();
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_MELEELOG") != null) GD.Print($"[press] t={Time.GetTicksMsec()} attack button down");
+                // Player::Move: the blow starts on the press (CST_ACTIVATED), at once; the aim is FindAttackCharacter (CHARACTER_ATTACK_DIST * 1.1 = 2.64 m)
+                if (Keys.Down("LandLeft") || Keys.Down("LandRight")) { pl.StartSwing(pl.NearestInFront(2.64f), CharacterView.Strike.Fast); }
+                else { pl.StartSwing(pl.NearestInFront(2.64f), CharacterView.Strike.Normal); lmbDownAt = Time.GetTicksMsec(); }
             }
             else if (pl != null && locations.Count > 0 && Ctl.Is(landBtn.ButtonIndex, "ChrAction")) LandAction();          // the original: the left mouse button is ChrAction
         }
-        if (e is InputEventMouseButton { Pressed: false } landUp && Ctl.Is(landUp.ButtonIndex, "ChrAttack") && lmbDownAt > 0)
-        {
-            var pl2 = characters.Values.FirstOrDefault(c => c.IsPlayer);
-            ulong held = Time.GetTicksMsec() - lmbDownAt; lmbDownAt = 0;
-            if (pl2 != null && pl2.FightMode && pl2.Placed && dialogView == null && !UiOpen) { pl2.StartSwing(pl2.NearestInFront(2.2f), held > 450 ? CharacterView.Strike.Strong : CharacterView.Strike.Normal); }
-        }
+        if (e is InputEventMouseButton { Pressed: false } landUp && Ctl.Is(landUp.ButtonIndex, "ChrAttack")) lmbDownAt = 0;          // released: no heavy blow follows
         // the deck camera: the right button walks forward, the middle one back (DeckCamera_Forward / _Backward), the mouse looks round without a button
         if (e is InputEventMouseButton db && sea.DeckCamera && (Ctl.Is(db.ButtonIndex, "DeckCamera_Forward") || Ctl.Is(db.ButtonIndex, "DeckCamera_Backward")))
         {
@@ -1208,7 +1213,7 @@ public partial class Main : Node
         foreach (var (f, dir) in sails) if (f == frames) sea.SailKey(dir);
         foreach (var (f, what) in rigTests) if (f == frames) sea.RigTest(what);
         foreach (var f in seaActions.ToArray()) if (f == frames) SeaAction();
-        if (swings.Contains(frames) && characters.Values.FirstOrDefault(c => c.IsPlayer) is { } swp && swp.NearestInFront(2.2f) is { } swe) { if (!swp.FightMode) swp.ToggleFightMode(); GD.Print($"[melee] frame {frames}: attack pressed"); swp.StartSwing(swe, CharacterView.Strike.Normal); }
+        if (swings.Contains(frames) && characters.Values.FirstOrDefault(c => c.IsPlayer) is { } swp && swp.NearestInFront(2.64f) is { } swe) { if (!swp.FightMode) swp.ToggleFightMode(); GD.Print($"[melee] frame {frames}: attack pressed"); swp.StartSwing(swe, CharacterView.Strike.Normal); }
         if (animalsAt == frames && animalsView != null)
         {
             var pp = characters.Values.FirstOrDefault(c => c.IsPlayer)?.Position ?? Vector3.Zero;

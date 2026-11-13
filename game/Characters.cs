@@ -85,7 +85,9 @@ public partial class CharacterView : Node3D
     bool swingAnim;                                // the blow follows the rig playback (see TickSwing)
     string swingAction = "";
     /// <summary>NPC recovery after a blow: the next action blends in over its "Blend time" (0.2 s) - the original NPC cannot start the next blow before that; the hero's pace is his input.</summary>
-    float SwingRecovery => IsPlayer ? 0f : 0.2f;
+    float SwingRecovery => IsPlayer ? (lastKind == Strike.Strong ? StrongRecovery : 0f) : 0.2f;
+    /// <summary>The price of the hero's heavy blow: he needs this long after the animation before the next action (port balance, the script has no such thing).</summary>
+    public const float StrongRecovery = 0.3f, StrongDamage = 1.5f;
     (CharacterView enemy, Strike kind)? queuedSwing;
     float queuedUntil;
     ulong swingStartMs; long swingExpectMs;
@@ -127,7 +129,7 @@ public partial class CharacterView : Node3D
     static readonly HashSet<string> paramsLogged = new();
     /// <summary>Test knob (env SEADOGS_NPCFIRE): multiplies the script's NPC fire rate, so a short test run sees an NPC shot.</summary>
     static readonly float FireRateScale = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_NPCFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr) ? fr : 1f;
-    public static int StatHeroLanded, StatHeroBlockedByNpc, StatHeroHits, StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
+    public static int StatSwingsCancelled, StatHeroLanded, StatHeroBlockedByNpc, StatHeroHits, StatNpcSwings, StatReactBlocks, StatGuardBlocks, StatBlocked, StatParried, StatHits, StatNpcShots, StatParamQueries, StatFightGo, StatFightStay, StatFightFail;
     public static string FightStats() => $"hero blows landed={StatHeroLanded} blocked by the NPC={StatHeroBlockedByNpc}; npc swings={StatNpcSwings} blocks raised={StatReactBlocks}+{StatGuardBlocks} hits: blocked={StatBlocked} parried={StatParried} body={StatHits} npc shots={StatNpcShots} param queries={StatParamQueries} FightGo={StatFightGo} FightStay={StatFightStay} failures={StatFightFail} script-driven={StatParamQueries > 0 && StatFightStay > 0 && StatHits + StatBlocked + StatParried > 0}";
 
     float AskF(string ev, float def)
@@ -305,6 +307,23 @@ public partial class CharacterView : Node3D
     public float HpNow => Ent.Root.Find("chr_ai.hp", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 0f;
     public float HpMax => Ent.Root.Find("chr_ai.hp_max", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 1f;
 
+    MeshInstance3D? targetRing;
+    /// <summary>Port aid: a thin ring on the ground under the enemy the hero's next blow would be aimed at (the engine's Select() of the attack target).</summary>
+    public void SetTargetRing(bool on)
+    {
+        if (on && targetRing == null)
+        {
+            targetRing = new MeshInstance3D
+            {
+                Mesh = new TorusMesh { InnerRadius = 0.5f, OuterRadius = 0.6f, Rings = 28, RingSegments = 4 }, Scale = new Vector3(1f, 0.05f, 1f), Position = new Vector3(0, 0.06f, 0),
+                MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, 0.35f, 0.12f, 0.85f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha },
+            };
+            AddChild(targetRing);
+        }
+        if (targetRing != null) targetRing.Visible = on;
+    }
+    public bool TargetRingOn => targetRing?.Visible == true;
+
     /// <summary>Port aid (not in the original interface): after the hero's blow the target shows its health bar for a few seconds and the damage rises as a number.</summary>
     public void ShowHit(float damage, bool blocked)
     {
@@ -320,7 +339,17 @@ public partial class CharacterView : Node3D
         // Hit(): the reaction clip locks the character for its whole length (fightTbl); the hero reels only half of the time (stunChance, "COAS vanilla")
         if (!blocked && IsPlayer) hitGrace = 0.2f;          // a pack cannot chain-hit the hero: after a blow that lands he is spared for a moment (0.2 s, the owner's value) (no stun-lock to death)
         if (!blocked && IsPlayer && idleRng.Next(100) >= 35) return;
-        if (rig.Play(a, false, true)) { playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Clamp(rig.SecondsToEnd(), 0.2f, IsPlayer ? 0.6f : 2f); }
+        if (rig.Play(a, false, true))
+        {
+            // fightTbl: an attack may be left for fgt_hit_attack - the blow that was started is gone, and with it its damage (the strike frame never comes)
+            if (swingAnim || atkHitIn >= 0f)
+            {
+                if (MeleeLog) GD.Print($"[cancel] t={Time.GetTicksMsec()} {Id} {(IsPlayer ? "hero" : "npc")} {swingAction}: swing interrupted by a hit, {(atkHitIn >= 0f ? "strike frame not reached" : "")}");
+                StatSwingsCancelled++;
+                swingAnim = false; atkHitIn = -1f; atkTarget = null; queuedSwing = null; atkCooldown = SwingRecovery;
+            }
+            playing = a.StartsWith("hit") ? "hit" : a; hitUntil = Math.Clamp(rig.SecondsToEnd(), 0.2f, IsPlayer ? 0.6f : 2f);
+        }
     }
 
     /// <summary>Pistol shot (the original control ChrFire): the nearest living target in front within reach; the script applies the damage.</summary>
@@ -1070,12 +1099,12 @@ void fragment() {
                     if (fightAllowed == false) { FailFight(); PlayIdle(); break; }
                     if (!fightMode) FightMode = true;
                     NpcParams();
-                    bool inReach = dist <= (fightState == 2 ? 2.4f : 2.0f);        // np_character.cpp: NPC_FIGHT_STOP_DIST 2.0 / NPC_FIGHT_GO_DIST 2.4
+                    bool inReach = dist <= (fightState == 2 ? 2.4f : 2.3f);        // np_character.cpp: the goto towards the enemy ends at NPC_FIGHT_GO_DIST 2.4 (the blow reaches 2.4 m); a hair less to start, so the blow lands
                     SetFightState(inReach ? 2 : 1);
                     if (FightLog && (fightLogT -= dt) <= 0f)
                     {
                         fightLogT = 1f;
-                        GD.Print(FormattableString.Invariant($"[npc] {Id} -> {target.Id}: dist={dist:0.00} reach={inReach} state={playing} cooldown={atkCooldown:0.00} swinging={atkHitIn >= 0f} blocking={Blocking} atk={npcAttack:0.##} agg={npcAggressive:0.##} hp={HpNow:0}"));
+                        GD.Print(FormattableString.Invariant($"[npc] {Id} -> {target.Id}: pos=({x:0.0},{z:0.0}) goal=({dbgGoal.Item1:0.0},{dbgGoal.Item2:0.0}) wp=({dbgGoal.Item3:0.0},{dbgGoal.Item4:0.0}) hero=({target.x:0.0},{target.z:0.0}) dist={dist:0.00} reach={inReach} state={playing} cooldown={atkCooldown:0.00} swinging={atkHitIn >= 0f} blocking={Blocking} atk={npcAttack:0.##} agg={npcAggressive:0.##} hp={HpNow:0}"));
                     }
                     NpcFightTick(dt);
                     NpcMaybeFire(target, dist);
@@ -1090,7 +1119,9 @@ void fragment() {
                     break;
                 }
                 if (GotoWaiting(dt, false, 0f, 0f)) { PlayIdle(); break; }
-                var (ax, az) = NextWaypoint(target.x, target.z, target.y, dt);
+                var (gox, goz) = task == Task.Fight ? FightSlot(target, dist, dt) : (target.x, target.z);
+                var (ax, az) = task == Task.Fight && dist < 6f && slotSet ? (gox, goz) : NextWaypoint(gox, goz, target.y, dt);          // close to the fight the free place is approached directly (the triangle route would lead through the man already standing there)
+                dbgGoal = (gox, goz, ax, az);
                 SteerGo(ax - x, az - z, dist, fightRun, dt);
                 if (isMove) PlayMove(wantRun ? "run" : "walk"); else PlayIdle();
                 break;
@@ -1104,6 +1135,66 @@ void fragment() {
         }
         Locomote(dt);
         Apply();
+    }
+
+    /// <summary>Character::Dead: a man with the sword out falls with one of death_0..3, otherwise death_citizen_1/2; the weights are the "Probability" of man.ani,
+    /// cut when the body would fall onto another man or off the walk patch (the engine traces the fall for walls the same way).</summary>
+    string PickDeath()
+    {
+        string[] names = fightMode ? new[] { "death_0", "death_1", "death_2", "death_3" } : new[] { "death_citizen_1", "death_citizen_2" };
+        float[] angs = fightMode ? new[] { 330f, 330f, 330f, 140f } : new[] { 340f, 340f };
+        var w = new float[names.Length]; float sum = 0f;
+        for (int i = 0; i < names.Length; i++)
+        {
+            float a = ay + angs[i] * MathF.PI / 180f, px = x + MathF.Sin(a) * 1.5f, pz = z + MathF.Cos(a) * 1.5f;
+            w[i] = 1f;
+            foreach (var c in All.Values)
+                if (!ReferenceEquals(c, this) && c.Placed && c.IsAlive && (c.x - px) * (c.x - px) + (c.z - pz) * (c.z - pz) < 1.2f * 1.2f) { w[i] *= 0.1f; break; }
+            if (getPatch() is { } p && !p.Contains(px, pz, y, 1.0f, out _)) w[i] *= 0.3f;
+            sum += w[i];
+        }
+        float r = (float)idleRng.NextDouble() * sum, acc = 0f;
+        for (int i = 0; i < names.Length; i++) { acc += w[i]; if (r <= acc) return names[i]; }
+        return names[0];
+    }
+
+    // ---- surrounding a fighter: the characters are pushed apart by Supervisor::Update (radius 1.5 m in a fight), and in the engine a crowd flows round the first
+    // man by the separation / bypass forces. Here a man who is held up behind the first one aims for a free place of the ring at 2 m from the enemy instead of the
+    // enemy himself, so the second and the third come into reach from the sides (the places are 45 degrees apart: 1.53 m, more than the push distance 1.5 m).
+    float slotAng, slotT; bool slotSet; (float, float, float, float) dbgGoal;
+    static readonly float[] SlotOffsets = { 0f, 0.785f, -0.785f, 1.571f, -1.571f, 2.356f, -2.356f, 3.1416f };
+
+    bool SlotFree(CharacterView t, float ang)
+    {
+        float px = t.x + MathF.Sin(ang) * 2f, pz = t.z + MathF.Cos(ang) * 2f;
+        if (getPatch() is { } p && !p.Contains(px, pz, t.y, 1.2f, out _)) return false;
+        foreach (var c in All.Values)
+        {
+            if (ReferenceEquals(c, this) || ReferenceEquals(c, t) || !c.Placed || !c.Visible || !c.IsAlive) continue;
+            float dx = c.x - px, dz = c.z - pz;
+            if (dx * dx + dz * dz < 1.5f * 1.5f) return false;
+        }
+        return true;
+    }
+
+    (float x, float z) FightSlot(CharacterView t, float dist, float dt)
+    {
+        if (dist > 7f || dist < 2.4f) { slotSet = false; return (t.x, t.z); }
+        if ((slotT -= dt) <= 0f || !slotSet)
+        {
+            slotT = 0.4f;
+            if (!slotSet || !SlotFree(t, slotAng))
+            {
+                float bear = Angle(x - t.x, z - t.z);
+                bool found = false;
+                foreach (float off in SlotOffsets)
+                    if (SlotFree(t, bear + off)) { slotAng = bear + off; found = true; break; }
+                slotSet = found;
+                if (FightLog) GD.Print(FormattableString.Invariant($"[slot] {Id} dist={dist:0.00} found={found} ang={slotAng:0.00} bear={bear:0.00} pos=({x:0.0},{z:0.0}) hero=({t.x:0.0},{t.z:0.0})"));
+                if (!found) return (t.x, t.z);
+            }
+        }
+        return (t.x + MathF.Sin(slotAng) * 2f, t.z + MathF.Cos(slotAng) * 2f);
     }
 
     // ---- dialog start: both speakers stop and turn to each other, also when the script's own type does not do it (hero in a cutscene = "actor" type,
@@ -1147,6 +1238,7 @@ void fragment() {
     void TickSwing(float dt)
     {
         atkCooldown -= dt;
+        if (IsPlayer && swingAnim && atkHitIn >= 0f && dt > 0f) { ay = TurnToward(ay, swingAy, 16f * dt); nay = ay; hasNay = false; }          // the hero's heading eases round to the target in about 0.1 s instead of snapping
         bool strikeNow = false;
         if (swingAnim && rig != null)
         {
@@ -1179,30 +1271,69 @@ void fragment() {
             atkHitIn -= dt;
             if (atkHitIn >= 0f) return;
         }
-        if (atkTarget != null)
+        // character.cpp CheckAttackHit: FindCharacters(this, 2.4 m, 60 degrees either side of the heading the blow was started with) - EVERY enemy in the cone
+        // is hit, not just the one the blow was aimed at (the turn is locked meanwhile); each gets its own Location_CharacterAttack / Block event
+        if (!IsAlive) { atkTarget = null; return; }
+        List<CharacterView>? victims = null;
+        float sx = MathF.Sin(swingAy), cz = MathF.Cos(swingAy);
+        foreach (var c in All.Values)
         {
-            float d2 = (atkTarget.x - x) * (atkTarget.x - x) + (atkTarget.z - z) * (atkTarget.z - z);
-            // character.cpp CheckAttackHit: reach 2.4 m, 60 degrees either side of the heading the blow was started with (the turn is locked meanwhile)
-            float ca = d2 > 1e-4f ? (MathF.Sin(swingAy) * (atkTarget.x - x) + MathF.Cos(swingAy) * (atkTarget.z - z)) / MathF.Sqrt(d2) : 1f;
-            if (atkTarget.IsAlive && IsAlive && d2 < 2.4f * 2.4f && ca >= 0.5f && !(atkTarget.IsPlayer && atkTarget.hitGrace > 0f))
-            {
-                bool blocked = atkTarget.Defends(this);
-                bool parried = blocked && (atkTarget.IsPlayer ? atkTarget.blockAge < ParryWindow : atkTarget.parryIntent);                 // a block raised just in time throws the attacker off balance
-                if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
-                if (IsPlayer) { if (blocked) StatHeroBlockedByNpc++; else StatHeroLanded++; }
-                atkTarget.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
-                float hpBefore = atkTarget.HpNow;
-                it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(atkTarget.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
-                if (IsPlayer) atkTarget.ShowHit(hpBefore - atkTarget.HpNow, blocked);
-                if (!IsPlayer && atkTarget.IsPlayer && StatHeroHits++ < 3) GD.Print(FormattableString.Invariant($"[fight] the hero was {(blocked ? "attacked (blocked)" : "hit")} by {Id}: hp {hpBefore:0.#} -> {atkTarget.HpNow:0.#}, kind={lastKind}"));
-                if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {atkTarget.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began (rig {swingAction} at frame {rig?.AnimFrame:0.00} of the strike frame, speed x{rig?.SpeedMul:0.00}),{(blocked ? "blocked" : "damage " + (hpBefore - atkTarget.HpNow))}, hp {atkTarget.HpNow}/{atkTarget.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
-                if (MeleeLog) GD.Print(FormattableString.Invariant($"[windup] {Id} {swingAction} hit_after_ms={Time.GetTicksMsec() - swingStartMs} expected_ms={swingExpectMs} blocked={blocked} target={atkTarget.Id}"));
-                atkTarget.PlayReaction(blocked);
-                if (parried) Stagger();
-            }
+            if (ReferenceEquals(c, this) || !c.Placed || !c.IsAlive || !GroupsState.AreEnemies(Ent.Root, c.Ent.Root)) continue;
+            float dx = c.x - x, dz = c.z - z, d2 = dx * dx + dz * dz;
+            if (d2 >= 2.4f * 2.4f || MathF.Abs(c.y - y) > CharHeight) continue;
+            float ca = d2 > 1e-4f ? (sx * dx + cz * dz) / MathF.Sqrt(d2) : 1f;
+            if (ca < 0.5f) continue;
+            (victims ??= new()).Add(c);
+        }
+        if (victims != null)
+        {
+            if (victims.Count > 1) StatMultiHits++;
+            foreach (var t in victims) ApplyStrike(t);
         }
         atkTarget = null;
     }
+
+    /// <summary>One victim of a landed blow: block / parry / body hit, the script's damage event, the engine-side blow multiplier, the reaction.</summary>
+    void ApplyStrike(CharacterView t)
+    {
+        if (t.IsPlayer && t.hitGrace > 0f) return;                          // the hero is spared for a moment after a landed blow (owner's decision)
+        bool blocked = t.Defends(this);
+        bool parried = blocked && (t.IsPlayer ? t.blockAge < ParryWindow : t.parryIntent);                 // a block raised just in time throws the attacker off balance
+        if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
+        if (IsPlayer) { if (blocked) StatHeroBlockedByNpc++; else StatHeroLanded++; }
+        t.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
+        float hpBefore = t.HpNow;
+        it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(t.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
+        // the scripts ignore attackDmg (LAi_ApplyCharacterBladeDamage); the engine's blow strength is applied to what the script took: heavier / lighter than a normal blow
+        if (!blocked && IsPlayer && MathF.Abs(atkDamage - 1f) > 0.01f && t.IsAlive)
+        {
+            float taken = hpBefore - t.HpNow;
+            if (taken > 0f) t.AddHp(-taken * (atkDamage - 1f));
+        }
+        t.damageTaken += Math.Max(0f, hpBefore - t.HpNow);
+        if (IsPlayer) t.ShowHit(hpBefore - t.HpNow, blocked);
+        if (!IsPlayer && t.IsPlayer)
+        {
+            t.OnHeroHurt?.Invoke(hpBefore - t.HpNow, blocked);
+            if (StatHeroHits++ < 3) GD.Print(FormattableString.Invariant($"[fight] the hero was {(blocked ? "attacked (blocked)" : "hit")} by {Id}: hp {hpBefore:0.#} -> {t.HpNow:0.#}, kind={lastKind}"));
+        }
+        if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} -> {t.Ent.Root.Get("id")?.Value}: strike registered {Time.GetTicksMsec() - swingStartMs} ms after the swing began (rig {swingAction} at frame {rig?.AnimFrame:0.00} of the strike frame, speed x{rig?.SpeedMul:0.00}),{(blocked ? "blocked" : "damage " + (hpBefore - t.HpNow))}, hp {t.HpNow}/{t.HpMax}; control back in {Math.Max(0f, atkCooldown):0.00}s");
+        if (MeleeLog) GD.Print(FormattableString.Invariant($"[windup] {Id} {swingAction} hit_after_ms={Time.GetTicksMsec() - swingStartMs} expected_ms={swingExpectMs} blocked={blocked} target={t.Id}"));
+        t.PlayReaction(blocked);
+        if (parried) Stagger();
+    }
+
+    /// <summary>Engine-side change of a character's health (the blow strength on top of the script's damage); a death goes through the script's own check.</summary>
+    void AddHp(float delta)
+    {
+        var a = Ent.Root.Find("chr_ai.hp", true)!;
+        float hp = Math.Min(HpMax, HpNow + delta);
+        a.Value = Conv.FloatToConcat(hp);
+        if (hp < 1f) it.CallTop("LAi_CheckKillCharacter", V.A(Ent.Root));
+    }
+    float damageTaken;
+    public Action<float, bool>? OnHeroHurt;
+    public static int StatMultiHits;
 
     /// <summary>Begins a sword swing at a target in reach (no-op while the previous swing is still running).</summary>
     public bool StartSwing(CharacterView? enemy, Strike kind = Strike.Normal)
@@ -1214,13 +1345,13 @@ void fragment() {
             // and a block asked for meanwhile (held key) simply goes up when the animation ends
             return false;
         }
-        if (enemy != null) ay = Angle(enemy.x - x, enemy.z - z);          // no enemy in reach: the blow is struck at the air in the current heading
+        if (enemy != null && !IsPlayer) ay = Angle(enemy.x - x, enemy.z - z);          // no enemy in reach: the blow is struck at the air in the current heading (the hero eases round to his target, see TickSwing)
         atkTarget = enemy;
         string a;
         switch (kind)
         {
-            case Strike.Strong: atkDamage = 1.7f; a = "attack_" + (idleRng.Next(4) + 5); break;                                            // heavier blow
-            case Strike.Fast: atkDamage = 0.7f; a = idleRng.Next(2) == 0 ? "attack_right_1" : "attack_left_1"; break;
+            case Strike.Strong: atkDamage = StrongDamage; a = "attack_" + (idleRng.Next(4) + 5); break;                                            // heavier blow
+            case Strike.Fast: atkDamage = 1f; a = idleRng.Next(2) == 0 ? "attack_right_1" : "attack_left_1"; break;
             default: atkDamage = 1f; a = "attack_" + (idleRng.Next(4) + 1); break;
         }
         // the strike moment and the length of the blow come from the animation (man.ani: "Attack_slash" event, frames / (fps * speed)), as in the engine
@@ -1228,11 +1359,12 @@ void fragment() {
         float spd = Math.Max(0.2f, rig?.SpeedMul ?? 1f);      // the script's speed factor (agility) speeds the animation up or down
         atkHitIn = tm.hit / spd; atkCooldown = tm.duration / spd; swingStartMs = Time.GetTicksMsec();
         swingExpectMs = (long)(tm.hit / spd * 1000f);
+        if (MeleeLog) GD.Print($"[swing] t={Time.GetTicksMsec()} {Id} {(IsPlayer ? "hero" : "npc")} {a} kind={kind}");
         if (MeleeLog) GD.Print($"[melee] {Ent.Root.Get("id")?.Value} swing {a}: strike in {atkHitIn:0.00}s, control back after {atkCooldown:0.00}s");
         swingAnim = false;
         if (rig != null && (rig.Play(a, false, true) || rig.Play("attack_" + (idleRng.Next(4) + 1), false, true))) { playing = a; swingAnim = true; swingAction = rig.ActionName; }
         if (kind == Strike.Strong || idleRng.NextDouble() < 0.4) ChrSnd("Event_ChrSnd_Attack");     // a battle cry, not on every swing
-        lastKind = kind; swingAy = ay;
+        lastKind = kind; swingAy = enemy != null ? Angle(enemy.x - x, enemy.z - z) : ay;
         if (!IsPlayer) StatNpcSwings++;
         return true;
     }
@@ -1448,7 +1580,12 @@ void fragment() {
             case "Dead":
                 if (task != Task.Dead && Placed && Visible) ChrSnd("Event_ChrSnd_Dead");
                 task = Task.Dead;
-                if (rig != null && (rig.Play("death_0", false) || rig.Play("death_1", false))) playing = "dead";
+                if (rig != null)
+                {
+                    string dn = PickDeath();
+                    if (rig.Play(dn, false) || rig.Play("death_0", false)) playing = "dead";
+                    if (MeleeLog) GD.Print($"[death] {Id} plays {dn} (fight mode {fightMode})");
+                }
                 break;
             default:
                 if (warned.Add("task " + name)) GD.Print("[character] unknown task: " + name);
