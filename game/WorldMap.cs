@@ -98,9 +98,9 @@ public partial class WorldMapView : Node3D
     float seaAni;
     const string SeaShader = @"shader_type spatial;
 render_mode unshaded, cull_disabled;
-uniform sampler2D base_tex : source_color, filter_linear_mipmap, repeat_disable;
-uniform sampler2D wave_a : filter_linear_mipmap, repeat_enable;
-uniform sampler2D wave_b : filter_linear_mipmap, repeat_enable;
+uniform sampler2D base_tex : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D wave_a : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D wave_b : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float world = 2000.0;
 uniform float ani_tiling = 0.015;
 uniform float k = 0.0;

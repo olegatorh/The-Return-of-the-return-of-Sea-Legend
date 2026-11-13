@@ -76,7 +76,7 @@ static class RiggingFx
     const string RopeShader = @"
 shader_type spatial;
 render_mode cull_disabled;
-uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float t;
 uniform vec4 spd = vec4(3.0, 1.6, 1.0, 0.7);     // deep change/s, rotate/s, min deep mul, var deep mul
 uniform float rot_ang = 0.5;
@@ -97,7 +97,7 @@ void fragment() {
     const string VantShader = @"
 shader_type spatial;
 render_mode cull_disabled;
-uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 void fragment() {
     vec4 c = texture(tex, UV);
     ALBEDO = c.rgb;
@@ -259,7 +259,7 @@ void fragment() {
     const string FlagShader = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled;
-uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic;
 uniform vec4 tile;          // x0, y0, w, h of the nation's flag in the atlas
 uniform float t;
 uniform vec3 windW;         // world direction the wind blows to

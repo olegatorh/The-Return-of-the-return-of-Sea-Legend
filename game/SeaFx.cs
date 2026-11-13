@@ -105,7 +105,7 @@ float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 6; i++) h += wave_a[i] 
     const string FoamShader = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
-uniform sampler2D tex : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D tex : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
 uniform float speed_a;
 uniform vec2 scroll;
 uniform vec3 tint;
@@ -320,7 +320,7 @@ void fragment() {
     const string SinkShader = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
-uniform sampler2D tex : source_color, filter_linear_mipmap;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic;
 uniform float age;
 uniform float grow;
 uniform float base_y;

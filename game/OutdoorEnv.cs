@@ -343,8 +343,8 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
     // inside each strip (no bleeding between strips), directions below the horizon take the horizon row.
     const string SkyCode = @"shader_type spatial;
 render_mode unshaded, cull_disabled, fog_disabled;
-uniform sampler2D side : source_color, filter_linear_mipmap, repeat_disable;
-uniform sampler2D up : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D side : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D up : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform bool has_up = true;
 uniform vec4 tint = vec4(1.0);
 varying vec3 ld;

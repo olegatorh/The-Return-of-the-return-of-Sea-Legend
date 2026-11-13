@@ -132,8 +132,8 @@ public partial class SeaView
         string code = @"
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, specular_disabled;
-uniform sampler2D tex : source_color, filter_linear_mipmap;
-uniform sampler2D holes : filter_linear_mipmap;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic;
+uniform sampler2D holes : filter_linear_mipmap_anisotropic;
 uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3;
 uniform vec3 nrm;
 uniform float tri = 0.0;

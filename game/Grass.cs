@@ -42,7 +42,7 @@ public partial class GrassView : Node3D
     static readonly string Code = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_opaque;
-uniform sampler2D tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform vec3 cam;
 uniform vec4 ph0;      // phase0, cosPh1, sinPh2, sinPh5
 uniform vec4 ph1;      // phase3, phase4, sinPh6, winPow

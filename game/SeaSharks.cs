@@ -36,7 +36,7 @@ public partial class SeaView
     const string TrackShaderCode = @"
 shader_type spatial;
 render_mode unshaded, cull_disabled, blend_mix, depth_draw_never;
-uniform sampler2D tex : source_color, repeat_enable, filter_linear_mipmap;
+uniform sampler2D tex : source_color, repeat_enable, filter_linear_mipmap_anisotropic;
 uniform float vbase;
 uniform float depth_k;
 " + WaveGlsl + @"
