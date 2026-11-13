@@ -118,9 +118,24 @@ void fragment() {
 
     static float F(Attr? a, string k, float def) => a?.Find(k, false)?.Value is { Length: > 0 } v ? Conv.ParseFloatPrefix(v) : def;
 
+    /// <summary>Set by Main every frame: the active location is an interior (no environment.weather: tavern, house, shop, church, dungeon, cabin) - no rain, drops, splashes or flashes there.</summary>
+    public bool Indoor;
+    /// <summary>The active location object (null at sea); a change resets all rain effects at once, so a reload never shows residual rain frames.</summary>
+    public object? LocKey;
+    object? lastLocKey; bool lastIndoor; string lastRainState = "";
+
+    void ResetRainNow()
+    {
+        rainBlend = 0f; flashAlpha = 0f; flashQueue.Clear();
+        foreach (var b in bolts) b.sprite.QueueFree();
+        bolts.Clear();
+        if (rain != null) { rain.QueueFree(); rain = null; rainMat = null; rainDrops = 0; }
+    }
+
     public void Sync(Interp it, Camera3D? cam, float dt)
     {
         time += dt;
+        if (!ReferenceEquals(LocKey, lastLocKey) || Indoor != lastIndoor) { lastLocKey = LocKey; lastIndoor = Indoor; ResetRainNow(); }
         CycleWeather(it);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_NOSUNFX") == null) SyncSunGlow(it, cam, dt);
         Entity? rainEnt = null, lightEnt = null;
@@ -132,6 +147,7 @@ void fragment() {
         }
         // ---- rain (fades in / out over Rain.TimeBlend, drops fixed in the world, rings on the sea)
         int drops = rainEnt == null ? 0 : (int)F(rainEnt.Root, "NumDrops", 0);
+        if (Indoor) drops = 0;
         bool wantRain = drops > 0 && cam != null;
         float fadeTime = rainEnt != null ? Math.Max(0.5f, F(rainEnt.Root, "TimeBlend", 2000f) / 1000f) : rainFadeTime;
         rainFadeTime = fadeTime;
@@ -211,6 +227,8 @@ void fragment() {
         }
         flashAlpha = Math.Max(0f, flashAlpha - dt * 3.5f);
         flash.Color = new Color(0.8f, 0.85f, 1f, flashAlpha * 0.9f);
+        string st = $"indoor={(Indoor ? 1 : 0)} entity={(rainEnt != null ? 1 : 0)} node={(rain != null ? 1 : 0)} lens={(lens != null && lens.Visible ? 1 : 0)} splash={(splashNode != null && splashNode.Visible ? 1 : 0)} rainbow={(rainbow != null && rainbow.Visible ? 1 : 0)} blend={(rainBlend > 0.01f ? 1 : 0)}";
+        if (st != lastRainState) { lastRainState = st; GD.Print("[rain] " + st + $" drops={drops}"); }
     }
 
     // ---------------------------------------------------------------- the weather follows the game clock
@@ -374,7 +392,7 @@ void fragment() {
     /// <summary>Message 54000 of the Lightning entity: (id, subtexture, name, time, flicker, size, scaleX, scaleY, x, y, z, flash name, flash size, flash time).</summary>
     public V OnLightning(V[] d)
     {
-        if (d.Length < 11 || Conv.ToInt(d[0]) != 54000) return V.Int(1);   // fmt llsflffffffsff
+        if (d.Length < 11 || Conv.ToInt(d[0]) != 54000 || Indoor) return V.Int(1);   // fmt llsflffffffsff
         int sub = Conv.ToInt(d[1]);
         float t = Math.Max(0.15f, Conv.ToFloat(d[3])), size = Conv.ToFloat(d[5]), sy = Conv.ToFloat(d[7]);
         var pos = new Vector3(Conv.ToFloat(d[8]), Conv.ToFloat(d[9]), -Conv.ToFloat(d[10]));

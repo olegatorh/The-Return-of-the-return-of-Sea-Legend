@@ -952,3 +952,10 @@ if ($Sea) {
 
 if ($fail -gt 0) { Write-Host "FAILED ($fail)" -ForegroundColor Red; exit 1 }
 Write-Host 'ALL OK' -ForegroundColor Green
+
+# rain must not fall indoors: rain in the port (forced Day Storm), reload into the tavern -> the log line "[rain] indoor=1 entity=0/1 node=0 lens=0 splash=0 rainbow=0 blend=0" (numeric state), then out again
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $fail += Invoke-Godot 'rainindoor' @('--ctl=Quick_Load@200', '--weather=#7@300', '--call=DoReloadCharacterToLocation(QC_Tavern,reload,reload1)@700', '--shot-frame=1000') 300 @('[rain] indoor=0 entity=1 node=1', '[rain] indoor=1 entity=', 'node=0 lens=0 splash=0 rainbow=0 blend=0')
+    }
+}
