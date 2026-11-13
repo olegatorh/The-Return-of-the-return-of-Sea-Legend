@@ -106,7 +106,7 @@ public partial class OutdoorEnv : Node3D
             if (farMat != null) SetSeaParams(farMat, root, it, true);
             float density = root.Find("Fog.Density", false)?.Value is { } d && float.TryParse(d, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv) ? dv : 0.001f;
             smDens = smDens < 0f ? density : smDens + (density - smDens) * (1f - MathF.Exp(-dt / Tau));
-            SetEnvironment(Sm("envfog", fog), smDens * 1.2f);
+            SetEnvironment(Sm("envfog", fog), smDens * SeaFogScale);
         }
         else
         {
@@ -321,6 +321,9 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.Phase.Clone());
         m.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); m.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
     }
+
+    /// <summary>Share of the script fog density used at sea: the full value (and the earlier 1.2x) washed the islands out to pale silhouettes within ~1 km on a clear day.</summary>
+    const float SeaFogScale = 0.5f;
 
     void SetEnvironment(Color fog, float density)
     {
