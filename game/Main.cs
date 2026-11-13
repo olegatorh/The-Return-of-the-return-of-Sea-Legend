@@ -19,6 +19,7 @@ public partial class Main : Node
     LandHud? landHud;
     bool rebuildWorld;
     float clockAcc;
+    float seaClockStep = 8f;      // real seconds per game minute at sea (settings.ini SeaClockStep; the weather needs hours of game time to change, so the sea clock is slow)
     readonly float clockStep = float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_CLOCKSTEP"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cs) && cs > 0.01f ? cs : 2.5f;     // real seconds per game minute (env SEADOGS_CLOCKSTEP: tests)
     SoundView? sound;
     readonly Dictionary<Entity, Node3D> modelNodes = new();
@@ -44,6 +45,9 @@ public partial class Main : Node
     string? programArg;
     string language = "Ukrainian";
     int shotAtFrame = -1;
+    readonly List<Image> sheetTiles = new();
+    readonly int shotEvery = int.TryParse((System.Environment.GetEnvironmentVariable("SEADOGS_SHOTEVERY") ?? "").Split(',')[0], out var se) ? se : 0;
+    readonly int shotEveryFrom = (System.Environment.GetEnvironmentVariable("SEADOGS_SHOTEVERY") ?? "").Split(',') is { Length: > 1 } sp && int.TryParse(sp[1], out var sf) ? sf : 0;
     static readonly bool FightLog = System.Environment.GetEnvironmentVariable("SEADOGS_FIGHTLOG") != null;
     bool lastBlockLog;
     readonly List<(int frame, string node)> clicks = new();
@@ -193,6 +197,12 @@ public partial class Main : Node
         string beta = settings.Sections.TryGetValue("game", out var gs) ? gs.Get("BetaTestMode")?.Trim() ?? "Off" : "Off";
         if (beta is "Test" or "On") host.Pp.DefineOverrides["MOD_BETTATESTMODE"] = beta;
         if (gs?.Get("WaveScale") is { } wsv && float.TryParse(wsv.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var wsc)) SeaWaves.WaveScale = Math.Clamp(wsc, 0.3f, 3f);
+        float Cfg(string key, string env, float def) => float.TryParse(System.Environment.GetEnvironmentVariable(env) ?? gs?.Get(key)?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var cv) ? cv : def;
+        WeatherFx.BlendSeconds = Math.Clamp(Cfg("WeatherBlendSeconds", "SEADOGS_WXBLEND", 90f), 5f, 300f);
+        WeatherFx.RepickHours = Math.Max(0f, Cfg("WeatherRepickHours", "SEADOGS_WXHOURS", 3.5f));
+        WeatherFx.RepickSeconds = Math.Max(0f, Cfg("WeatherRepickSeconds", "SEADOGS_WXSEC", 240f));
+        seaClockStep = Math.Max(0.05f, Cfg("SeaClockStep", "SEADOGS_CLOCKSTEP", 8f));
+        if (gs?.Get("HitStop") is { } hsv && float.TryParse(hsv.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hsm)) CharacterView.HitStopMs = Math.Clamp(hsm, 0f, 200f);          // settings.ini [game] HitStop = ms of the fighters freeze on a landed blow (0 = off)
         if (gs?.Get("WaterShader") is { } wsh) SeaSurface.Boujie = !wsh.Trim().Equals("classic", StringComparison.OrdinalIgnoreCase);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_WATER") is { } wenv) SeaSurface.Boujie = !wenv.Equals("classic", StringComparison.OrdinalIgnoreCase);
         if (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_WAVESCALE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var wse)) SeaWaves.WaveScale = Math.Clamp(wse, 0.3f, 3f);       // tests: fixed sea state
@@ -423,6 +433,7 @@ public partial class Main : Node
                 cv = new CharacterView(host.It, e, (g, n) => CurrentLocation()?.FindLocator(g, n), () => CurrentLocation()?.Patch);
                 cv.LocationRoot = () => CurrentLocation()?.Ent.Root;
                 characters[e] = cv;
+                cv.OnHealed = g => { if (cv.IsPlayer) { HitFx.ShowHeal(cv, g); landHud?.HeroHeal(); } };
                 cv.OnHeroHurt = (d, b) => { landHud?.HeroHurt(d, b, cv.HpMax); HitFx.ShowHero(cv, d, b); if (!b) landCam.Shake(Mathf.Clamp(0.04f + 0.25f * d / Math.Max(1f, cv.HpMax), 0.04f, 0.15f)); };
                 AddChild(cv);
             }
@@ -687,7 +698,6 @@ public partial class Main : Node
     }
     bool camInit, flyMode;
     ulong lmbDownAt;
-    CharacterView? ringTarget;
     const ulong HeavyHoldMs = 450;
     string portDirCached = "";
     readonly List<(int frame, string id)> brings = new();
@@ -818,8 +828,6 @@ public partial class Main : Node
             if (lmbDownAt > 0 && Time.GetTicksMsec() - lmbDownAt >= HeavyHoldMs && free && player.FightMode && player.Placed && !player.Blocking
                 && player.StartSwing(player.NearestInFront(2.64f), CharacterView.Strike.Strong)) lmbDownAt = 0;
             player.Blocking = free && player.FightMode && Keys.Down("LandBlock") && Ctl.Allowed("ChrBlock");      // the script locks the block of the hard levels (LockControl)
-            var ringT = free && player.FightMode && player.Placed ? player.NearestInFront(2.64f) : null;          // the enemy the next blow is aimed at gets a ring
-            if (!ReferenceEquals(ringT, ringTarget)) { if (ringTarget != null && GodotObject.IsInstanceValid(ringTarget)) ringTarget.SetTargetRing(false); ringT?.SetTargetRing(true); ringTarget = ringT; }
             if (FightLog && player.Blocking != lastBlockLog) { lastBlockLog = player.Blocking; GD.Print("[block] hero blocking = " + player.Blocking); }
             player.Run = forceRun || !Keys.Down("LandRun");
             player.CameraYaw = camYaw;
@@ -834,9 +842,10 @@ public partial class Main : Node
         if ((locations.Count > 0 || (sea.Active && !worldMap.Active)) && dt > 0f && !UiOpen && dialogView == null && host.It.Globals.ContainsKey("Environment"))
         {
             clockAcc += dt;
-            while (clockAcc >= clockStep)
+            float step = sea.Active && locations.Count == 0 ? seaClockStep : clockStep;
+            while (clockAcc >= step)
             {
-                clockAcc -= clockStep;
+                clockAcc -= step;
                 host.It.CallTop("AddTimeToCurrent", V.Int(0), V.Int(1));
             }
         }
@@ -1246,6 +1255,18 @@ public partial class Main : Node
         foreach (var (f, g) in gotos) if (f == frames) { var pl = characters.Values.FirstOrDefault(c => c.IsPlayer); var gp = g.Split('.'); pl?.TeleportToLocator(gp[0], gp[1]); }
         foreach (var (f, id) in dialogTests) if (f == frames) StartDialog(id);
         foreach (var (f, a) in answers) if (f == frames) dialogView?.Choose(a - 1);
+        if (shotEvery > 0 && frames >= shotEveryFrom && frames % shotEvery == 0 && shotPath != null)      // test hook: env SEADOGS_SHOTEVERY=N[,from]: a contact sheet (240x135 tiles, 5 per row) + mean colours of the sky strip and the sea strip
+        {
+            var im = GetViewport().GetTexture().GetImage(); im.Convert(Image.Format.Rgb8);
+            var sk = new Image(); sk.CopyFrom(im); var tile = new Image(); tile.CopyFrom(im); tile.Resize(240, 135, Image.Interpolation.Bilinear);
+            Color Mean(Image src, int y0, int y1) { float r = 0, g = 0, b = 0; int n = 0; for (int y = y0; y < y1; y += 4) for (int x = 0; x < src.GetWidth(); x += 4) { var c = src.GetPixel(x, y); r += c.R; g += c.G; b += c.B; n++; } return new Color(r / n, g / n, b / n); }
+            int h = im.GetHeight(); var mk = Mean(im, 0, h / 10); var mm = Mean(im, h * 8 / 10, h);
+            GD.Print($"[seq] frame={frames} sky=({mk.R:0.00},{mk.G:0.00},{mk.B:0.00}) sea=({mm.R:0.00},{mm.G:0.00},{mm.B:0.00})");
+            sheetTiles.Add(tile);
+            var sheet = Image.CreateEmpty(240 * 5, 135 * ((sheetTiles.Count + 4) / 5), false, Image.Format.Rgb8);
+            for (int k = 0; k < sheetTiles.Count; k++) sheet.BlitRect(sheetTiles[k], new Rect2I(0, 0, 240, 135), new Vector2I((k % 5) * 240, (k / 5) * 135));
+            sheet.SavePng(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(shotPath))!, "sheet.png"));
+        }
         if (shotPath != null && frames == shotAtFrame)
         {
             GetViewport().GetTexture().GetImage().SavePng(shotPath);

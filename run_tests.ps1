@@ -279,7 +279,20 @@ if ($Sea) {
         $hl = @('--ctl=Quick_Load@200', '--call=GiveItem2Character(#Blaze,potion1)@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--set=Characters[0].chr_ai.hp=10@310',
                 '--dump=Characters[0].Items.potion1@320', '--key=C@330', '--dump=Characters[0].Items.potion1@340', '--key=Enter@500', '--key=Right@510', '--key=Enter@520', '--key=Enter@540',
                 '--dump=Characters[0].Items.potion1@560', '--shot-frame=900')
-        $fail += Invoke-Godot 'heal' $hl 300 @('[heal] Blaze: health rose', 'potion1 = "6"', 'potion1 = "5"', "[land] command BI_ItemsUse 'potion1'", 'potion1 = "4"')
+        $fail += Invoke-Godot 'heal' $hl 300 @('[heal] Blaze: health rose', 'potion1 = "6"', 'potion1 = "5"', "[land] command BI_ItemsUse 'potion1'", 'potion1 = "4"', '[drink] Blaze starts')
+        # the potion is drunk within ~1.5 s (the engine raises hp_dlt_bottle to amount / 1.5; the script's 5 hp/s took 8 s)
+        if (Test-Path "$root\game\smoke_heal.log") {
+            $dn = Select-String -Path "$root\game\smoke_heal.log" -Pattern '^\[drink\] Blaze done after ([\d,.]+) s' | ForEach-Object { [double]($_.Matches[0].Groups[1].Value -replace ',', '.') }
+            if (-not $dn -or ($dn | Where-Object { $_ -gt 2.2 })) { Write-Host "[heal] the potion was not drunk within 2.2 s: $($dn -join ', ')" -ForegroundColor Red; $fail += 1 }
+            else { Say "heal ok: potions drunk in $(($dn | ForEach-Object { $_.ToString('0.00') }) -join ', ') s" 'Green' }
+        }
+        # a landed blow interrupts the drinking and the rest of the bottle is lost; blocked blows give sparks (no log), landed blows a hit-stop
+        $env:SEADOGS_FIGHTLOG = '1'; $env:SEADOGS_MELEELOG = '1'
+        $dc2 = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300', '--call=GiveItem2Character(#Blaze,potion2)@300', '--call=ChangeCharacterAddressGroup(#Jakob+Nickerson,QC_port,goto,goto1)@380', '--call=LAi_SetWarriorType(#Jakob+Nickerson)@400',
+                 '--call=LAi_group_MoveCharacter(#Jakob+Nickerson,TestB)@410', '--call=LAi_group_FightGroups(player,TestB,1)@420', '--set=Characters[0].chr_ai.hp_max=900@431', '--set=Characters[0].chr_ai.hp=300@431',
+                 '--call=LAi_SetHP(#Jakob+Nickerson,300,300)@432', '--bring=Jakob_Nickerson:2@440', '--key=E@460', '--set=Characters[0].chr_ai.hp=100@890', '--key=C@895', '--shot-frame=1500')
+        $fail += Invoke-Godot 'drinkcancel' $dc2 300 @('[drink] Blaze starts', '[drink] Blaze cancelled by a hit', '[hitstop] ')
+        Remove-Item Env:SEADOGS_FIGHTLOG, Env:SEADOGS_MELEELOG -ErrorAction SilentlyContinue
         $dr = @('--ctl=Quick_Load@200', '--run', '--move=0,1@480-1100', '--key=E@560', '--shot-frame=1200')
         $fail += Invoke-Godot 'drawrun' $dr 300 @('[move] hero stopped for the draw', '[move] hero moves again')
         # the original follow camera (camera_follow.cpp): the mouse turns the hero (ChrTurnH x 0.01 rad per frame at the action's turn rate), the camera follows his heading with
@@ -992,10 +1005,10 @@ if ($Cameras) {
 # then a forced storm record (#7 Day Storm) must bring 10000 drops
 if ($Sea) {
     if (Test-Path "$root\saves\quicksave.sdsave") {
-        $env:SEADOGS_CLOCKSTEP = '0.1'
+        $env:SEADOGS_CLOCKSTEP = '0.1'; $env:SEADOGS_WXHOURS = '0'; $env:SEADOGS_WXSEC = '0'      # the slow design (3.5 game hours / 240 s between records, not in a fight) is switched off to see the hourly change
         $wc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--weather=#7@2300', '--shot-frame=2500')
         $fail += Invoke-Godot 'weathercycle' $wc 300 @('[weather] begin', 'hour=12 ', 'hour=13 ', 'hour=14 ', 'grade-check day-light', "id='Day Storm'", 'rain=10000')
-        Remove-Item Env:SEADOGS_CLOCKSTEP
+        Remove-Item Env:SEADOGS_CLOCKSTEP, Env:SEADOGS_WXHOURS, Env:SEADOGS_WXSEC
     }
 }
 
@@ -1023,5 +1036,40 @@ if ($Sea) {
     if (Test-Path "$root\saves\quicksave.sdsave") {
         $fail += Invoke-Godot 'grassjungle' @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(Antigua_Jungle_01,reload,reload1)@300', '--shot-frame=700') 300 @('[grass] jungle01_g.grs: 39117 blades', '[grass] state location=Antigua_Jungle_01 blades=39117')
         $fail += Invoke-Godot 'grassindoor' @('--ctl=Quick_Load@200', '--call=DoReloadCharacterToLocation(Antigua_Tavern,reload,reload1)@300', '--shot-frame=700') 300 @('[grass] state location=Antigua_Tavern blades=0 total=0 indoor=True')
+    }
+}
+
+# key binding conflict check (game/KeyConflicts.cs): swap with a notice, system keys refused, Esc cancels, mouse button swap; the control table has no duplicate in a key group
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $cc = @('--ctl=Quick_Load@200', '--call=LaunchOptionScreen()@300', '--mouse=MB_CONTROLS@400', '--mouse=CONTROLS_B_CHANGE@500', '--mouse=B_PRIMARY_LAND@600',
+                '--set=curCntrlIdx=3@700', '--call=SetReassignMode()@710', '--key=W@750',
+                '--set=curCntrlIdx=8@800', '--call=SetReassignMode()@810', '--key=Escape@850',
+                '--set=curCntrlIdx=0@900', '--call=SetReassignMode()@910', '--btn=L+@950', '--btn=L-@960',
+                '--set=curCntrlIdx=8@1000', '--call=SetReassignMode()@1010', '--key=F2@1050', '--dump=objControlsState.keygroups.PrimaryLand@1100', '--shot-frame=1060')
+        $fail += Invoke-Godot 'ctlconflict' $cc 300 @('[ctlconflict] swap ChrBackward <-> ChrForward', '[ctlconflict] cancel', '[ctlconflict] swap ChrCamCameraSwitch <-> ChrAction', '[ctlconflict] refuse reserved F2', '[ctlconflict] duplicates=0 ')
+    }
+}
+
+# the weather must stay calm in a sea battle (docs/VERIFIED.md W1/W9): the game clock is run 80x faster (an hour per 6 s) so that without the gate the record would change many times;
+# the log must show "repick blocked: combat", at most ONE "transition start" after "combat start", and every transition reports a duration >= 30 s
+if ($Sea) {
+    if (Test-Path "$root\saves\quicksave.sdsave") {
+        $env:SEADOGS_PLAYERHP = '9000'; $env:SEADOGS_CLOCKSTEP = '0.1'; $env:SEADOGS_WXSEC = '0'
+        $ws = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-600,-101,4.71@720',
+                '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250', '--seapos=-110,100,0@2400', '--duel@2450', '--fire@2500', '--shot-frame=6000')
+        $fail += Invoke-Godot 'weatherstable' $ws 600 @('[weather] combat start', '[weather] repick blocked: combat')
+        Remove-Item Env:SEADOGS_PLAYERHP, Env:SEADOGS_CLOCKSTEP, Env:SEADOGS_WXSEC -ErrorAction SilentlyContinue
+        if (Test-Path "$root\game\smoke_weatherstable.log") {
+            $wl = Get-Content "$root\game\smoke_weatherstable.log" -Encoding UTF8 | Where-Object { $_ -match '^\[weather\] (combat start|transition start|begin)' }
+            $inFight = $false; $changes = 0; $minDur = 9999
+            foreach ($l in $wl) {
+                if ($l -match 'combat start') { $inFight = $true }
+                elseif ($l -match 'transition start duration=(\d+)') { $minDur = [Math]::Min($minDur, [int]$Matches[1]); if ($inFight) { $changes++ } }
+                elseif ($l -match '\] begin' -and $inFight) { $changes++ }
+            }
+            if ($changes -gt 1 -or $minDur -lt 30) { Write-Host "[weatherstable] record changes in the battle: $changes (max 1), shortest transition: $minDur s (min 30)" -ForegroundColor Red; $fail += 1 }
+            else { Say "weatherstable ok: $changes change(s) in the battle, shortest transition $minDur s" 'Green' }
+        }
     }
 }

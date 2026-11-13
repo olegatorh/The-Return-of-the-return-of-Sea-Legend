@@ -482,6 +482,28 @@ public partial class LandHud : CanvasLayer
     }
     public float LastHurtAlpha;
 
+    TextureRect? healFlash; Tween? healTween;
+    /// <summary>The potion's health arrives: a pale green flash at the screen edge.</summary>
+    public void HeroHeal()
+    {
+        if (healFlash == null)
+        {
+            var g = new Gradient();
+            g.SetColor(0, new Color(0.2f, 1f, 0.3f, 0f)); g.SetColor(1, new Color(0.2f, 1f, 0.3f, 1f)); g.SetOffset(0, 0.45f); g.SetOffset(1, 1f);
+            healFlash = new TextureRect
+            {
+                Name = "HeroHeal", MouseFilter = Control.MouseFilterEnum.Ignore, StretchMode = TextureRect.StretchModeEnum.Scale, Modulate = new Color(1, 1, 1, 0),
+                Texture = new GradientTexture2D { Gradient = g, Fill = GradientTexture2D.FillEnum.Radial, FillFrom = new Vector2(0.5f, 0.5f), FillTo = new Vector2(1.05f, 0.5f), Width = 256, Height = 256 },
+            };
+            healFlash.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+            root.AddChild(healFlash); root.MoveChild(healFlash, 0);
+        }
+        healTween?.Kill();
+        healFlash.Modulate = new Color(1, 1, 1, 0.4f);
+        healTween = healFlash.CreateTween();
+        healTween.TweenProperty(healFlash, "modulate:a", 0f, 0.45f);
+    }
+
     // ------------------------------------------------------------------ per frame
     public override void _Process(double delta)
     {

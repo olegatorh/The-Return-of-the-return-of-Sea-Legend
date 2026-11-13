@@ -28,6 +28,42 @@ public static class HitFx
         tw.Chain().TweenCallback(Callable.From(l.QueueFree));
     }
 
+    /// <summary>"+N" in green above the hero: the potion's health arriving.</summary>
+    public static void ShowHeal(Node3D hero, float gained)
+    {
+        var l = new Label3D
+        {
+            Text = $"+{Mathf.RoundToInt(gained)}", Billboard = BaseMaterial3D.BillboardModeEnum.Enabled, PixelSize = 0.0022f, FontSize = 44, OutlineSize = 6, NoDepthTest = true,
+            Modulate = new Color(0.3f, 1f, 0.35f), OutlineModulate = new Color(0, 0, 0, 0.85f), Position = new Vector3(0.25f, 2.0f, 0), RenderPriority = 5, OutlineRenderPriority = 4,
+        };
+        hero.AddChild(l);
+        var tw = l.CreateTween();
+        tw.SetParallel(true);
+        tw.TweenProperty(l, "position:y", 2.8f, 0.8f);
+        tw.TweenProperty(l, "modulate:a", 0f, 0.4f).SetDelay(0.4f);
+        tw.TweenProperty(l, "outline_modulate:a", 0f, 0.4f).SetDelay(0.4f);
+        tw.Chain().TweenCallback(Callable.From(l.QueueFree));
+    }
+
+    /// <summary>Sparks where blade meets blade (the game's particle ini has no spark effect, so a small burst of glowing points): between the two fighters at chest height.</summary>
+    public static void Sparks(Node3D victim, Node3D attacker, int count)
+    {
+        if (!GodotObject.IsInstanceValid(victim) || victim.GetParent() is not Node parent || !victim.IsInsideTree() || !attacker.IsInsideTree()) return;
+        var toward = attacker.GlobalPosition - victim.GlobalPosition; toward.Y = 0;
+        toward = toward.LengthSquared() > 1e-4f ? toward.Normalized() : Vector3.Forward;
+        var mat = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, 0.85f, 0.4f), BillboardMode = BaseMaterial3D.BillboardModeEnum.Enabled };
+        var ps = new CpuParticles3D
+        {
+            Amount = count, Lifetime = 0.4, OneShot = true, Explosiveness = 1f, Emitting = true, LocalCoords = false,
+            Mesh = new QuadMesh { Size = new Vector2(0.035f, 0.035f), Material = mat },
+            Direction = (toward + Vector3.Up * 0.6f).Normalized(), Spread = 70f, InitialVelocityMin = 2.0f, InitialVelocityMax = 5.0f, Gravity = new Vector3(0, -9f, 0),
+            ScaleAmountMin = 0.6f, ScaleAmountMax = 1.4f,
+        };
+        parent.AddChild(ps);
+        ps.GlobalPosition = victim.GlobalPosition + toward * 0.6f + new Vector3(0, 1.3f, 0);
+        ps.GetTree().CreateTimer(0.9).Timeout += () => { if (GodotObject.IsInstanceValid(ps)) ps.QueueFree(); };
+    }
+
     public static void Show(Node3D target, float damage, bool blocked, float hp, float hpMax)
     {
         int dmg = blocked ? 0 : Mathf.Max(0, Mathf.RoundToInt(damage));

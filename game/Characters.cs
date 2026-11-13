@@ -315,23 +315,6 @@ public partial class CharacterView : Node3D
     public float HpNow => Ent.Root.Find("chr_ai.hp", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 0f;
     public float HpMax => Ent.Root.Find("chr_ai.hp_max", false) is { } h ? Conv.ParseFloatPrefix(h.Value) : 1f;
 
-    MeshInstance3D? targetRing;
-    /// <summary>Port aid: a thin ring on the ground under the enemy the hero's next blow would be aimed at (the engine's Select() of the attack target).</summary>
-    public void SetTargetRing(bool on)
-    {
-        if (on && targetRing == null)
-        {
-            targetRing = new MeshInstance3D
-            {
-                Mesh = new TorusMesh { InnerRadius = 0.5f, OuterRadius = 0.6f, Rings = 28, RingSegments = 4 }, Scale = new Vector3(1f, 0.05f, 1f), Position = new Vector3(0, 0.06f, 0),
-                MaterialOverride = new StandardMaterial3D { ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded, AlbedoColor = new Color(1f, 0.35f, 0.12f, 0.85f), Transparency = BaseMaterial3D.TransparencyEnum.Alpha },
-            };
-            AddChild(targetRing);
-        }
-        if (targetRing != null) targetRing.Visible = on;
-    }
-    public bool TargetRingOn => targetRing?.Visible == true;
-
     /// <summary>Port aid (not in the original interface): after the hero's blow the target shows its health bar for a few seconds and the damage rises as a number.</summary>
     public void ShowHit(float damage, bool blocked)
     {
@@ -343,7 +326,7 @@ public partial class CharacterView : Node3D
     void PlayReaction(bool blocked)
     {
         if (rig == null || !IsAlive) return;
-        if (!blocked) ChrSnd("Event_ChrSnd_Hit");                         // the script picks man_hit / woman_hit / skeleton_hit ... by sex
+        if (!blocked) { ChrSnd("Event_ChrSnd_Hit"); CancelDrink(); }                         // the script picks man_hit / woman_hit / skeleton_hit ... by sex
         string a = blocked ? "block_hit" : "hit_" + (idleRng.Next(3) + 1);
         // Hit(): the reaction clip locks the character for its whole length (fightTbl); the hero reels only half of the time (stunChance, "COAS vanilla")
         if (!blocked && IsPlayer) hitGrace = 0.2f;          // a pack cannot chain-hit the hero: after a blow that lands he is spared for a moment (0.2 s, the owner's value) (no stun-lock to death)
@@ -993,7 +976,8 @@ void fragment() {
         if (rig.Events.Count > 0) { var evs = rig.Events.ToArray(); rig.Events.Clear(); foreach (var e in evs) OnAnimEvent(e); }
         Detect(dt);
         UpdateEquipment();
-        if (dt > 0f) { TickSwing(dt); TickGun(dt); TickHealLog(); }
+        if (stopLeft > 0f && dt > 0f) { stopLeft -= dt; if (stopLeft <= 0f && rig != null) rig.TimeScale = baseScale; }
+        if (dt > 0f) { TickSwing(dt); TickGun(dt); TickHealLog(dt); }
         if (inDialog || dt <= 0f) { isMove = false; if (inDialog) DialogFace((float)GetProcessDeltaTime()); PlayIdle(); return; }
         isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
         var patch = getPatch();
@@ -1240,12 +1224,61 @@ void fragment() {
 
     // ---- healing log (test aid): a potion's health is poured in by the script (LAi_AllCharactersUpdate: hp_bottle -> hp); one line when the health has risen by 3
     float healLast = -1f, healBase = -1f; bool healLogged;
-    void TickHealLog()
+    /// <summary>The potion is drunk within this time: the amount is the script's (hp_bottle), the engine only raises the pouring speed hp_dlt_bottle to amount / HealSeconds (the script's 5 hp/s took 8 s for a small potion, useless in a fight). A landed blow spills the rest.</summary>
+    public const float HealSeconds = 1.5f;
+    float bottlePrev, drinkT, drinkShownHp, drinkNext, drinkHp0; bool drinking;
+    public Action<float>? OnHealed;
+    void TickHealLog(float dt)
     {
         float h = HpNow;
         if (healLast < 0f || h < healLast - 0.01f) { healBase = h; healLogged = false; }
         healLast = h;
         if (!healLogged && h - healBase >= 3f) { healLogged = true; GD.Print(FormattableString.Invariant($"[heal] {Id}: health rose {healBase:0.#} -> {h:0.#} (bottle left {Skill("hp_bottle", 0f):0.#})")); }
+        float bottle = Skill("hp_bottle", 0f);
+        if (bottle > bottlePrev + 0.5f && IsAlive) StartDrink(bottle);
+        bottlePrev = bottle;
+        if (!drinking) return;
+        drinkT += dt;
+        if (bottle <= 0.01f) EndDrink(false, 0f);
+        else if ((drinkNext -= dt) <= 0f) { drinkNext = 0.5f; ShowHealGain(); }
+    }
+
+    void StartDrink(float bottle)
+    {
+        float rate = Math.Max(Skill("hp_dlt_bottle", 0f), bottle / HealSeconds);
+        Ent.Root.Find("chr_ai.hp_dlt_bottle", true)!.Value = Conv.FloatToConcat(rate);
+        if (drinking) { if (MeleeLog) GD.Print(FormattableString.Invariant($"[drink] {Id} another potion: bottle {bottle:0.#}, {rate:0.#} hp/s")); return; }
+        drinking = true; drinkT = 0f; drinkHp0 = drinkShownHp = HpNow; drinkNext = 0.5f;
+        Snd("open_bottle");
+        rig?.ShowProp("potion", "Gun_Hand", "Saber_hand");        // the game has no drinking animation: the bottle is shown in the hand
+        GD.Print(FormattableString.Invariant($"[drink] {Id} starts: bottle {bottle:0.#}, {rate:0.#} hp/s, health {HpNow:0.#}"));
+    }
+
+    void ShowHealGain()
+    {
+        float g = HpNow - drinkShownHp;
+        if (g < 1f) return;
+        drinkShownHp = HpNow;
+        OnHealed?.Invoke(g);
+    }
+
+    void EndDrink(bool cancelled, float lost)
+    {
+        if (!drinking) return;
+        ShowHealGain();
+        drinking = false;
+        rig?.HideProp();
+        GD.Print(FormattableString.Invariant($"[drink] {Id} {(cancelled ? "cancelled by a hit" : "done")} after {drinkT:0.00} s: health {drinkHp0:0.#} -> {HpNow:0.#}{(cancelled ? $", {lost:0.#} lost" : "")}"));
+    }
+
+    /// <summary>A landed blow (or a shot) interrupts the drinking: what is left in the bottle is lost.</summary>
+    public void CancelDrink()
+    {
+        if (!drinking) return;
+        float lost = Skill("hp_bottle", 0f);
+        if (Ent.Root.Find("chr_ai", false) is { } ai) { ai.Remove("hp_bottle"); ai.Remove("hp_dlt_bottle"); }
+        bottlePrev = 0f;
+        EndDrink(true, lost);
     }
 
     /// <summary>Counts the swing down and raises the hit event at the hit frame.</summary>
@@ -1315,7 +1348,9 @@ void fragment() {
         bool parried = blocked && (t.IsPlayer ? t.blockAge < ParryWindow : t.parryIntent);                 // a block raised just in time throws the attacker off balance
         if (parried) StatParried++; else if (blocked) StatBlocked++; else StatHits++;
         if (IsPlayer) { if (blocked) StatHeroBlockedByNpc++; else StatHeroLanded++; }
-        t.Snd(!blocked ? "sword_inbody" : parried ? "sword_slide" : "blade");      // steel in flesh / blade on blade
+        t.Snd(!blocked ? "sword_inbody" : "blade");      // steel in flesh / blade on blade (the original aliases "blade" and "sword_slide" hold the _SwSw clangs); a parry rings twice
+        if (parried) t.Snd("sword_slide");
+        if (blocked) HitFx.Sparks(t, this, parried ? 30 : 16);
         float hpBefore = t.HpNow;
         it.FireEvent(blocked ? "Location_CharacterBlock" : "Location_CharacterAttack", new List<V> { V.A(Ent.Root), V.A(t.Ent.Root), V.Float(atkDamage), V.Float(atkDamage) });
         // the scripts ignore attackDmg (LAi_ApplyCharacterBladeDamage); the engine's blow strength is applied to what the script took: heavier / lighter than a normal blow
@@ -1335,7 +1370,20 @@ void fragment() {
         if (MeleeLog) GD.Print(FormattableString.Invariant($"[windup] {Id} {swingAction} hit_after_ms={Time.GetTicksMsec() - swingStartMs} expected_ms={swingExpectMs} blocked={blocked} target={t.Id}"));
         t.PlayReaction(blocked);
         if (parried) Stagger();
+        if (HitStopMs > 0f)
+        {
+            // a very short freeze of the two fighters only (their animations), heavier for the heavy blow and for a blow that wounds the hero
+            float ms = HitStopMs * (blocked ? 0.6f : 1f) * (lastKind == Strike.Strong || (IsPlayer && atkDamage > 1.2f) ? 1.5f : 1f) * (t.IsPlayer && !blocked ? 1.4f : 1f);
+            ms = Math.Min(ms, 120f);
+            HitStop(ms / 1000f);
+            if (t.playing is "hit" or "block_hit") t.HitStop(ms / 1000f);      // a victim who keeps swinging is not held (his blow must land on its frame)
+        }
     }
+
+    /// <summary>settings.ini [game] HitStop (ms): the pause of the fighters' animations on a landed blow, 0 = off.</summary>
+    public static float HitStopMs = 55f;
+    float stopLeft, baseScale = 1f;
+    void HitStop(float sec) { if (MeleeLog) GD.Print(FormattableString.Invariant($"[hitstop] {Id} {sec * 1000f:0} ms")); stopLeft = Math.Max(stopLeft, sec); if (rig != null) rig.TimeScale = baseScale * 0.03f; }
 
     /// <summary>Engine-side change of a character's health (the blow strength on top of the script's damage); a death goes through the script's own check.</summary>
     void AddHp(float delta)
@@ -1660,5 +1708,5 @@ void fragment() {
     }
 
     /// <summary>Used by the camera/main loop.</summary>
-    public void SetTimeScale(float s) { if (rig != null) rig.TimeScale = s; }
+    public void SetTimeScale(float s) { baseScale = s; if (rig != null) rig.TimeScale = stopLeft > 0f ? s * 0.03f : s; }
 }

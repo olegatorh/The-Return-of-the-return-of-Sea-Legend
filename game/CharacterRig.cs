@@ -153,11 +153,11 @@ public partial class CharacterRig : Node3D
         if (!string.IsNullOrEmpty(gun)) Attach(gun, "Gun_Belt");
     }
 
-    void Attach(string itemModel, string label)
+    BoneAttachment3D? Attach(string itemModel, string label)
     {
         var l = labels.Find(x => x.Name.Equals(label, StringComparison.OrdinalIgnoreCase));
         string path = GameAssets.Resource("MODELS\\Items\\" + itemModel + ".gm");
-        if (l == null || l.Bone < 0 || l.Bone >= restGlobal.Length || !File.Exists(path)) return;
+        if (l == null || l.Bone < 0 || l.Bone >= restGlobal.Length || !File.Exists(path)) return null;
         try
         {
             var item = ModelFactory.Build(GmFile.Parse(File.ReadAllBytes(path)), itemModel, "items", null);
@@ -171,8 +171,22 @@ public partial class CharacterRig : Node3D
             item.Transform = restGlobal[l.Bone].AffineInverse() * world;
             att.AddChild(item);
             equipment.Add(att);
+            return att;
         }
-        catch (Exception e) { GD.PrintErr($"[rig] item {itemModel}: {e.Message}"); }
+        catch (Exception e) { GD.PrintErr($"[rig] item {itemModel}: {e.Message}"); return null; }
+    }
+
+    BoneAttachment3D? prop;
+    /// <summary>A held item (the potion bottle while drinking) on the first of the labels the model has.</summary>
+    public void ShowProp(string itemModel, params string[] labelNames)
+    {
+        HideProp();
+        foreach (var n in labelNames) if ((prop = Attach(itemModel, n)) != null) return;
+    }
+    public void HideProp()
+    {
+        if (prop != null && GodotObject.IsInstanceValid(prop)) { equipment.Remove(prop); prop.QueueFree(); }
+        prop = null;
     }
 
     void BuildSkeleton()
