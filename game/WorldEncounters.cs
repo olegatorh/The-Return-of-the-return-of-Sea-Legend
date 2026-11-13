@@ -479,7 +479,7 @@ public partial class WorldMapView
         var e = encs[0];
         if (System.Environment.GetEnvironmentVariable("SEADOGS_MEETFOLLOW") == "1")       // quest tests: skip the merchants and meet the pursuer (the quest war encounters are made as pursuers)
         {
-            var f = encs.FirstOrDefault(x => x.Type == 1);
+            var f = encs.FirstOrDefault(x => x.Kind == EncKind.Follow);
             if (f == null) return false;
             e = f;
         }
