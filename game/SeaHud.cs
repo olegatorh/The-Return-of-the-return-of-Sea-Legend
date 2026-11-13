@@ -57,6 +57,7 @@ public sealed class HudData
     public Texture2D? IslandMap;                    // the island seen from above (navigator minimap), engine coordinates of its centre and side
     public Vector2 IslandCentre, ShipPos;
     public float IslandSize;
+    public AimState Aim; public float AimPulse = 1f;   // the aim circle (SeaAim.cs)
     public bool BiVisible = true, NotEnoughBalls;     // battle_interface BI_SET_VISIBLE / BI_MSG_NOT_ENOUGH_BALLS_FLAG (BattleInterface.cs)
 }
 
@@ -95,6 +96,8 @@ public partial class SeaHud : CanvasLayer
         root.AddChild(spyPanel);
         pointer.Visible = false;
         root.AddChild(pointer);
+        aimRect.Visible = false;
+        root.AddChild(aimRect);
         menuBox.SetAnchorsPreset(Control.LayoutPreset.BottomLeft);
         // BattleInterface.CommandShowParam: icons 64 x 64, 4 apart, left 16, top = bottom - 80, the note 28 above (800 x 600 pixels at UiLayout.Hud scale)
         menuBox.OffsetLeft = 16 * UiLayout.Hud; menuBox.OffsetTop = -(80 + 28) * UiLayout.Hud; menuBox.OffsetRight = (16 + 560) * UiLayout.Hud; menuBox.OffsetBottom = -16 * UiLayout.Hud;
@@ -234,9 +237,25 @@ public partial class SeaHud : CanvasLayer
         pointer.Position = at - new Vector2(size.X / 2f, size.Y);
     }
 
+    // ---- the aim circle of the deck camera (AIShipCameraController::Realize): CROSSHAIR\crosshair.tga in the middle of the screen, half size 0.05 at distance 1 of a 62 degree view
+    readonly TextureRect aimRect = new() { Name = "AimCircle", MouseFilter = Control.MouseFilterEnum.Ignore, ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize, StretchMode = TextureRect.StretchModeEnum.Scale };
+    public static Color AimColor(int rel) => rel switch { 2 => new Color(1f, 0f, 0f), 0 => new Color(0f, 1f, 0f), 1 => new Color(0.5f, 0.5f, 0.5f), _ => Colors.White };      // Crosshair.Colors
+    void UpdateAimCircle(HudData d)
+    {
+        bool show = d.On && d.Aim.Show && d.BiVisible && scopeAmount < 0.05f;
+        aimRect.Visible = show;
+        if (!show) return;
+        aimRect.Texture ??= GameAssets.Texture("CROSSHAIR\\crosshair.tga");
+        var vp = root.GetViewportRect().Size;
+        float side = 2f * 0.05f / MathF.Tan(Mathf.DegToRad(62f) * 0.5f) * (vp.Y / 2f) * d.AimPulse;
+        aimRect.Size = new Vector2(side, side); aimRect.Position = vp / 2f - aimRect.Size / 2f;
+        aimRect.Modulate = AimColor(d.Aim.Relation);
+    }
+
     public void Update(HudData d)
     {
         lastOn = d.On;
+        UpdateAimCircle(d);
         float spyPrev = spyAlpha;
         spyAlpha = Math.Clamp(spyAlpha + (SpyVisible && scopeAmount > 0.5f ? 1f : -1f) * (float)GetProcessDeltaTime() / 0.5f, 0f, 1f);
         if (spyAlpha > 0.01f || spyPrev > 0.01f) spyPanel.QueueRedraw();      // a Control draws only when asked: the panel follows the glass data and the fade

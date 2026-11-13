@@ -14,6 +14,7 @@ Read this instead of the big docs; open `docs/VERIFIED.md`/`AUDIT.md` only for t
 * The script decides AI (tasks AITASK_*, `Shp_ChkSituation` every second, relations via `UpdateRelations` 51016); the engine executes.
 * Foreign ship name/hull/crew/flag/distance are shown ONLY through the telescope (ispyglass); by eye there is only the arrow of the ship chosen in the command menu (`shippointer`).
 * Sea camera keeps the angle the player left (no auto-centering). Telescope works from the deck camera only (`MSG_TELESCOPE_REQUEST`, script decides).
+* Aim circle (`SeaAim.cs`, AIShipCameraController): shown ONLY in the deck camera (script `Crosshair.OutsideCamera`), hidden in ship/free camera, telescope, command menu; only when a side can fire along the view (FireZone, FireAngMin/Max); aim point = ship + CalcMaxFireDistance(camera elevation) along the 3D view; ship under it if within 0.8*length of (centre + 0.8*length away from us); colour enemy red / friend green / neutral grey / white, size pulses 0.9..1.1. Log `[aim]`, scenario `aimcircle`, env `SEADOGS_AIMLOG=1`.
 * Engine x,z = sea plane; Godot z = −engine z; forward = (sin ay, cos ay).
 
 ## Test recipe and hooks (details: `docs/TESTING.md`)

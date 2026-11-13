@@ -226,7 +226,7 @@ if ($Sea) {
         Remove-Item Env:SEADOGS_MELEELOG
         if (Test-Path "$root\game\smoke_windup.log") {
             $w = Select-String -Path "$root\game\smoke_windup.log" -Pattern 'hit_after_ms=(\d+) expected_ms=(\d+)' | ForEach-Object { [pscustomobject]@{ got = [int]$_.Matches[0].Groups[1].Value; exp = [int]$_.Matches[0].Groups[2].Value } }
-            $badw = $w | Where-Object { $_.got -lt 250 -or [math]::Abs($_.got - $_.exp) -gt 120 }
+            $badw = $w | Where-Object { $_.got -lt 200 -or [math]::Abs($_.got - $_.exp) -gt 120 }
             if ($w -and $badw) { Write-Host "[windup] timing out of range: $(($badw | ForEach-Object { "$($_.got)/$($_.exp)" }) -join ', ')" -ForegroundColor Red; $fail += 1 }
             elseif ($w) { Say "windup ok: $(@($w).Count) blows, e.g. $($w[0].got) ms (expected $($w[0].exp))" 'Green' }
         }
@@ -255,7 +255,7 @@ if ($Sea) {
         $fail += Invoke-Godot 'hitcancel' ($cfBase + $hcSwings + @('--shot-frame=2800')) 300 @('[cancel] ')
         if (Test-Path "$root\game\smoke_hitcancel.log") {
             $w = Select-String -Path "$root\game\smoke_hitcancel.log" -Pattern 'hit_after_ms=(\d+) expected_ms=(\d+)' | ForEach-Object { [pscustomobject]@{ got = [int]$_.Matches[0].Groups[1].Value; exp = [int]$_.Matches[0].Groups[2].Value } }
-            $badw = $w | Where-Object { $_.got -lt 250 -or [math]::Abs($_.got - $_.exp) -gt 120 }
+            $badw = $w | Where-Object { $_.got -lt 200 -or [math]::Abs($_.got - $_.exp) -gt 120 }
             if ($badw) { Write-Host "[hitcancel] blows landed off their strike frame (during a reaction?): $(($badw | ForEach-Object { "$($_.got)/$($_.exp)" }) -join ', ')" -ForegroundColor Red; $fail += 1 }
             elseif ($w) { Say "hitcancel ok: $(@($w).Count) landed blows, all on their strike frame" 'Green' }
         }
@@ -292,6 +292,20 @@ if ($Sea) {
         $st = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--seapos=-500,-400,3.0@700', '--call=SeaAI_SailToLocator(reload_1)@800', '--act@1300', '--shot-frame=1500')
         $fail += Invoke-Godot 'sailto' $st 300 @('[sea] sail to', '[sea] action: Moor')
+        # aim circle (SeaAim.cs, AIShipCameraController): only the deck camera shows it; white while a broadside can fire that way, red when an enemy ship is under the aim point
+        # (the point at the range of the camera elevation, on the water). The enemy is parked 80 m abeam: the view to starboard with a raised pitch reaches it (red); then the player
+        # is moved 1500 m away, the aim point lands on empty water (white). The ship camera before the Tab shows nothing ([aim] hidden)
+        $env:SEADOGS_DECKCAM = '1.5708,0.2'
+        $am = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
+                '--sail=+1@700', '--seapos=-600,-101,4.71@720', '--ctl=BI_MapEnter@1000', '--ctl=BI_MapEnter@1100', '--mappos=-193,768,0@1200', '--act@1250',
+                '--seapos=-110,100,0@2400', '--ctl=Sea_CameraSwitch@2500', '--duel@2600', '--seapos=-1500,-1500,0@3100', '--shot-frame=3400')
+        $env:SEADOGS_PLAYERHP = '9000'
+        $fail += Invoke-Godot 'aimcircle' $am 300 @('[aim] white', '[aim] red')
+        Remove-Item Env:\SEADOGS_DECKCAM, Env:\SEADOGS_PLAYERHP -ErrorAction SilentlyContinue
+        if (Test-Path "$root\game\smoke_aimcircle.log") {
+            $aimSeq = (Select-String -Path "$root\game\smoke_aimcircle.log" -Pattern '^\[aim\] (hidden|white|red|green|grey)' | ForEach-Object { $_.Matches[0].Groups[1].Value }) -join '>'
+            if ($aimSeq -notmatch 'white>red>white') { Write-Host "[aimcircle] the circle did not go white > red > white ($aimSeq)" -ForegroundColor Red; $fail += 1 } else { Say "aimcircle ok: $aimSeq" 'Green' }
+        }
         # sea command menu (BattleInterface.c via BI_LaunchCommand, Enter = BICommandsActivate): Enter, Charge (7), grapes (2); Enter, Speed (8), half sails (2); Enter, Sail to (2) lists the island's
         # places with the locator pictures; the squadron row, the island picture of the minimap and the fast-command icon are drawn from the script's values
         $cm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',

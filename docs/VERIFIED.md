@@ -232,3 +232,4 @@ Ships now fire as the original (spread, delays, ball speed x3), so the -Sea scen
 | G1 | Grass (Grass.cs) from .grs: jungle01 39117 blades drawn, none on roads/sand (screens: jungle, beach), 0 in interiors; scenarios grassjungle/grassindoor | 2026-11-13 |
 
 | Location water (2026-11-13) | Boujie shader in land locations: sb seabed mesh now drawn under the sea (depth colour, shore foam, refraction), land wave boost x1.4 + short chop, ripple detail; QC_port/Antigua_port shots 1280x720 at 144 fps; sea/storm/neutral/sailto/weathercycle/weatherland/door/dialogcam ALL OK |
+| 2026-11-13 | Sea aim circle (SeaAim.cs, deck camera): white > red on enemy in the fire zone/range > white; scenario aimcircle | run_tests aimcircle (log [aim], 1280x720 shots checked) |

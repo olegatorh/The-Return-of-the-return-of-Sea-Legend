@@ -715,6 +715,7 @@ public partial class SeaView : Node3D
         d.BiVisible = biVisible; d.NotEnoughBalls = biNotEnoughBalls;
         ReportSelectedShip();
         UpdatePointer();
+        UpdateAim(p, d, (float)GetProcessDeltaTime());
         hud.Update(d);
     }
 
