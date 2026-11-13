@@ -103,7 +103,15 @@ public partial class CharacterView : Node3D
 
     /// <summary>A hit landed on this character: it blocks (script event Location_CharacterBlock: the script decides whether the blow pierces the block)
     /// or takes the damage (Location_CharacterAttack). NPCs raise the block through their fight AI (<see cref="OnIncomingSwing"/>, <see cref="NpcFight"/>).</summary>
-    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && !Stunned;      // character.cpp CheckAttackHit: blocked = the defender is in the block state right now (fgt_block / fgt_blockhit), no raise delay; fightTbl: a reeling character cannot go to block
+    public bool Defends(CharacterView attacker) => fightMode && IsAlive && Blocking && !Stunned && FacesToward(attacker);      // character.cpp CheckAttackHit: blocked = the defender is in the block state right now (fgt_block / fgt_blockhit), no raise delay; fightTbl: a reeling character cannot go to block
+    /// <summary>Owner's rule: a raised block only covers the front. A blow from behind or from the side (the defender's weapon is not turned toward the attacker, cos of the angle below 0.25 = beyond about 75 degrees) goes through.</summary>
+    public bool FacesToward(CharacterView other)
+    {
+        float dx = other.x - x, dz = other.z - z, d2 = dx * dx + dz * dz;
+        if (d2 < 1e-4f) return true;
+        return (dx * MathF.Sin(ay) + dz * MathF.Cos(ay)) / MathF.Sqrt(d2) >= 0.25f;
+    }
+
     /// <summary>fgt_hit_attack is running: fightTbl allows no other action (attack, block, recoil) until the reaction is over.</summary>
     bool Stunned => playing == "hit" && hitUntil > 0f;
 
