@@ -105,6 +105,7 @@ public static class Ctl
     {
         T.Update();
         if (it == null) return;
+        KeyConflicts.Tick();
         if (Log && ++frameNo % 100 == 0)
             GD.Print($"[controls] group={it.Globals.GetValueOrDefault("curKeyGroupName")?.Val.ToString()} locked: " + string.Join(",", T.All.Where(c => c.Locked && c.SystemCode >= 0).Select(c => c.Name)));
         foreach (var (name, on) in T.Changes())

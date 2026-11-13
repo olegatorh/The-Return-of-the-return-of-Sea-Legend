@@ -1220,7 +1220,7 @@ public partial class XView : Control
             // a mouse button is a key of the list too (VK_LBUTTON = 1, VK_RBUTTON = 2, VK_MBUTTON = 4)
             int midx = mkc.IndexOf(mbk.ButtonIndex == MouseButton.Left ? 1 : mbk.ButtonIndex == MouseButton.Right ? 2 : 4);
             GetViewport().SetInputAsHandled();
-            if (midx >= 0) it.FireEvent("evntKeyChoose", new List<V> { V.Int(midx), V.Int(0) });
+            if (midx >= 0 && KeyConflicts.Check(it, mkc, midx) == KeyConflicts.Result.Proceed) it.FireEvent("evntKeyChoose", new List<V> { V.Int(midx), V.Int(0) });
             return;
         }
         if (e is not InputEventKey { Pressed: true } k || GetChildCount() == 0) return;
@@ -1256,8 +1256,9 @@ public partial class XView : Control
         if (idx >= 0)
         {
             if (hook != null && k.Keycode is Key.Enter or Key.KpEnter) GD.Print($"[xinterface] text input: '{hook.Value?.TrimEnd('|')}'");
-            it.FireEvent("evntKeyChoose", new List<V> { V.Int(idx), V.Int(0) });
+            if (hook != null || KeyConflicts.Check(it, kc, idx) == KeyConflicts.Result.Proceed) it.FireEvent("evntKeyChoose", new List<V> { V.Int(idx), V.Int(0) });
         }
+        else if (hook == null && k.Keycode == Key.Escape && kc.Codes != null) KeyConflicts.Check(it, kc, kc.IndexOf(27));
     }
 
     readonly Dictionary<string, (uint min, uint max)> blinds = new(StringComparer.OrdinalIgnoreCase);
