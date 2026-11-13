@@ -50,7 +50,7 @@ Generated from the script once; "keys" are Windows virtual key names of `ExternI
 | PrimaryLand + FightModeControls | ChrTurnHL | KEY_A |  | R | LandLeft |
 | FightModeControls + BattleInterfaceControls | ChrBlock | VK_CONTROL |  | R | LandBlock (honours the script lock) |
 | FightModeControls | ChrBlock_Unlock | VK_CONTROL | INVERSE | R | script (raised on key release) |
-| FightModeControls | ChrAttack | VK_LBUTTON |  | R | LMB in a fight: quick click = normal, hold = strong |
+| FightModeControls | ChrAttack | VK_LBUTTON |  | R | LMB in a fight: the blow starts on the press; held 0.45 s = heavy blow chained after it |
 | FightModeControls | ChrRecoil | KEY_Z |  | R | LandRecoil (honours the script lock) |
 | FightModeControls + BattleInterfaceControls, PrimaryLand | ChrFightMode | KEY_E |  | R | LandSword |
 | FightModeControls + BattleInterfaceControls | ChrFire | KEY_Q |  | R | LandFire |
