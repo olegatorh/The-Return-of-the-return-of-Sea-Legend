@@ -358,6 +358,8 @@ public partial class Main : Node
                         foreach (var c in holder.GetChildren()) c.QueueFree();
                         var built = ModelFactory.Build(g, Path.GetFileNameWithoutExtension(file), modelDirs[e].TrimEnd((char)92), null);
                         holder.AddChild(built);
+                        // the island's "_refl" model is the low-poly stand-in the original draws only into the sea reflection layer: seen directly it paints flat grey/green triangles over the real island
+                        if (Path.GetFileNameWithoutExtension(file).EndsWith("_refl", StringComparison.OrdinalIgnoreCase) && System.Environment.GetEnvironmentVariable("SEADOGS_SHOWREFL") == null) built.Visible = false;
                         LandFlags.Register(e, built, g);
                         GD.Print("[model] loaded " + S(1));
                         return V.Int(1);
