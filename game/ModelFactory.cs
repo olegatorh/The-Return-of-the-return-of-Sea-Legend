@@ -37,6 +37,9 @@ public static class ModelFactory
             arrays[(int)Mesh.ArrayType.Vertex] = verts;
             arrays[(int)Mesh.ArrayType.Normal] = norms;
             arrays[(int)Mesh.ArrayType.TexUV] = uvs;
+            var uv2 = new Vector2[n];                                                       // detail layer: one repeat per DetailMetres of ground (engine: second texture "bump_land")
+            for (int i = 0; i < n; i++) uv2[i] = new Vector2(verts[i].X, verts[i].Z) / DetailMetres;
+            arrays[(int)Mesh.ArrayType.TexUV2] = uv2;
             arrays[(int)Mesh.ArrayType.Index] = m.Index;
             bool lit = false;
             if (vertexColors != null && m.FirstGlobalVertex + n <= vertexColors.Length)
@@ -104,6 +107,33 @@ public static class ModelFactory
     static bool IsShadowMaterial(GmFile g, int index)
         => index >= 0 && index < g.Materials.Count && string.Equals(g.Materials[index].Textures[0], "shadow.tga", StringComparison.OrdinalIgnoreCase);
 
+    const float DetailMetres = 14f;
+    static readonly bool NoDetail = System.Environment.GetEnvironmentVariable("SEADOGS_NODETAIL") != null;
+    static readonly Dictionary<string, ImageTexture?> detailTex = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The land materials carry a grey detail map as second texture: multiplied over the base texture (normalised to a mean of 1) so that close ground stays sharp.</summary>
+    static ImageTexture? DetailTexture(string file)
+    {
+        if (detailTex.TryGetValue(file, out var t)) return t;
+        ImageTexture? r = null;
+        string? rel = GameAssets.FindTexture(file, null);
+        if (rel != null && GameAssets.Texture(rel) is { } src && src.GetImage() is { } img)
+        {
+            img = (Image)img.Duplicate();
+            if (img.IsCompressed()) img.Decompress();
+            img.Convert(Image.Format.Rgba8);
+            var d = img.GetData(); long sum = 0; int cnt = d.Length / 4;
+            for (int i = 0; i < d.Length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+            float mean = Math.Max(1f, sum / (3f * cnt)), k = 255f / mean;
+            for (int i = 0; i < d.Length; i += 4) for (int c = 0; c < 3; c++) d[i + c] = (byte)Math.Min(255f, d[i + c] * k);
+            var n = Image.CreateFromData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgba8, d);
+            n.GenerateMipmaps();
+            r = ImageTexture.CreateFromImage(n);
+        }
+        detailTex[file] = r;
+        return r;
+    }
+
     public static StandardMaterial3D MakeMaterial(GmFile g, int index, string? texturesPath, bool lit, string? shadowPath = null)
     {
         var mat = new StandardMaterial3D
@@ -129,9 +159,14 @@ public static class ModelFactory
             {
                 mat.AlbedoTexture = GameAssets.Texture(rel);
                 if (GameAssets.HasAlpha(rel)) mat.Transparency = BaseMaterial3D.TransparencyEnum.AlphaScissor;
-                if (System.Environment.GetEnvironmentVariable("SEADOGS_MATLOG") != null) Godot.GD.Print($"[mat] #{index} {file} -> {rel} alpha={GameAssets.HasAlpha(rel)} lit={lit}");
+                if (System.Environment.GetEnvironmentVariable("SEADOGS_MATLOG") != null) Godot.GD.Print($"[mat] #{index} {file} -> {rel} alpha={GameAssets.HasAlpha(rel)} lit={lit} t1={g.Materials[index].Textures[1]} t2={g.Materials[index].Textures[2]} t3={g.Materials[index].Textures[3]}");
             }
             else Godot.GD.PrintErr("[model] texture not found: " + file);
+            if (!NoDetail && lit && index >= 0 && index < g.Materials.Count && g.Materials[index].Textures[1] is { } dn && dn.StartsWith("bump_land", StringComparison.OrdinalIgnoreCase)
+                && !(file.Equals("shadow.tga", StringComparison.OrdinalIgnoreCase)) && DetailTexture(dn) is { } dt)
+            {
+                mat.DetailEnabled = true; mat.DetailAlbedo = dt; mat.DetailBlendMode = BaseMaterial3D.BlendModeEnum.Mul; mat.DetailUVLayer = BaseMaterial3D.DetailUV.UV2;
+            }
         }
         return mat;
     }
