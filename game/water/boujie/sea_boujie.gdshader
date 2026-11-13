@@ -34,6 +34,8 @@ uniform float wave_a[6];
 uniform vec2 wave_dir[6];
 uniform sampler2DArray bump : filter_linear_mipmap, repeat_enable;
 uniform sampler2D sky_tex : filter_linear, repeat_disable;
+uniform sampler2D sky_prev : filter_linear, repeat_disable;   // the reflection of the previous sky while the sky box fades to the new one
+uniform float sky_mix = 1.0;
 uniform sampler2D foam_tex : source_color, filter_linear_mipmap, repeat_enable;     // the boujie foam (alpha = foam cover)
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable;   // the boujie ocean albedo (grey ripples)
 uniform bool has_sky;
@@ -46,6 +48,7 @@ uniform float shore_start = 0.2;
 uniform float shore_end = 2.2;
 uniform float shore_gain = 1.0;
 uniform float debug_depth = 0.0;
+uniform vec3 far_hole = vec3(0.0, 0.0, -1.0);   // far plane only: x, z of the near mesh centre and its half size - the far sheet is cut out under the near mesh (no second sheet showing through the wave troughs)
 uniform float detail = 1.0;          // ripple strength (bump map + chop) for a close view
 
 uniform vec3 shallow_color = vec3(0.12, 0.42, 0.45);
@@ -59,7 +62,7 @@ void vertex() {
     float h = 0.0; vec2 d = vec2(0.0);
     for (int i = 0; i < 6; i++) {
         if (wave_k[i] > 0.4) continue;                  // short chop: per pixel only, the mesh cannot carry it
-        float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t;
+        float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i];
         h += wave_a[i] * sin(ph);
         d += wave_dir[i] * wave_a[i] * cos(ph);
     }
@@ -88,13 +91,14 @@ float scene_depth_diff(vec2 uv, mat4 inv_proj, vec3 view_pos) {
 }
 
 void fragment() {
+    if (far_hole.z > 0.0 && abs(wpos.x - far_hole.x) < far_hole.z && abs(wpos.z - far_hole.y) < far_hole.z) discard;
     vec3 toCam = CAMERA_POSITION_WORLD - wpos;
     float dist = length(toCam);
     vec3 V = toCam / dist;
     vec2 s = vec2(0.0);
     float crestH = 0.0;
     for (int i = 0; i < 6; i++) {
-        float ph = wave_k[i] * dot(wave_dir[i], wpos.xz) - wave_w[i] * t;
+        float ph = wave_k[i] * dot(wave_dir[i], wpos.xz) - wave_w[i];
         s += wave_a[i] * wave_k[i] * cos(ph) * wave_dir[i];
         crestH += wave_a[i] * sin(ph);
     }
@@ -130,7 +134,8 @@ void fragment() {
             else { wall = 3.0; u = (R.z * tt + RR) / (2.0 * RR); }
         }
         float v = (wall + clamp(lv, 0.01, 0.99)) * 0.25;
-        refl = textureLod(sky_tex, vec2(clamp(u, 0.002, 0.998), v), 1.5).rgb * sky_color;
+        vec2 suv = vec2(clamp(u, 0.002, 0.998), v);
+        refl = mix(textureLod(sky_prev, suv, 1.5).rgb, textureLod(sky_tex, suv, 1.5).rgb, sky_mix) * sky_color;
     }
 
     // body: deep water colour lit by the sun, with the grey ocean albedo texture as fine ripple shading
@@ -156,7 +161,7 @@ void fragment() {
         float blend = clamp(1.0 - exp((zd + depth_offset) * -beers_law), 0.0, 1.0);
         float bp = pow(blend, 2.0);
         // far away the depth buffer is imprecise: fade the feature out
-        bp = clamp(bp + smoothstep(350.0, 800.0, dist), 0.0, 1.0);
+        bp = clamp(bp + smoothstep(150.0, 440.0, dist), 0.0, 1.0);
         vec3 seen = textureLod(screen_texture, uv, bp * 2.5).rgb;
         seen = mix(seen, shallow_color * (0.4 + 0.8 * lit) * (0.5 + 0.5 * length(sky_color)), 0.45);
         body = mix(seen, deep, bp);
@@ -166,7 +171,7 @@ void fragment() {
             vec2 fp = wpos.xz * 0.12 + vec2(t * 0.02, -t * 0.015);
             float ft = smoothstep(0.5, 1.0, texture(foam_tex, fp).a * 0.6 + texture(foam_tex, fp * 2.3 + 0.4).a * 0.4);
             float ripple = 0.55 + 0.45 * sin(sz * 5.0 - t * 1.8 + ft * 3.0);
-            shore = (1.0 - smoothstep(shore_start, shore_end, sz + (ft - 0.5) * 0.9)) * (0.5 + 0.5 * ft) * ripple * shore_gain * (1.0 - smoothstep(300.0, 700.0, dist));
+            shore = (1.0 - smoothstep(shore_start, shore_end, sz + (ft - 0.5) * 0.9)) * (0.5 + 0.5 * ft) * ripple * shore_gain * (1.0 - smoothstep(200.0, 440.0, dist));
         }
     }
     vec3 col = mix(body, refl, clamp(f * refl_k * 1.25, 0.0, 0.95));

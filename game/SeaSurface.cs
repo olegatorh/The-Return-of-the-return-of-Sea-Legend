@@ -103,6 +103,7 @@ uniform float refl_k;
 uniform float fresnel_k;
 uniform float t;
 uniform float disp;                  // 0 on the far plane
+uniform vec3 far_hole = vec3(0.0, 0.0, -1.0);   // far plane: cut out under the near mesh
 uniform float chop;                  // horizontal pull of the crests
 uniform float foam_gain;
 uniform float bump_scale;
@@ -126,7 +127,7 @@ void vertex() {
     vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     float h = 0.0; vec2 d = vec2(0.0);
     for (int i = 0; i < 6; i++) {
-        float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t;
+        float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i];
         h += wave_a[i] * sin(ph);
         d += wave_dir[i] * wave_a[i] * cos(ph);
     }
@@ -145,6 +146,7 @@ vec2 bump_xy(vec2 p, float layer_t, float fr) {
     return (mix(a, b, k) - vec2(0.5)) * 2.0;
 }
 void fragment() {
+    if (far_hole.z > 0.0 && abs(wpos.x - far_hole.x) < far_hole.z && abs(wpos.z - far_hole.y) < far_hole.z) discard;
     vec3 toCam = CAMERA_POSITION_WORLD - wpos;
     float dist = length(toCam);
     vec3 V = toCam / dist;
@@ -152,7 +154,7 @@ void fragment() {
     vec2 s = vec2(0.0);
     float crestH = 0.0;
     for (int i = 0; i < 6; i++) {
-        float ph = wave_k[i] * dot(wave_dir[i], wpos.xz) - wave_w[i] * t;
+        float ph = wave_k[i] * dot(wave_dir[i], wpos.xz) - wave_w[i];
         s += wave_a[i] * wave_k[i] * cos(ph) * wave_dir[i];
         crestH += wave_a[i] * sin(ph);
     }

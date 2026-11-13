@@ -21,7 +21,17 @@ public static class SeaWaves
     public static bool Land;
     public static float MaxAmp, TotalAmp;      // the cap given by Sea.MaxSeaHeight and the resulting sum of the amplitudes (the crest height above the mean level)
 
-    static SeaWaves() { for (int i = 0; i < N; i++) W[i] = MathF.Sqrt(9.81f * K[i]); }
+    // The script's harmonics (what Configure reads) are only the TARGET: the waves in use glide to it (Tau seconds) so a weather change never pops the swell, and every wave keeps its own
+    // phase accumulator (Phase += W dt) so a changing wavelength / speed does not jump the water either. All consumers (shaders, ship rocking) use Phase, not W * Time.
+    static readonly float[] tK = new float[N], tA = new float[N]; static readonly Vector2[] tDir = new Vector2[N];
+    public static readonly float[] Phase = new float[N];
+    static float tTotal, lastTarget = -1f; static bool inited, lastLand;
+    /// <summary>Time constant (s) of the glide towards the script's harmonics; WeatherFx raises it for the length of a weather transition.</summary>
+    public static float Tau = 2f;
+    /// <summary>The next Configure takes the script's values at once (sea created, land / sea switch).</summary>
+    public static void Snap() { inited = false; }
+
+    static SeaWaves() { for (int i = 0; i < N; i++) { tK[i] = K[i]; tA[i] = A[i]; tDir[i] = Dir[i]; W[i] = MathF.Sqrt(9.81f * K[i]); } }
 
     /// <summary>
     /// Reads the harmonics of the script's sea entity (called each frame, cheap). The weather script (Weather\Init\*.c) writes Sea.Harmonics.h1..h10 =
@@ -29,7 +39,7 @@ public static class SeaWaves
     /// the amplitude is half the script's value, and the sum of the amplitudes is capped by half of Sea.MaxSeaHeight (3 m at sea, 1.2 m on a deck, like the original
     /// sea.cpp that scales the amplitudes down to MaxSeaHeight). A storm (h2, h3 = 2.1..2.2) therefore gives 1.5 m crests, a calm day 0.1..0.5 m.
     /// </summary>
-    public static void Configure(Attr? sea)
+    public static void Configure(Attr? sea, float dt)
     {
         if (sea == null) return;
         float cap = Conv.ParseFloatPrefix(sea.Find("MaxSeaHeight", false)?.Value);
@@ -51,34 +61,52 @@ public static class SeaWaves
         for (int i = 0; i < N && i < list.Count; i++) total += list[i].amp;
         MaxAmp = cap * 0.5f;
         float scale = total > MaxAmp ? MaxAmp / total : 1f;
-        float old = TotalAmp; TotalAmp = total * scale;
-        if (MathF.Abs(old - TotalAmp) > 0.01f) GD.Print($"[waves] {list.Count} harmonics, cap {cap}, crest amplitude {TotalAmp:0.00} m, wave lengths {string.Join(",", System.Linq.Enumerable.Select(System.Linq.Enumerable.Take(list, N), l => l.len.ToString("0")))}");
+        tTotal = total * scale;
         for (int i = 0; i < N; i++)
         {
-            if (i >= list.Count) { A[i] = 0f; continue; }
+            if (i >= list.Count) { tA[i] = 0f; continue; }
             var (amp, len, ang) = list[i];
-            K[i] = MathF.Tau / len; W[i] = MathF.Sqrt(9.81f * K[i]);
-            A[i] = amp * scale * (Land ? 1.4f : 1f);
-            Dir[i] = new Vector2(MathF.Sin(ang), -MathF.Cos(ang));      // engine (sin, cos) with z flipped: Godot z = -engine z
+            tK[i] = MathF.Tau / len;
+            tA[i] = amp * scale * (Land ? 1.4f : 1f);
+            tDir[i] = new Vector2(MathF.Sin(ang), -MathF.Cos(ang));      // engine (sin, cos) with z flipped: Godot z = -engine z
         }
         if (Land)
         {
-            TotalAmp = 0f; for (int i = 0; i < N - 2; i++) TotalAmp += A[i];
-            float chop = 0.025f + 0.07f * Math.Min(TotalAmp, 1.2f);
+            float swell = 0f; for (int i = 0; i < N - 2; i++) swell += tA[i];
+            float chop = 0.025f + 0.07f * Math.Min(swell, 1.2f);
             for (int j = 0; j < 2; j++)
             {
                 int i = N - 2 + j; float len = j == 0 ? 7.5f : 12f;
-                var d0 = Dir[0]; float a = (j == 0 ? 0.45f : -0.5f);
-                Dir[i] = new Vector2(d0.X * MathF.Cos(a) - d0.Y * MathF.Sin(a), d0.X * MathF.Sin(a) + d0.Y * MathF.Cos(a));
-                K[i] = MathF.Tau / len; W[i] = MathF.Sqrt(9.81f * K[i]); A[i] = chop * (j == 0 ? 0.7f : 1f);
+                var d0 = tDir[0]; float a = (j == 0 ? 0.45f : -0.5f);
+                tDir[i] = new Vector2(d0.X * MathF.Cos(a) - d0.Y * MathF.Sin(a), d0.X * MathF.Sin(a) + d0.Y * MathF.Cos(a));
+                tK[i] = MathF.Tau / len; tA[i] = chop * (j == 0 ? 0.7f : 1f);
             }
         }
+        tTotal = TotalAmpOf(tA);
+        if (MathF.Abs(tTotal - lastTarget) > 0.01f) { lastTarget = tTotal; GD.Print($"[waves] {list.Count} harmonics, cap {cap}, crest amplitude target {tTotal:0.00} m, wave lengths {string.Join(",", System.Linq.Enumerable.Select(System.Linq.Enumerable.Take(list, N), l => l.len.ToString("0")))} tau {Tau:0}"); }
+        if (Land != lastLand) { lastLand = Land; inited = false; }
+        if (!inited)
+        {
+            inited = true; Array.Copy(tK, K, N); Array.Copy(tA, A, N); Array.Copy(tDir, Dir, N); TotalAmp = tTotal;
+            for (int i = 0; i < N; i++) { W[i] = MathF.Sqrt(9.81f * K[i]); Phase[i] = W[i] * Time; }
+            return;
+        }
+        float g = 1f - MathF.Exp(-Math.Max(dt, 0f) / Math.Max(Tau, 0.05f));
+        for (int i = 0; i < N; i++)
+        {
+            K[i] += (tK[i] - K[i]) * g; A[i] += (tA[i] - A[i]) * g;
+            var d = Dir[i].Lerp(tDir[i], g); Dir[i] = d.LengthSquared() < 1e-4f ? tDir[i] : d.Normalized();
+            W[i] = MathF.Sqrt(9.81f * K[i]);
+            Phase[i] = (Phase[i] + W[i] * Math.Max(dt, 0f)) % (MathF.Tau * 4096f);
+        }
+        TotalAmp = TotalAmpOf(A);
     }
+    static float TotalAmpOf(float[] a) { float s = 0f; for (int i = 0; i < N; i++) s += a[i]; return s; }
 
     public static float Height(float x, float z)
     {
         float h = 0f;
-        for (int i = 0; i < N; i++) h += A[i] * MathF.Sin(K[i] * (Dir[i].X * x + Dir[i].Y * z) - W[i] * Time);
+        for (int i = 0; i < N; i++) h += A[i] * MathF.Sin(K[i] * (Dir[i].X * x + Dir[i].Y * z) - Phase[i]);
         return h;
     }
 
@@ -88,7 +116,7 @@ public static class SeaWaves
         var s = Vector2.Zero;
         for (int i = 0; i < N; i++)
         {
-            float c = A[i] * K[i] * MathF.Cos(K[i] * (Dir[i].X * x + Dir[i].Y * z) - W[i] * Time);
+            float c = A[i] * K[i] * MathF.Cos(K[i] * (Dir[i].X * x + Dir[i].Y * z) - Phase[i]);
             s += new Vector2(c * Dir[i].X, c * Dir[i].Y);
         }
         return s;

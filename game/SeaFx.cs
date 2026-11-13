@@ -24,13 +24,13 @@ uniform float wave_k[6];
 uniform float wave_w[6];
 uniform float wave_a[6];
 uniform vec2 wave_dir[6];
-float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 6; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], p) - wave_w[i] * sea_t); return h; }
+float sea_h(vec2 p) { float h = 0.0; for (int i = 0; i < 6; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], p) - wave_w[i]); return h; }
 ";
 
     static void SetWaves(ShaderMaterial m)
     {
         m.SetShaderParameter("sea_t", SeaWaves.Time);
-        m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
+        m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.Phase.Clone());
         m.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); m.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
     }
 
