@@ -23,6 +23,7 @@ uniform float len;
 uniform vec2 wind;
 uniform vec4 color;
 uniform float blend;
+uniform float keep;
 varying float fade;
 void vertex() {
     vec3 b = COLOR.rgb;
@@ -33,7 +34,7 @@ void vertex() {
     vec2 w = xz + 2.0 * radius * floor((cam.xz - xz) / (2.0 * radius) + 0.5);
     vec3 world = vec3(w.x, cam.y + y * height - height * 0.35, w.y);
     if (UV.x > 0.5) world += vec3(-slant.x * len, len, -slant.y * len);      // the streak lies along the path of the drop
-    fade = (1.0 - smoothstep(0.55, 1.0, length(w - cam.xz) / radius)) * blend;
+    fade = (1.0 - smoothstep(0.55, 1.0, length(w - cam.xz) / radius)) * blend * (1.0 - smoothstep(keep - 0.03, keep, COLOR.a));
     VERTEX = (inverse(MODEL_MATRIX) * vec4(world, 1.0)).xyz;
 }
 void fragment() { ALBEDO = color.rgb; ALPHA = color.a * fade * (UV.x > 0.5 ? 0.45 : 1.0); }";
@@ -55,7 +56,7 @@ float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 void vertex() {
     vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     float h = 0.0;
-    for (int i = 0; i < 6; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t);
+    for (int i = 0; i < 6; i++) h += wave_a[i] * sin(wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i]);
     VERTEX.y += h + 0.05;
     wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -94,7 +95,10 @@ void fragment() {
     MeshInstance3D? rain;
     ShaderMaterial? rainMat;
     int rainDrops;
-    float rainBlend, rainFadeTime = 2f, rainDensity = 0.4f;
+    float rainBlend, rainFadeTime = 2f, rainDensity = 0.4f, rainKeep = 1f;
+    readonly Dictionary<string, float> rainSm = new();
+    float SmR(string k, float v) { if (!rainSm.TryGetValue(k, out var c)) c = v; else c += (v - c) * (1f - MathF.Exp(-dtLast / Math.Max(0.05f, SeaWaves.Tau))); rainSm[k] = c; return c; }
+    float dtLast;
     Vector2 rainWind;
     MeshInstance3D? rings;
     ShaderMaterial? ringMat;
@@ -134,7 +138,7 @@ void fragment() {
 
     public void Sync(Interp it, Camera3D? cam, float dt)
     {
-        time += dt;
+        time += dt; dtLast = dt;
         if (!ReferenceEquals(LocKey, lastLocKey) || Indoor != lastIndoor) { lastLocKey = LocKey; lastIndoor = Indoor; ResetRainNow(); }
         CycleWeather(it);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_NOSUNFX") == null) SyncSunGlow(it, cam, dt);
@@ -150,31 +154,35 @@ void fragment() {
         if (Indoor) drops = 0;
         bool wantRain = drops > 0 && cam != null;
         float fadeTime = rainEnt != null ? Math.Max(0.5f, F(rainEnt.Root, "TimeBlend", 2000f) / 1000f) : rainFadeTime;
+        if (Transitioning) fadeTime = Math.Max(fadeTime, BlendSeconds * 0.6f);      // rain starts / stops during a weather transition: the drops fade over most of it
         rainFadeTime = fadeTime;
         rainBlend = Math.Clamp(rainBlend + (wantRain ? dt : -dt) / fadeTime, 0f, 1f);
         if (!wantRain && rainBlend <= 0f && rain != null) { rain.QueueFree(); rain = null; rainMat = null; rainDrops = 0; }
         if (wantRain)
         {
             var r = rainEnt!.Root;
-            int n = Math.Clamp(drops, 200, 14000);
-            if (rain == null || n != rainDrops) { rain?.QueueFree(); rain = BuildRain(n); AddChild(rain); rainDrops = n; }
-            var c = r.Find("Color", false)?.Value is { } cv && long.TryParse(cv, out long ci) ? new Color(((ci >> 16) & 255) / 128f, ((ci >> 8) & 255) / 128f, (ci & 255) / 128f, Math.Clamp(((ci >> 24) & 255) / 255f, 0.35f, 0.85f)) : new Color(0.7f, 0.75f, 0.85f, 0.5f);
+            int n = Math.Clamp((int)SmR("n", drops), 200, 14000);
+            if (rain == null || n > rainDrops || n < rainDrops / 3) { rain?.QueueFree(); int mesh = Math.Clamp(Math.Max(n, drops) * 3 / 2, 200, 14000); rain = BuildRain(mesh); AddChild(rain); rainDrops = mesh; }
+            rainKeep = Math.Clamp(n / (float)rainDrops, 0.02f, 1f);
+            var c0 = r.Find("Color", false)?.Value is { } cv && long.TryParse(cv, out long ci) ? new Color(((ci >> 16) & 255) / 128f, ((ci >> 8) & 255) / 128f, (ci & 255) / 128f, Math.Clamp(((ci >> 24) & 255) / 255f, 0.35f, 0.85f)) : new Color(0.7f, 0.75f, 0.85f, 0.5f);
+            var c = new Color(SmR("cr", c0.R), SmR("cg", c0.G), SmR("cb", c0.B), SmR("ca", c0.A));
             float wa = 0f, ws = 0f;
             if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa2) { wa = F(wa2, "Wind.Angle", 0f); ws = F(wa2, "Wind.Speed", 0f); }
             rainWind = new Vector2(MathF.Sin(wa), -MathF.Cos(wa)) * Math.Clamp(ws / 12f, 0f, 1.5f);
-            rainMat!.SetShaderParameter("speed", F(r, "Speed", 18f));
-            rainMat.SetShaderParameter("height", Math.Max(5f, F(r, "Height", 30f)));
-            rainMat.SetShaderParameter("radius", Math.Max(5f, F(r, "Radius", 30f)));
-            rainMat.SetShaderParameter("len", Math.Max(0.4f, F(r, "DropLength", 2f)));
+            rainMat!.SetShaderParameter("speed", SmR("sp", F(r, "Speed", 18f)));
+            rainMat.SetShaderParameter("height", Math.Max(5f, SmR("h", F(r, "Height", 30f))));
+            rainMat.SetShaderParameter("radius", Math.Max(5f, SmR("rd", F(r, "Radius", 30f))));
+            rainMat.SetShaderParameter("len", Math.Max(0.4f, SmR("ln", F(r, "DropLength", 2f))));
             rainMat.SetShaderParameter("wind", rainWind);
             rainMat.SetShaderParameter("color", new Vector4(c.R, c.G, c.B, c.A));
-            rainDensity = Math.Clamp(drops / 5000f, 0.15f, 1f);
+            rainDensity = Math.Clamp(n / 5000f, 0.15f, 1f);
         }
         if (rain != null && rainMat != null && cam != null)
         {
             rainMat.SetShaderParameter("cam", cam.GlobalPosition);
             rainMat.SetShaderParameter("t", time);
             rainMat.SetShaderParameter("blend", rainBlend);
+            rainMat.SetShaderParameter("keep", rainKeep);
             rain.GlobalPosition = Vector3.Zero;
         }
         SyncRings(it, cam, rain != null && rainBlend > 0.01f);
@@ -318,6 +326,45 @@ void fragment() {
         hAttr.Value = arcWrittenH; azAttr.Value = arcWrittenAz;
     }
 
+    // ---- when and how the weather record may change while the game runs (docs/VERIFIED.md W1): the original picked it once when the sea / location was created.
+    /// <summary>Real seconds the sky, fog, sun, rain and swell take to glide to a new record (settings.ini WeatherBlendSeconds, env SEADOGS_WXBLEND).</summary>
+    public static float BlendSeconds = 90f;
+    /// <summary>A new record is taken at sea only after this many game hours and this many real seconds since the last one (settings.ini WeatherRepickHours; env SEADOGS_WXHOURS / SEADOGS_WXSEC for tests).</summary>
+    public static float RepickHours = 3.5f, RepickSeconds = 240f, SchemeSeconds = 300f;
+    public static bool Transitioning => SeaWaves.Tau > 3f;
+    float transEnd = -1f, pickT = -1000f, hoursSincePick, lastClock = -1f, combatT = -1000f, schemeT = -1000f, blockLogT = -1000f;
+    bool alarmNow, pendingScheme;
+
+    static bool Flag(Attr rec, string k) => rec.Get(k)?.Value is { Length: > 0 } v && v != "0" && !v.Equals("false", StringComparison.OrdinalIgnoreCase);
+    static Attr? Rec(Interp it, int n) => it.Globals.TryGetValue("Weathers", out var ws) && ws.Arr != null && n >= 0 && n < ws.Arr.Length ? ws.Arr[n].Val.Attr : null;
+    static string RecId(Interp it, int n) => Rec(it, n)?.Get("id")?.Value ?? "?";
+    static bool HourIn(Attr rec, int hour)
+    {
+        int mn = (int)F(rec, "Hour.Min", 0f), mx = (int)F(rec, "Hour.Max", 24f);
+        if (mn == mx) return mn == hour;
+        return mn < mx ? hour >= mn && hour <= mx : !(hour < mn && hour > mx);
+    }
+
+    /// <summary>The record the sea moves to: of the script's table rules for this hour (Hour.Min..Max, Skip, same storm kind), those of the same family as the current one first
+    /// (same night / day, same rain / dry): clear -> storm -> night never jumps. Returns -1 when nothing but the current record fits (it then simply stays).</summary>
+    int PickFamily(Interp it, int hour)
+    {
+        int cur = GInt(it, "iCurWeatherNum"); var o = Rec(it, cur);
+        if (o == null || !it.Globals.TryGetValue("Weathers", out var ws) || ws.Arr == null) return -1;
+        bool oStorm = Flag(o, "Storm"), oNight = Flag(o, "Night"), oRain = F(o, "Rain.NumDrops", 0f) > 0f;
+        var t1 = new List<int>(); var t2 = new List<int>();
+        for (int i = 0; i < ws.Arr.Length; i++)
+        {
+            var r = ws.Arr[i].Val.Attr;
+            if (r == null || r.Get("hour") == null || Flag(r, "Skip") || Flag(r, "Storm") != oStorm || Flag(r, "Tornado") || !HourIn(r, hour)) continue;
+            if (Flag(r, "Night") != oNight) continue;
+            ((F(r, "Rain.NumDrops", 0f) > 0f) == oRain ? t1 : t2).Add(i);
+        }
+        var pool = t1.Count > 0 ? t1 : t2;
+        if (HourIn(o, hour) && !pool.Contains(cur)) return -1;           // the current record is still valid for this hour and nothing of its own family is: stay
+        return pool.Count == 0 ? -1 : pool[Random.Shared.Next(pool.Count)];
+    }
+
     void CycleWeather(Interp it)
     {
         if (!it.Globals.TryGetValue("Environment", out var env) || env.Val.Attr is not { } ea || !it.Globals.ContainsKey("iCurWeatherNum")) return;
@@ -329,17 +376,42 @@ void fragment() {
             else if (e.Class.Equals("sea", StringComparison.OrdinalIgnoreCase)) atSea = true;
         }
         wxHas = hasWeather; wxSea = atSea; wxWeather = it.Globals.TryGetValue("Weather", out var wgl) ? wgl.Val.Attr : null;
-        if (!hasWeather) { lastHour = -1; return; }
+        if (transEnd > 0f && time >= transEnd) { transEnd = -1f; SeaWaves.Tau = 2f; Log(it, "transition end"); }
+        if (!hasWeather) { lastHour = -1; lastClock = -1f; if (transEnd > 0f) { transEnd = -1f; SeaWaves.Tau = 2f; } return; }
         if (it.Globals.TryGetValue("Weather", out var wg) && wg.Val.Attr is { } wattr) SunArc(it, wattr, ea);
-        int hour = (int)MathF.Floor(F(ea, "time", 0f));
-        if (lastHour < 0) { lastHour = hour; Log(it, "begin"); return; }
+        float clock = F(ea, "time", 0f);
+        if (lastClock >= 0f) { float dh = ((clock - lastClock) % 24f + 24f) % 24f; if (dh < 12f) hoursSincePick += dh; }
+        lastClock = clock;
+        // fight state: the engine's sea alarm (an enemy ship / fort is hostile and active); the weather is frozen while it lasts and for a while after
+        bool alarm = GInt(it, "seaAlarmed") != 0;
+        if (alarm != alarmNow) { alarmNow = alarm; GD.Print($"[weather] combat {(alarm ? "start" : "end")}"); }
+        if (alarm) combatT = time;
+        bool sail = atSea && LocKey == null;           // the open sea (a port seen from the dock has the sea entity too, but a location: the old hourly rule)
+        int hour = (int)MathF.Floor(clock);
+        if (lastHour < 0) { lastHour = hour; pickT = time; hoursSincePick = 0f; Log(it, "begin"); return; }
+        if (pendingScheme && sail && !alarm && time - schemeT >= SchemeSeconds) { pendingScheme = false; schemeT = time; it.CallTop("SetSchemeForSea"); }
         if (hour == lastHour) return;
+        if (GInt(it, "iCurWeatherHour") == hour) { lastHour = hour; return; }
+        if (sail)
+        {
+            string why = alarm || time - combatT < 120f ? "combat" : hoursSincePick < RepickHours ? "too soon (game hours)" : time - pickT < RepickSeconds ? "too soon (real seconds)" : "";
+            if (why.Length > 0) { if (time - blockLogT > 20f) { blockLogT = time; GD.Print($"[weather] repick blocked: {why} (hour {hour}, {hoursSincePick:0.0} h since the last record)"); } return; }
+        }
         lastHour = hour;
-        if (GInt(it, "iCurWeatherHour") == hour) return;
         int oldNum = GInt(it, "iCurWeatherNum"); string oldLight = GStr(it, "sLightingPath");
         bool wasRain = GInt(it, "bWeatherIsRain") != 0, wasStorm = GInt(it, "bWeatherIsStorm") != 0;
+        if (sail)
+        {
+            int pick = PickFamily(it, hour);
+            if (pick < 0 || pick == oldNum) { it.Globals["iCurWeatherHour"].Val = V.Int(hour); pickT = time; hoursSincePick = 0f; Log(it, "record stays"); return; }
+            if (it.Globals.TryGetValue("iNextWeatherNum", out var nx)) nx.Val = V.Int(pick);
+        }
+        SeaWaves.Tau = Math.Max(5f, BlendSeconds / 3.5f); transEnd = time + BlendSeconds * 1.5f;      // sky, fog, sun, rain, swell glide (time constant = a third of the transition)
+        pickT = time; hoursSincePick = 0f;
         Apply(it);
-        if (atSea && (GInt(it, "bWeatherIsRain") != 0) != wasRain && GInt(it, "bWeatherIsStorm") == (wasStorm ? 1 : 0) && GInt(it, "seaAlarmed") == 0) it.CallTop("SetSchemeForSea");     // rain loop on / off (the script sets sounds only when the sea is created)
+        GD.Print($"[weather] transition start duration={BlendSeconds:0} s from='{RecId(it, oldNum)}' to='{RecId(it, GInt(it, "iCurWeatherNum"))}' hour={hour}");
+        if (atSea && (GInt(it, "bWeatherIsRain") != 0) != wasRain && GInt(it, "bWeatherIsStorm") == (wasStorm ? 1 : 0)) pendingScheme = true;     // rain loop on / off: at most once per SchemeSeconds, never in a fight
+        if (pendingScheme && !alarm && time - schemeT >= SchemeSeconds) { pendingScheme = false; schemeT = time; it.CallTop("SetSchemeForSea"); }
         // the baked light (.col of the hour the scene was loaded at) is re-tinted by TintSync, so land and islands follow the new record too
         if (atSea && it.Globals.TryGetValue("Island", out var isl) && isl.Val.Attr is { } ia) ia.GetOrCreate("LightingPath").Value = GStr(it, "sLightingPath");
         TintSync(0f);
@@ -362,7 +434,7 @@ void fragment() {
         ringMat.SetShaderParameter("density", rainDensity * Math.Clamp(rainBlend, 0f, 1f));
         ringMat.SetShaderParameter("cam", cam.GlobalPosition);
         ringMat.SetShaderParameter("col", new Vector3(0.85f, 0.9f, 0.95f));
-        ringMat.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); ringMat.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
+        ringMat.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); ringMat.SetShaderParameter("wave_w", (float[])SeaWaves.Phase.Clone());
         ringMat.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); ringMat.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
     }
 
@@ -372,12 +444,12 @@ void fragment() {
         var verts = new Vector3[n * 2]; var uv = new Vector2[n * 2]; var col = new Color[n * 2];
         for (int i = 0; i < n; i++)
         {
-            float bx = (float)rnd.NextDouble(), by = (float)rnd.NextDouble(), bz = (float)rnd.NextDouble();
+            float bx = (float)rnd.NextDouble(), by = (float)rnd.NextDouble(), bz = (float)rnd.NextDouble(), rk = (float)rnd.NextDouble();
             for (int k = 0; k < 2; k++)
             {
                 verts[i * 2 + k] = Vector3.Zero;
                 uv[i * 2 + k] = new Vector2(k, 0);
-                col[i * 2 + k] = new Color(bx, by, bz);        // the drop's base position in the unit cube travels in the vertex colour
+                col[i * 2 + k] = new Color(bx, by, bz, rk);        // the drop's base position in the unit cube travels in the vertex colour
             }
         }
         var arrays = new Godot.Collections.Array();

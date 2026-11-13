@@ -68,6 +68,7 @@ void fragment() {
         return new Vector3(MathF.Cos(az) * MathF.Cos(h), MathF.Sin(h), MathF.Sin(az) * MathF.Cos(h)).Normalized();
     }
 
+    Vector3 smSun; Color smGc; bool smGcSet;
     void SyncSunGlow(Interp it, Camera3D? cam, float dt)
     {
         Entity? ent = null;
@@ -82,7 +83,9 @@ void fragment() {
         var r = ent.Root;
         string key = (r.Find("Glow.Texture", false)?.Value ?? "") + "|" + (r.Find("Flare.Texture", false)?.Value ?? "") + "|" + (r.Get("Flares")?.Count ?? 0);
         if (!sunBuilt || key != sunKey) BuildSun(r, key);
-        var sunDir = SunDirection(wr);
+        var sunTarget = SunDirection(wr);
+        smSun = !sunBuilt || smSun == Vector3.Zero ? sunTarget : smSun.Lerp(sunTarget, 1f - MathF.Exp(-dt / Math.Max(0.05f, SeaWaves.Tau))).Normalized();      // the sun glides to the new record's position during a weather transition
+        var sunDir = smSun;
         LastSunDir = sunDir;
         var cp = cam.GlobalPosition;
         float glowDist = F(r, "Glow.Dist", 3500f), glowSize = F(r, "Glow.Size", 1250f);
@@ -100,7 +103,9 @@ void fragment() {
         bool inView = fwd.Dot(sunDir) > 0.35f;
         flareAlpha = Math.Clamp(flareAlpha + (inView && visible ? 1f : -1f) * dt * 8f, 0f, 1f);
 
-        var gc = ArgbToColor(r.Find("Glow.Color", false)?.Value, Colors.White);
+        var gcT = ArgbToColor(r.Find("Glow.Color", false)?.Value, Colors.White);
+        smGc = smGcSet ? smGc.Lerp(gcT, 1f - MathF.Exp(-dt / Math.Max(0.05f, SeaWaves.Tau))) : gcT; smGcSet = true;
+        var gc = smGc;
         if (sunGlowNode != null && sunGlowMat != null)
         {
             sunGlowNode.Visible = r.Find("Glow.Texture", false) != null && glowAlpha > 0.01f;
@@ -173,6 +178,6 @@ void fragment() {
         sunGlowNode?.QueueFree(); sunGlowNode = null; sunGlowMat = null;
         foreach (var f in flares) f.Node.QueueFree();
         flares.Clear();
-        sunBuilt = false; glowAlpha = 0f; flareAlpha = 0f;
+        sunBuilt = false; glowAlpha = 0f; flareAlpha = 0f; smSun = Vector3.Zero; smGcSet = false;
     }
 }

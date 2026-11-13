@@ -50,13 +50,14 @@ public partial class OutdoorEnv : Node3D
             string dir = skyEnt.Root.Get("Dir")?.Value ?? "";
             if (dir.Length > 0 && (sky == null || dir != skyDir))
             {
+                var keepRefl = SkySide;
                 var ns = BuildSky(dir, out var mats);
                 FreeOldSky();
                 var prev = sky;
                 if (ns == null) { prev?.QueueFree(); sky = null; skyDir = ""; skyMats = new(); }
                 else
                 {
-                    if (prev != null) { skyOld = prev; skyFade = 0f; foreach (var m in mats) SkyFading(m, true); }
+                    if (prev != null) { skyOld = prev; skyFade = 0f; reflPrev = keepRefl; foreach (var m in mats) SkyFading(m, true); GD.Print($"[weather] sky fade {Math.Max(6f, Tau * 3f):0} s: {skyDir} -> {dir}"); }
                     else skyFade = 1f;
                     sky = ns; skyMats = mats; skyDir = dir; reflKey = ""; AddChild(sky);
                 }
@@ -67,7 +68,7 @@ public partial class OutdoorEnv : Node3D
             skyTint = Sm("skytint", scol);
         }
         else { FreeOldSky(); if (sky != null) { sky.QueueFree(); sky = null; skyDir = ""; skyMats = new(); } if (fogDome != null) { fogDome.QueueFree(); fogDome = null; } }
-        if (skyOld != null) { skyFade += dt / 6f; if (skyFade >= 1f) { skyFade = 1f; FreeOldSky(); foreach (var m in skyMats) SkyFading(m, false); } }
+        if (skyOld != null) { skyFade += dt / Math.Max(6f, Tau * 3f); if (skyFade >= 1f) { skyFade = 1f; reflPrev = null; FreeOldSky(); foreach (var m in skyMats) SkyFading(m, false); } }
         foreach (var m in skyMats) m.SetShaderParameter("tint", new Vector4(skyTint.R, skyTint.G, skyTint.B, skyOld != null ? skyFade : 1f));
         if (sky != null && cam != null) { sky.GlobalPosition = cam.GlobalPosition; sky.Rotation = new Vector3(0, skyYaw, 0); }
         if (skyOld != null && cam != null) skyOld.GlobalPosition = cam.GlobalPosition;
@@ -83,6 +84,8 @@ public partial class OutdoorEnv : Node3D
             var fog = Rgb(root.Find("Fog.Color", false)?.Value, new Color(0.86f, 0.86f, 0.9f));
             if (sea == null)
             {
+                SeaWaves.Snap(); smF.Clear();
+                GameAssets.Prefetch(new[] { "smoke8.tga", "smoke9.tga", "explos.tga", "splash.tga", "blot.tga", "fire3.tga", "seafoam_2.tga", "pena.tga" });      // fight effects decoded now, not on the first shot
                 seaMat = new ShaderMaterial { Shader = SeaSurface.MakeShader(), RenderPriority = SeaSurface.Boujie ? -100 : 0 };   // boujie reads the screen: the sea is first in the transparent pass, wakes and foam come after
                 // a fine grid near the camera carries the waves; the far sea is a flat plane under the fog
                 sea = new MeshInstance3D { Mesh = new PlaneMesh { Size = new Vector2(1000, 1000), SubdivideWidth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg ? int.Parse(sg) : 199, SubdivideDepth = System.Environment.GetEnvironmentVariable("SEADOGS_SEAGRID") is { } sg2 ? int.Parse(sg2) : 399 }, MaterialOverride = seaMat, Name = "Sea", CustomAabb = new Aabb(new Vector3(-500, -20, -500), new Vector3(1000, 40, 1000)) };
@@ -92,17 +95,17 @@ public partial class OutdoorEnv : Node3D
                 AddChild(sea);
             }
             seaMat!.SetShaderParameter("t", time);
-            SeaWaves.Time = time; SeaWaves.Configure(root);
+            SeaWaves.Time = time; SeaWaves.Configure(root, dt);
             SetSeaParams(seaMat, root, it, false);
             if (cam != null)
             {
                 // the wave grid follows the camera in whole 5 m steps (the waves are a function of the world position, so the surface does not swim)
                 sea.GlobalPosition = new Vector3(MathF.Round(cam.GlobalPosition.X / 5f) * 5f, 0, MathF.Round(cam.GlobalPosition.Z / 5f) * 5f);
-                if (seaFar != null) seaFar.GlobalPosition = new Vector3(cam.GlobalPosition.X, -0.4f, cam.GlobalPosition.Z);
+                if (seaFar != null) seaFar.GlobalPosition = new Vector3(sea.GlobalPosition.X, 0f, sea.GlobalPosition.Z);
             }
             if (farMat != null) SetSeaParams(farMat, root, it, true);
             float density = root.Find("Fog.Density", false)?.Value is { } d && float.TryParse(d, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv) ? dv : 0.001f;
-            smDens = sea == null || smDens < 0f ? density : smDens + (density - smDens) * (1f - MathF.Exp(-dt / 2f));
+            smDens = smDens < 0f ? density : smDens + (density - smDens) * (1f - MathF.Exp(-dt / Tau));
             SetEnvironment(Sm("envfog", fog), smDens * 1.2f);
         }
         else
@@ -119,8 +122,17 @@ public partial class OutdoorEnv : Node3D
     float smDt, smDens = -1f;
     Color Sm(string key, Color target)
     {
-        if (!smooth.TryGetValue(key, out var c)) c = target; else c = c.Lerp(target, 1f - MathF.Exp(-smDt / 2f));
+        if (!smooth.TryGetValue(key, out var c)) c = target; else c = c.Lerp(target, 1f - MathF.Exp(-smDt / Tau));
         smooth[key] = c;
+        return c;
+    }
+    static float Tau => SeaWaves.Tau;
+    readonly System.Collections.Generic.Dictionary<string, float> smF = new();
+    /// <summary>Glides a number to its target with the weather blend time constant (the first value is taken at once).</summary>
+    float Smf(string key, float target)
+    {
+        if (!smF.TryGetValue(key, out var c)) c = target; else c += (target - c) * (1f - MathF.Exp(-smDt / Tau));
+        smF[key] = c;
         return c;
     }
     Vector3 smSunN = Vector3.Zero, smSunF = Vector3.Zero;
@@ -141,7 +153,8 @@ public partial class OutdoorEnv : Node3D
     {
         string key = skyDir + "|" + col.ToHtml(false) + "|" + (int)height;
         if (key == reflKey || skyDir.Length == 0) return;
-        reflKey = key;
+        if (reflKey != "" && time - lastBakeT < 1.2f) return;          // the fog colour glides for a minute: rebuild the reflection (a CPU pass over the sky strip) about once a second, not every frame
+        reflKey = key; lastBakeT = time;
         var src = GameAssets.Texture(skyDir.TrimEnd((char)92) + (char)92 + "sky_side.tga");
         var img = src?.GetImage();
         if (img == null) return;
@@ -167,6 +180,7 @@ public partial class OutdoorEnv : Node3D
         img.GenerateMipmaps(); SkySide = ImageTexture.CreateFromImage(img);
     }
     ShaderMaterial? fogDomeMat;
+    ImageTexture? reflPrev; float lastBakeT = -10f;      // the reflection of the old sky, cross-faded in the sea shader while the sky box fades
     static readonly string FogDomeShader = @"
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, fog_disabled;
@@ -219,6 +233,7 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
             if (height <= 0f) height = 10f;
         }
         if (height != lastDomeH && System.Environment.GetEnvironmentVariable("SEADOGS_WEATHERLOG") != null) { lastDomeH = height; GD.Print($"[weather] dome fog height={height} num={Conv.ToInt(it.Globals["iCurWeatherNum"].Val)}"); }
+        height = Smf("domeh", height);
         FogDomeHeight = height;
         BakeFoggedReflection(col, height);
         fogDomeMat!.SetShaderParameter("fog_col", Sm("domefog", col));
@@ -251,23 +266,25 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
             float h = Fl(wr, "Sun.HeightAngle", 0.9f), az = Fl(wr, "Sun.AzimuthAngle", 0f);
             sunDir = new Vector3(MathF.Cos(az) * MathF.Cos(h), MathF.Sin(h), MathF.Sin(az) * MathF.Cos(h));
         }
-        if (far) { smSunF = smSunF == Vector3.Zero ? sunDir : smSunF.Lerp(sunDir, 1f - MathF.Exp(-smDt / 2f)); sunDir = smSunF; }
-        else { smSunN = smSunN == Vector3.Zero ? sunDir : smSunN.Lerp(sunDir, 1f - MathF.Exp(-smDt / 2f)); sunDir = smSunN; }
+        if (far) { smSunF = smSunF == Vector3.Zero ? sunDir : smSunF.Lerp(sunDir, 1f - MathF.Exp(-smDt / Tau)); sunDir = smSunF; }
+        else { smSunN = smSunN == Vector3.Zero ? sunDir : smSunN.Lerp(sunDir, 1f - MathF.Exp(-smDt / Tau)); sunDir = smSunN; }
         m.SetShaderParameter("water_color", water);
         m.SetShaderParameter("sky_color", skyc);
         m.SetShaderParameter("fog_color", fog);
         m.SetShaderParameter("pena_color", new Color(Math.Min(1f, pena.R * 2.4f + fog.R * 0.8f + 0.12f), Math.Min(1f, pena.G * 2.4f + fog.G * 0.8f + 0.12f), Math.Min(1f, pena.B * 2.4f + fog.B * 0.8f + 0.12f)));
         m.SetShaderParameter("sun_color", sunc);
-        float rp = Fl(root, "Road.Power", 1f);
+        string fk = far ? "f" : "n";
+        float rp = Smf(fk + "rp", Fl(root, "Road.Power", 1f));
         var rc = new Color((road.R + road2.R) * 0.5f, (road.G + road2.G) * 0.5f, (road.B + road2.B) * 0.5f);
         m.SetShaderParameter("road_color", rc);
         m.SetShaderParameter("road_power", rp);
         m.SetShaderParameter("sun_dir", sunDir.Normalized());
-        m.SetShaderParameter("fog_density", Fl(root, "Fog.SeaDensity", 0.002f));
-        m.SetShaderParameter("refl_k", Fl(root, "WaterReflection", 0.7f));
-        m.SetShaderParameter("fresnel_k", Fl(root, "FrenelCoefficient", 0.7f));
+        m.SetShaderParameter("fog_density", Smf(fk + "fd", Fl(root, "Fog.SeaDensity", 0.002f)));
+        m.SetShaderParameter("refl_k", Smf(fk + "rk", Fl(root, "WaterReflection", 0.7f)));
+        m.SetShaderParameter("fresnel_k", Smf(fk + "fk", Fl(root, "FrenelCoefficient", 0.7f)));
         m.SetShaderParameter("t", time);
         m.SetShaderParameter("disp", far ? 0f : 1f);
+        m.SetShaderParameter("far_hole", far && sea != null ? new Vector3(sea.GlobalPosition.X, sea.GlobalPosition.Z, 497f) : new Vector3(0, 0, -1f));
         float amp = SeaWaves.TotalAmp;
         m.SetShaderParameter("amp_total", amp);
         m.SetShaderParameter("chop", Math.Clamp(0.35f + amp * 0.25f, 0.35f, 0.95f));
@@ -275,17 +292,19 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         string bd = root.Find("Bump.Dir", false)?.Value ?? "";
         if (bd.Length > 0 && (bumpTex == null || bd != bumpDir)) { bumpTex = SeaSurface.LoadBump(bd); bumpDir = bd; }
         foamTex ??= GameAssets.Texture("pena.tga");
-        float tile = Fl(root, "Bump.Tile", 0.05f), spd = Fl(root, "Bump.AnimSpeed", 15f);
+        float tile = Smf(fk + "bt", Fl(root, "Bump.Tile", 0.05f)), spd = Smf(fk + "bs", Fl(root, "Bump.AnimSpeed", 15f));
         if (!far) bumpFrame += (float)GetProcessDeltaTime() * spd * 0.5f;
         m.SetShaderParameter("has_bump", bumpTex != null);
         if (bumpTex != null) m.SetShaderParameter("bump", bumpTex);
         m.SetShaderParameter("bump_tile", tile);
-        m.SetShaderParameter("bump_ang", Fl(root, "Bump.Ang", 0f));
-        m.SetShaderParameter("bump_speed", Fl(root, "Bump.Speed", 0.01f) * 6f);
-        m.SetShaderParameter("bump_scale", Fl(root, "Bump.Scale", 2f));
+        m.SetShaderParameter("bump_ang", Smf(fk + "ba", Fl(root, "Bump.Ang", 0f)));
+        m.SetShaderParameter("bump_speed", Smf(fk + "bv", Fl(root, "Bump.Speed", 0.01f)) * 6f);
+        m.SetShaderParameter("bump_scale", Smf(fk + "bc", Fl(root, "Bump.Scale", 2f)));
         m.SetShaderParameter("bump_frame", bumpFrame);
         m.SetShaderParameter("has_sky", SkySide != null);
         if (SkySide != null) m.SetShaderParameter("sky_tex", SkySide);
+        m.SetShaderParameter("sky_prev", reflPrev != null ? reflPrev : SkySide);
+        m.SetShaderParameter("sky_mix", reflPrev != null && skyOld != null ? skyFade : 1f);
         if (SeaSurface.Boujie)
         {
             // boujie look: its own foam and albedo textures; screen refraction / depth fog / shore foam only on the near mesh (Compatibility: screen + depth textures)
@@ -299,7 +318,7 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
             m.SetShaderParameter("shallow_color", new Color(Math.Min(1f, water.R * 2f + 0.06f), Math.Min(1f, water.G * 2.6f + 0.2f), Math.Min(1f, water.B * 2.2f + 0.2f)));
         }
         else if (foamTex != null) m.SetShaderParameter("foam_tex", foamTex);
-        m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.W.Clone());
+        m.SetShaderParameter("wave_k", (float[])SeaWaves.K.Clone()); m.SetShaderParameter("wave_w", (float[])SeaWaves.Phase.Clone());
         m.SetShaderParameter("wave_a", (float[])SeaWaves.A.Clone()); m.SetShaderParameter("wave_dir", (Vector2[])SeaWaves.Dir.Clone());
     }
 
