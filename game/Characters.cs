@@ -88,7 +88,7 @@ public partial class CharacterView : Node3D
     float SwingRecovery => IsPlayer ? (lastKind == Strike.Strong ? StrongRecovery : 0f) : 0.2f;
     /// <summary>The price of the hero's heavy blow: he needs this long after the animation before the next action (port balance, the script has no such thing).</summary>
     public const float StrongRecovery = 0.3f, StrongDamage = 1.5f;
-    (CharacterView enemy, Strike kind)? queuedSwing;
+    (CharacterView? enemy, Strike kind)? queuedSwing;
     float queuedUntil;
     ulong swingStartMs; long swingExpectMs;
     static readonly bool FightLog = System.Environment.GetEnvironmentVariable("SEADOGS_FIGHTLOG") != null;
@@ -977,7 +977,7 @@ void fragment() {
         Detect(dt);
         UpdateEquipment();
         if (stopLeft > 0f && dt > 0f) { stopLeft -= dt; if (stopLeft <= 0f && rig != null) rig.TimeScale = baseScale; }
-        if (dt > 0f) { TickSwing(dt); TickGun(dt); TickHealLog(dt); }
+        if (dt > 0f) { TickSwing(dt); TickRecoilBuffer(dt); TickGun(dt); TickHealLog(dt); }
         if (inDialog || dt <= 0f) { isMove = false; if (inDialog) DialogFace((float)GetProcessDeltaTime()); PlayIdle(); return; }
         isMove = false; pushMove = false; isBack = false; wantRun = false; hasNay = false;
         var patch = getPatch();
@@ -1008,7 +1008,7 @@ void fragment() {
                 isMove = true; pushMove = true; wantRun = Run;
                 PlayMove(Run ? "run" : "walk");
             }
-            else PlayIdle();
+            else { PlayIdle(); if (TurnAdd == 0f) SoftLockOn(dt); }
             Locomote(dt);
             Apply();
             return;
@@ -1308,7 +1308,7 @@ void fragment() {
         if (queuedSwing is { } q)
         {
             queuedUntil -= dt;
-            if (queuedUntil <= 0f || !q.enemy.IsAlive) queuedSwing = null;
+            if (queuedUntil <= 0f || (q.enemy != null && !q.enemy.IsAlive)) queuedSwing = null;
             else if (atkCooldown <= 0f && atkHitIn < 0f) { queuedSwing = null; StartSwing(q.enemy, q.kind); }
         }
         if (!strikeNow)
@@ -1403,8 +1403,8 @@ void fragment() {
         if (!IsAlive) return false;
         if (atkCooldown > 0f || atkHitIn >= 0f || Stunned)
         {
-            // clicks made while a blow is still playing are NOT counted (no input queue): the next blow can only be started after the animation is over,
-            // and a block asked for meanwhile (held key) simply goes up when the animation ends
+            // the hero's click in the last quarter second of the running action is buffered and carried out right after it (comfort of the port)
+            if (IsPlayer && !Stunned && atkCooldown <= InputBufferSeconds) { queuedSwing = (enemy, kind); queuedUntil = InputBufferSeconds; }
             return false;
         }
         if (enemy != null && !IsPlayer) ay = Angle(enemy.x - x, enemy.z - z);          // no enemy in reach: the blow is struck at the air in the current heading (the hero eases round to his target, see TickSwing)
@@ -1442,7 +1442,8 @@ void fragment() {
     /// <summary>Step back from the enemy (the original control ChrRecoil): moves away a little while the animation plays.</summary>
     public void Recoil()
     {
-        if (!fightMode || !IsAlive || Busy) return;
+        if (!fightMode || !IsAlive) return;
+        if (Busy || atkCooldown > 0f || atkHitIn >= 0f) { BufferRecoil(); return; }
         Stagger(); atkCooldown = 0.4f;
         float bx = -MathF.Sin(ay) * 1.4f, bz = -MathF.Cos(ay) * 1.4f;
         Step(bx, bz);
