@@ -46,6 +46,8 @@ uniform float shore_start = 0.2;
 uniform float shore_end = 2.2;
 uniform float shore_gain = 1.0;
 uniform float debug_depth = 0.0;
+uniform float detail = 1.0;          // ripple strength (bump map + chop) for a close view
+
 uniform vec3 shallow_color = vec3(0.12, 0.42, 0.45);
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear_mipmap;
 uniform sampler2D depth_texture : hint_depth_texture, repeat_disable, filter_nearest;
@@ -56,6 +58,7 @@ void vertex() {
     vec3 w = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
     float h = 0.0; vec2 d = vec2(0.0);
     for (int i = 0; i < 6; i++) {
+        if (wave_k[i] > 0.4) continue;                  // short chop: per pixel only, the mesh cannot carry it
         float ph = wave_k[i] * dot(wave_dir[i], w.xz) - wave_w[i] * t;
         h += wave_a[i] * sin(ph);
         d += wave_dir[i] * wave_a[i] * cos(ph);
@@ -101,7 +104,7 @@ void fragment() {
         vec2 p1 = wpos.xz * bump_tile + vec2(t * bump_speed, t * bump_speed * 0.6);
         vec2 p2 = rot(wpos.xz, bump_ang + 0.9) * bump_tile * 1.73 - vec2(t * bump_speed * 0.7, 0.0) + vec2(0.37, 0.11);
         b = bump_xy(p1, bump_frame) + bump_xy(p2, bump_frame + 11.0) * 0.8;
-        b *= 0.17 * bump_scale * mix(0.35, 1.0, near);
+        b *= 0.17 * bump_scale * mix(0.35, 1.0, near) * detail;
     }
     vec3 n = normalize(vec3(-s.x - b.x, 1.0, -s.y - b.y));
     float ndv = clamp(dot(V, n), 0.0, 1.0);
@@ -134,7 +137,9 @@ void fragment() {
     float lit = clamp(0.5 + 0.5 * dot(n, normalize(sun_dir)), 0.0, 1.0);
     float alb = texture(albedo_tex, wpos.xz * 0.07 + vec2(t * 0.01, t * 0.007)).r * 0.6 + texture(albedo_tex, wpos.xz * 0.19 - vec2(t * 0.012, 0.0)).r * 0.4;
     vec3 deep = water_color * (1.1 + 1.3 * lit) + vec3(0.004, 0.01, 0.012);
-    deep *= mix(0.85, 1.25, clamp(0.5 + crestH * 0.15, 0.0, 1.0));
+    float chn = clamp(0.5 + 0.5 * crestH / max(amp_total, 0.15), 0.0, 1.0);
+    deep *= mix(0.78, 1.28, chn);
+    deep += shallow_color * 0.10 * smoothstep(0.55, 1.0, chn) * (0.4 + 0.6 * lit);     // light through the thin crests
     deep *= mix(1.0, 0.7 + 0.3 * alb, near);
     vec3 body = deep;
     float zd = 1000.0;
@@ -177,7 +182,7 @@ void fragment() {
     float foam = 0.0;
     if (foam_gain > 0.001) {
         float ch = crestH / max(amp_total, 0.1);
-        float cap = smoothstep(0.38 - 0.2 * foam_gain, 0.95, ch + length(b) * 0.5 + 0.1 * foam_gain);
+        float cap = smoothstep(0.38 - 0.2 * foam_gain, 0.95, ch + length(b) / detail * 0.5 + 0.1 * foam_gain);
         vec2 fp = wpos.xz * 0.11 + vec2(t * 0.012, -t * 0.008);
         float ft = smoothstep(0.5, 1.0, texture(foam_tex, fp).a * 0.6 + texture(foam_tex, fp * 2.7 + 0.3).a * 0.4);
         foam = clamp(cap * (0.06 + 1.0 * ft) * smoothstep(0.08, 0.35, foam_gain) * (0.35 + 0.65 * near), 0.0, 1.0);
@@ -187,6 +192,6 @@ void fragment() {
 
     float fg = 1.0 - exp(-dist * fog_density);
     col = mix(col, fog_color, clamp(fg, 0.0, 1.0));
-    if (debug_depth > 0.5) col = vec3(clamp(zd / 20.0, 0.0, 1.0), shore, 0.0);
+    if (debug_depth > 0.5) col = vec3(shore, clamp(zd / 10.0, 0.0, 1.0), 0.0);
     ALBEDO = col;
 }

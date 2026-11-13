@@ -15,6 +15,8 @@ public partial class OutdoorEnv : Node3D
     string skyDir = "";
     MeshInstance3D? sea;
     public bool HasSea => sea != null;
+    /// <summary>Set by Main before Sync: the camera is in a land location (port seen from the dock): the water shader tunes shore foam / ripples for a close view.</summary>
+    public bool OnLand;
     ShaderMaterial? seaMat, farMat;
     MeshInstance3D? seaFar;
     WorldEnvironment? world;
@@ -30,6 +32,9 @@ public partial class OutdoorEnv : Node3D
     public void Sync(Interp it, Camera3D? cam, float dt)
     {
         time += dt;
+        // debug: SEADOGS_SKYLOOK="yawDeg,pitchDeg" turns the camera to a sky direction (sky seam checks)
+        if (cam != null && System.Environment.GetEnvironmentVariable("SEADOGS_SKYLOOK")?.Split(',') is { Length: 2 } sl)
+            cam.Rotation = new Vector3(Mathf.DegToRad(Conv.ParseFloatPrefix(sl[1])), Mathf.DegToRad(Conv.ParseFloatPrefix(sl[0])), 0);
         Entity? skyEnt = null, seaEnt = null;
         foreach (var e in it.Entities)
         {
@@ -51,7 +56,7 @@ public partial class OutdoorEnv : Node3D
                 if (ns == null) { prev?.QueueFree(); sky = null; skyDir = ""; skyMats = new(); }
                 else
                 {
-                    if (prev != null) { skyOld = prev; skyFade = 0f; foreach (var m in mats) { m.Transparency = BaseMaterial3D.TransparencyEnum.Alpha; m.RenderPriority = -9; } }
+                    if (prev != null) { skyOld = prev; skyFade = 0f; foreach (var m in mats) SkyFading(m, true); }
                     else skyFade = 1f;
                     sky = ns; skyMats = mats; skyDir = dir; reflKey = ""; AddChild(sky);
                 }
@@ -62,8 +67,8 @@ public partial class OutdoorEnv : Node3D
             skyTint = Sm("skytint", scol);
         }
         else { FreeOldSky(); if (sky != null) { sky.QueueFree(); sky = null; skyDir = ""; skyMats = new(); } if (fogDome != null) { fogDome.QueueFree(); fogDome = null; } }
-        if (skyOld != null) { skyFade += dt / 6f; if (skyFade >= 1f) { skyFade = 1f; FreeOldSky(); foreach (var m in skyMats) { m.Transparency = BaseMaterial3D.TransparencyEnum.Disabled; m.RenderPriority = -10; } } }
-        foreach (var m in skyMats) m.AlbedoColor = new Color(skyTint.R, skyTint.G, skyTint.B, skyOld != null ? skyFade : 1f);
+        if (skyOld != null) { skyFade += dt / 6f; if (skyFade >= 1f) { skyFade = 1f; FreeOldSky(); foreach (var m in skyMats) SkyFading(m, false); } }
+        foreach (var m in skyMats) m.SetShaderParameter("tint", new Vector4(skyTint.R, skyTint.G, skyTint.B, skyOld != null ? skyFade : 1f));
         if (sky != null && cam != null) { sky.GlobalPosition = cam.GlobalPosition; sky.Rotation = new Vector3(0, skyYaw, 0); }
         if (skyOld != null && cam != null) skyOld.GlobalPosition = cam.GlobalPosition;
         SyncFogDome(it, cam);
@@ -124,7 +129,7 @@ public partial class OutdoorEnv : Node3D
     Node3D? skyOld;
     float skyFade = 1f, skyRot, skyYaw;
     Color skyTint = Colors.White;
-    System.Collections.Generic.List<StandardMaterial3D> skyMats = new();
+    System.Collections.Generic.List<ShaderMaterial> skyMats = new();
     void FreeOldSky() { if (skyOld != null) { skyOld.QueueFree(); skyOld = null; } }
 
     // ---- the engine sky fog sphere (sky.cpp UpdateFogSphere): a hemisphere in the fog colour whose alpha falls from 1 at the horizon to 0 at Height (the fog Height of the weather record:
@@ -266,7 +271,7 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         float amp = SeaWaves.TotalAmp;
         m.SetShaderParameter("amp_total", amp);
         m.SetShaderParameter("chop", Math.Clamp(0.35f + amp * 0.25f, 0.35f, 0.95f));
-        m.SetShaderParameter("foam_gain", Math.Clamp((amp - 0.45f) / 1.6f, 0f, 1f));
+        m.SetShaderParameter("foam_gain", Math.Clamp(((OnLand ? amp / 1.4f : amp) - 0.45f) / 1.6f, 0f, 1f));
         string bd = root.Find("Bump.Dir", false)?.Value ?? "";
         if (bd.Length > 0 && (bumpTex == null || bd != bumpDir)) { bumpTex = SeaSurface.LoadBump(bd); bumpDir = bd; }
         foamTex ??= GameAssets.Texture("pena.tga");
@@ -288,6 +293,9 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
             if (SeaSurface.BoujieTexture("ocean_albedo.png") is { } ba) m.SetShaderParameter("albedo_tex", ba);
             m.SetShaderParameter("debug_depth", System.Environment.GetEnvironmentVariable("SEADOGS_WATERDBG") == "1" ? 1f : 0f);
             m.SetShaderParameter("use_screen", !far && !SeaSurface.NoScreen);
+            m.SetShaderParameter("detail", OnLand ? 1.9f : 1.0f);
+            m.SetShaderParameter("shore_end", OnLand ? 1.5f : 2.2f);
+            m.SetShaderParameter("shore_gain", OnLand ? 0.85f : 1.0f);
             m.SetShaderParameter("shallow_color", new Color(Math.Min(1f, water.R * 2f + 0.06f), Math.Min(1f, water.G * 2.6f + 0.2f), Math.Min(1f, water.B * 2.2f + 0.2f)));
         }
         else if (foamTex != null) m.SetShaderParameter("foam_tex", foamTex);
@@ -311,46 +319,66 @@ void fragment() { ALBEDO = fog_col.rgb; ALPHA = a * fog_col.a; }";
         env.FogSkyAffect = 0f;
     }
 
-    static Node3D? BuildSky(string dir, out System.Collections.Generic.List<StandardMaterial3D> mats)
+    // The sky box of the original (4 side strips of sky_side + sky_up) drawn by a shader on a sphere around the camera: the box faces are looked up by
+    // direction and neighbouring faces / the top are cross-blended near the edges, so no box edge or texture border is visible; sampling is clamped
+    // inside each strip (no bleeding between strips), directions below the horizon take the horizon row.
+    const string SkyCode = @"shader_type spatial;
+render_mode unshaded, cull_disabled, fog_disabled;
+uniform sampler2D side : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D up : source_color, filter_linear_mipmap, repeat_disable;
+uniform bool has_up = true;
+uniform vec4 tint = vec4(1.0);
+varying vec3 ld;
+const float R = 1500.0; const float TOP = 1300.0; const float BOT = -150.0;
+void vertex() { ld = VERTEX; }
+vec4 wall(vec3 d, int f) {
+    float t; float u;
+    if (f == 0) { t = R / max(d.z, 1e-4); u = (d.x * t + R) / (2.0 * R); }
+    else if (f == 1) { t = R / max(d.x, 1e-4); u = (R - d.z * t) / (2.0 * R); }
+    else if (f == 2) { t = R / max(-d.z, 1e-4); u = (R - d.x * t) / (2.0 * R); }
+    else { t = R / max(-d.x, 1e-4); u = (d.z * t + R) / (2.0 * R); }
+    float y = d.y * t;
+    vec2 ts = vec2(textureSize(side, 0));
+    float v = (float(f) + clamp((TOP - y) / (TOP - BOT), 0.0, 1.0)) * 0.25;
+    v = clamp(v, float(f) * 0.25 + 0.5 / ts.y, float(f + 1) * 0.25 - 0.5 / ts.y);
+    return texture(side, vec2(clamp(u, 0.5 / ts.x, 1.0 - 0.5 / ts.x), v));
+}
+void fragment() {
+    vec3 d = normalize(ld);
+    d.y = max(d.y, -0.0995);
+    d = normalize(d);
+    float ax = abs(d.x), az = abs(d.z);
+    vec4 sx = wall(d, d.x > 0.0 ? 1 : 3);
+    vec4 sz = wall(d, d.z > 0.0 ? 0 : 2);
+    vec4 c = mix(sx, sz, smoothstep(-0.2, 0.2, (az - ax) / max(az + ax, 1e-4)));
+    float eh = (R * d.y / max(max(ax, az), 1e-4)) / TOP;
+    if (has_up && eh > 0.75) {
+        vec2 tp = d.xz * (TOP / max(d.y, 1e-4)) / (2.0 * R);
+        vec4 tc = texture(up, clamp(UPUV, vec2(0.002), vec2(0.998)));
+        c = mix(c, tc, smoothstep(0.75, 1.2, eh));
+    }
+    ALBEDO = c.rgb * tint.rgb;
+//ALPHA//
+}";
+    static readonly Shader SkyShaderOpaque = new() { Code = SkyCode.Replace("//ALPHA//", "").Replace("UPUV", "(vec2(0.5) - tp)") };
+    static readonly Shader SkyShaderFade = new() { Code = SkyCode.Replace("//ALPHA//", "    ALPHA = tint.a;").Replace("UPUV", "(vec2(0.5) - tp)") };
+
+    static void SkyFading(ShaderMaterial m, bool fading) { m.Shader = fading ? SkyShaderFade : SkyShaderOpaque; m.RenderPriority = fading ? -9 : -10; }
+
+    static Node3D? BuildSky(string dir, out System.Collections.Generic.List<ShaderMaterial> mats)
     {
         mats = new();
         var side = GameAssets.Texture(dir.TrimEnd((char)92) + (char)92 + "sky_side.tga");
         var up = GameAssets.Texture(dir.TrimEnd((char)92) + (char)92 + "sky_up.tga");
         if (side == null) return null;
         SkySide = side; SkyUp = up;
-        const float R = 1500f, top = 1300f, bottom = -150f;
         var root = new Node3D { Name = "Sky" };
-        var st = new SurfaceTool();
-        st.Begin(Mesh.PrimitiveType.Triangles);
-        // four walls, each uses one 512x256 strip of the side texture (the strip's bottom is the horizon)
-        var corners = new[] { new Vector3(-R, 0, R), new Vector3(R, 0, R), new Vector3(R, 0, -R), new Vector3(-R, 0, -R) };
-        for (int i = 0; i < 4; i++)
-        {
-            var a = corners[i]; var b = corners[(i + 1) % 4];
-            float v0 = i * 0.25f, v1 = (i + 1) * 0.25f;
-            void V(Vector3 p, float y, Vector2 uv) { st.SetUV(uv); st.AddVertex(new Vector3(p.X, y, p.Z)); }
-            V(a, top, new Vector2(0, v0)); V(b, top, new Vector2(1, v0)); V(b, bottom, new Vector2(1, v1));
-            V(a, top, new Vector2(0, v0)); V(b, bottom, new Vector2(1, v1)); V(a, bottom, new Vector2(0, v1));
-        }
-        var wall = new MeshInstance3D { Mesh = st.Commit(), Name = "SkySides" };
-        var wallMat = SkyMaterial(side); mats.Add(wallMat); wall.MaterialOverride = wallMat;
-        root.AddChild(wall);
-        if (up != null)
-        {
-            var quad = new MeshInstance3D { Mesh = new QuadMesh { Size = new Vector2(R * 2, R * 2), Orientation = PlaneMesh.OrientationEnum.Y }, Position = new Vector3(0, top, 0), Name = "SkyTop" };
-            var upMat = SkyMaterial(up); mats.Add(upMat); quad.MaterialOverride = upMat;
-            root.AddChild(quad);
-        }
+        var m = new ShaderMaterial { Shader = SkyShaderOpaque, RenderPriority = -10 };
+        m.SetShaderParameter("side", side);
+        m.SetShaderParameter("has_up", up != null);
+        if (up != null) m.SetShaderParameter("up", up);
+        mats.Add(m);
+        root.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 1400f, Height = 2800f, RadialSegments = 64, Rings = 32 }, MaterialOverride = m, Name = "SkyDome", CastShadow = GeometryInstance3D.ShadowCastingSetting.Off, ExtraCullMargin = 16384f });
         return root;
     }
-
-    static StandardMaterial3D SkyMaterial(Texture2D tex) => new()
-    {
-        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-        CullMode = BaseMaterial3D.CullModeEnum.Disabled,
-        AlbedoTexture = tex,
-        DisableFog = true,
-        NoDepthTest = false,
-        RenderPriority = -10,
-    };
 }

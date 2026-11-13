@@ -862,6 +862,7 @@ public partial class Main : Node
             sea.Tick(dt, dialogView == null && !UiOpen);
             LocationLights.SyncWeather(host.It, false);
             weatherFx.Indoor = false; weatherFx.LocKey = null;
+            outdoor.OnLand = false; SeaWaves.Land = false;
             outdoor.Sync(host.It, sea.Cam, delta);
             weatherFx.Sync(host.It, sea.Cam, delta);
             return;
@@ -872,6 +873,7 @@ public partial class Main : Node
         LocationLights.SyncWeather(host.It, CurrentLocation()?.Indoor ?? false);
         weatherFx.Indoor = CurrentLocation()?.Indoor ?? false; weatherFx.LocKey = CurrentLocation();
         if (cam != null) LocationLights.Tick((float)delta, cam.GlobalPosition);
+        outdoor.OnLand = true; SeaWaves.Land = true;
         outdoor.Sync(host.It, cam, delta);
         weatherFx.Sync(host.It, cam, delta);
         if (cam == null) return;

@@ -17,6 +17,8 @@ public static class SeaWaves
     public static readonly Vector2[] Dir = { new(0.72f, -0.69f), new(0.72f, 0.69f), new(0.3f, 0.95f), new(1f, 0f), new(0f, 1f), new(0.7f, 0.7f) };
     /// <summary>settings.ini [game] WaveScale: the script's wave heights are used at half size; this factor (default 1.35) makes the swell a little bigger for looks, the cap of Sea.MaxSeaHeight still applies.</summary>
     public static float WaveScale = 1.35f;
+    /// <summary>Land locations (ports seen from the dock): the swell is a little bigger for looks and two short wind-chop waves (normal-only, below the mesh resolution) fill the last slots.</summary>
+    public static bool Land;
     public static float MaxAmp, TotalAmp;      // the cap given by Sea.MaxSeaHeight and the resulting sum of the amplitudes (the crest height above the mean level)
 
     static SeaWaves() { for (int i = 0; i < N; i++) W[i] = MathF.Sqrt(9.81f * K[i]); }
@@ -56,8 +58,20 @@ public static class SeaWaves
             if (i >= list.Count) { A[i] = 0f; continue; }
             var (amp, len, ang) = list[i];
             K[i] = MathF.Tau / len; W[i] = MathF.Sqrt(9.81f * K[i]);
-            A[i] = amp * scale;
+            A[i] = amp * scale * (Land ? 1.4f : 1f);
             Dir[i] = new Vector2(MathF.Sin(ang), -MathF.Cos(ang));      // engine (sin, cos) with z flipped: Godot z = -engine z
+        }
+        if (Land)
+        {
+            TotalAmp = 0f; for (int i = 0; i < N - 2; i++) TotalAmp += A[i];
+            float chop = 0.025f + 0.07f * Math.Min(TotalAmp, 1.2f);
+            for (int j = 0; j < 2; j++)
+            {
+                int i = N - 2 + j; float len = j == 0 ? 7.5f : 12f;
+                var d0 = Dir[0]; float a = (j == 0 ? 0.45f : -0.5f);
+                Dir[i] = new Vector2(d0.X * MathF.Cos(a) - d0.Y * MathF.Sin(a), d0.X * MathF.Sin(a) + d0.Y * MathF.Cos(a));
+                K[i] = MathF.Tau / len; W[i] = MathF.Sqrt(9.81f * K[i]); A[i] = chop * (j == 0 ? 0.7f : 1f);
+            }
         }
     }
 
