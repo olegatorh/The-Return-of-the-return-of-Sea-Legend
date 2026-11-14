@@ -80,11 +80,18 @@ uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic, repeat_e
 uniform float t;
 uniform vec4 spd = vec4(3.0, 1.6, 1.0, 0.7);     // deep change/s, rotate/s, min deep mul, var deep mul
 uniform float rot_ang = 0.5;
+uniform float rope_r = 0.0125;
+uniform float min_px = 1.5;
 void vertex() {
     float amp = UV2.x * UV2.y;
     float d = amp * (spd.z + spd.w * sin(spd.x * t));
     VERTEX.y -= d;
     VERTEX.x -= d * sin(rot_ang * sin(spd.y * t));
+    // a rope is 2.5 cm thick: from some metres away it is thinner than a pixel and vanishes. Keep at least ~1.5 px of width by swelling the tube along its ring normals.
+    vec3 vp = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+    float world_px = -vp.z * 2.0 / (VIEWPORT_SIZE.y * PROJECTION_MATRIX[1][1]);
+    float extra = max(0.0, world_px * min_px * 0.5 - rope_r);
+    VERTEX += NORMAL * extra;
 }
 void fragment() {
     vec4 c = texture(tex, UV);
@@ -113,6 +120,7 @@ void fragment() {
         ropeMat.SetShaderParameter("tex", GameAssets.Texture(RopeTex()) ?? GameAssets.Texture("ships\\" + RopeTex()));
         ropeMat.SetShaderParameter("spd", new Vector4(RopePar("fDeepChangeSpeed", 0.15f) * 20f, RopePar("fRotateSpeed", 0.08f) * 20f, RopePar("fMinDeepMul", 1f), RopePar("fVarDeepMul", 0.7f)));
         ropeMat.SetShaderParameter("rot_ang", RopePar("fRotateAng", 0.5f));
+        ropeMat.SetShaderParameter("rope_r", RopePar("fWIDTH", 0.025f) * 0.5f);
         vantMat = new ShaderMaterial { Shader = new Shader { Code = VantShader } };
         vantMat.SetShaderParameter("tex", GameAssets.Texture("vant.tga") ?? GameAssets.Texture("ships\\vant.tga"));
         if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)

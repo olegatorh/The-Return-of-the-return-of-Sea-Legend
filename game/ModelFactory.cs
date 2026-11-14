@@ -123,6 +123,7 @@ public static class ModelFactory
         {
             img = (Image)img.Duplicate();
             if (img.IsCompressed()) img.Decompress();
+            img.ClearMipmaps();
             img.Convert(Image.Format.Rgba8);
             var d = img.GetData(); long sum = 0; int cnt = d.Length / 4;
             for (int i = 0; i < d.Length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
