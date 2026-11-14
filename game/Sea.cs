@@ -431,7 +431,9 @@ public partial class SeaView : Node3D
         float total = sm.Sails.Sum(x => x.Area);
         foreach (var sl in sm.Sails) sl.Power = total > 0f ? sl.Area / total : 0f;
         sm.Ropes = RiggingFx.CollectRopes(parts);
+        sm.Ropes.AddRange(ExtraRigging(sm));
         BuildShipRopes(sm.Root, sm.Ropes, sm.YardNodes, ref sm.FixedRopes, ref sm.YardRopes, true);
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null) GD.Print($"[rig] ropes total {sm.Ropes.Count}: fixed {(sm.FixedRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)} on yards {(sm.YardRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)}, fixed aabb {sm.FixedRopes?.Mesh.GetAabb()}");
         foreach (var (host, flag) in RiggingFx.BuildFlags(parts, nation)) host.AddChild(flag);
         return sm;
     }

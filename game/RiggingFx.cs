@@ -81,7 +81,8 @@ uniform float t;
 uniform vec4 spd = vec4(3.0, 1.6, 1.0, 0.7);     // deep change/s, rotate/s, min deep mul, var deep mul
 uniform float rot_ang = 0.5;
 uniform float rope_r = 0.0125;
-uniform float min_px = 1.5;
+uniform float min_px = 2.0;
+varying float swollen;
 void vertex() {
     float amp = UV2.x * UV2.y;
     float d = amp * (spd.z + spd.w * sin(spd.x * t));
@@ -92,11 +93,13 @@ void vertex() {
     float world_px = -vp.z * 2.0 / (VIEWPORT_SIZE.y * PROJECTION_MATRIX[1][1]);
     float extra = max(0.0, world_px * min_px * 0.5 - rope_r);
     VERTEX += NORMAL * extra;
+    swollen = extra > 0.0 ? 1.0 : 0.0;
 }
 void fragment() {
     vec4 c = texture(tex, UV);
-    ALBEDO = c.rgb;
-    ALPHA = c.a;
+    // a rope swollen to a minimum width is a solid line: the texture's transparent strips would otherwise leave nothing of a 2-pixel tube
+    ALBEDO = (swollen > 0.5 && c.a < 0.12) ? vec3(0.62, 0.52, 0.36) : c.rgb;
+    ALPHA = swollen > 0.5 ? 1.0 : c.a;
     ALPHA_SCISSOR_THRESHOLD = 0.12;
     ROUGHNESS = 1.0;
 }";
@@ -135,7 +138,7 @@ void fragment() {
         EnsureMaterials();
         var rst = new SurfaceTool(); rst.Begin(Mesh.PrimitiveType.Triangles);
         var vst = new SurfaceTool(); vst.Begin(Mesh.PrimitiveType.Triangles);
-        int ropes = 0, vants = 0;
+        int ropes = 0, vants = 0; ropeBase = 0;
         foreach (var rope in list)
         {
             var a = ToRoot(rope.A.Node, shipRoot) * rope.A.Local; var b = ToRoot(rope.B.Node, shipRoot) * rope.B.Local;
@@ -166,6 +169,7 @@ void fragment() {
     const int Edge = 5;           // ROPE_EDGE / VANT_EDGE
 
     /// <summary>A rope as the original's tube (rope.cpp). Returns false for lengths the engine drops (&lt; 0.1 or &gt; 200).</summary>
+    static int ropeBase;
     static bool AddRope(SurfaceTool st, Vector3 a, Vector3 b)
     {
         float segLen = RopePar("fSEG_LENGTH", 2f), width = RopePar("fWIDTH", 0.025f), endLen = RopePar("fEND_LENGTH", 0.05f), wave = RopePar("fWAVE", 0.1f), texLen = RopePar("fTexHeight", 0.5f);
@@ -181,7 +185,7 @@ void fragment() {
         Vector3 cv = dir * endLen;
         Vector3 start = a + cv, dtV = (b - cv - start) / n;
         float tv0 = endLen / texLen, dtv = (len / texLen - tv0) / n;
-        int vi = 0;
+        int vi = 0, b0 = ropeBase;                     // indices are absolute in the surface: every rope starts after the vertices of the ropes before it
         void V(Vector3 p, Vector3 nrm, float u, float v, float f) { st.SetNormal(nrm); st.SetUV(new Vector2(u, v)); st.SetUV2(new Vector2(f, amp)); st.AddVertex(p); vi++; }
         V(a, -dir, 0f, 0f, 0f);
         for (int k = 0; k <= n; k++)
@@ -196,15 +200,16 @@ void fragment() {
         }
         V(b, dir, 1f, len, 0f);
         int last = vi - 1;
-        for (int i = 0; i < Edge; i++) { st.AddIndex(0); st.AddIndex(1 + (i + 1) % Edge); st.AddIndex(1 + i); }
+        for (int i = 0; i < Edge; i++) { st.AddIndex(b0 + 0); st.AddIndex(b0 + 1 + (i + 1) % Edge); st.AddIndex(b0 + 1 + i); }
         for (int k = 0; k < n; k++)
             for (int i = 0; i < Edge; i++)
             {
                 int i0 = 1 + k * Edge + i, i1 = 1 + k * Edge + (i + 1) % Edge, j0 = i0 + Edge, j1 = i1 + Edge;
-                st.AddIndex(i0); st.AddIndex(i1); st.AddIndex(j0);
-                st.AddIndex(i1); st.AddIndex(j1); st.AddIndex(j0);
+                st.AddIndex(b0 + i0); st.AddIndex(b0 + i1); st.AddIndex(b0 + j0);
+                st.AddIndex(b0 + i1); st.AddIndex(b0 + j1); st.AddIndex(b0 + j0);
             }
-        for (int i = 0; i < Edge; i++) { st.AddIndex(1 + n * Edge + i); st.AddIndex(1 + n * Edge + (i + 1) % Edge); st.AddIndex(last); }
+        for (int i = 0; i < Edge; i++) { st.AddIndex(b0 + 1 + n * Edge + i); st.AddIndex(b0 + 1 + n * Edge + (i + 1) % Edge); st.AddIndex(b0 + last); }
+        ropeBase += vi;
         return true;
     }
 
