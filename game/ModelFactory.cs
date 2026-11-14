@@ -38,7 +38,12 @@ public static class ModelFactory
             arrays[(int)Mesh.ArrayType.Normal] = norms;
             arrays[(int)Mesh.ArrayType.TexUV] = uvs;
             var uv2 = new Vector2[n];                                                       // detail layer: one repeat per DetailMetres of ground (engine: second texture "bump_land")
-            for (int i = 0; i < n; i++) uv2[i] = new Vector2(verts[i].X, verts[i].Z) / DetailMetres;
+            for (int i = 0; i < n; i++)
+            {
+                // projected along the dominant axis of the normal, so that walls and cliffs do not get stretched streaks (a top-down projection smears on vertical faces)
+                var nn = norms[i]; float ax = Math.Abs(nn.X), ay = Math.Abs(nn.Y), az = Math.Abs(nn.Z);
+                uv2[i] = (ay >= ax && ay >= az ? new Vector2(verts[i].X, verts[i].Z) : ax >= az ? new Vector2(verts[i].Z, verts[i].Y) : new Vector2(verts[i].X, verts[i].Y)) / DetailMetres;
+            }
             arrays[(int)Mesh.ArrayType.TexUV2] = uv2;
             arrays[(int)Mesh.ArrayType.Index] = m.Index;
             bool lit = false;
@@ -109,7 +114,7 @@ public static class ModelFactory
         => index >= 0 && index < g.Materials.Count && string.Equals(g.Materials[index].Textures[0], "shadow.tga", StringComparison.OrdinalIgnoreCase);
 
     static readonly Vector3 ReliefSun = new Vector3(-0.45f, 0.75f, 0.35f).Normalized();
-    const float DetailMetres = 14f;
+    const float DetailMetres = 7f;
     static readonly bool NoDetail = System.Environment.GetEnvironmentVariable("SEADOGS_NODETAIL") != null;
     static readonly Dictionary<string, ImageTexture?> detailTex = new(StringComparer.OrdinalIgnoreCase);
 
@@ -128,7 +133,7 @@ public static class ModelFactory
             var d = img.GetData(); long sum = 0; int cnt = d.Length / 4;
             for (int i = 0; i < d.Length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
             float mean = Math.Max(1f, sum / (3f * cnt)), k = 255f / mean;
-            for (int i = 0; i < d.Length; i += 4) for (int c = 0; c < 3; c++) d[i + c] = (byte)Math.Min(255f, d[i + c] * k);
+            for (int i = 0; i < d.Length; i += 4) for (int c = 0; c < 3; c++) d[i + c] = (byte)Math.Clamp(255f + (d[i + c] * k - 255f) * 0.3f, 0f, 255f);      // normalised to a mean of 1, then softened: only the fine grain, no dark blotches
             var n = Image.CreateFromData(img.GetWidth(), img.GetHeight(), false, Image.Format.Rgba8, d);
             n.GenerateMipmaps();
             r = ImageTexture.CreateFromImage(n);
