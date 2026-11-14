@@ -19,7 +19,11 @@ public partial class DialogView : Control
     readonly RichTextLabel text = new();
     readonly VBoxContainer links = new();
     string signature = "";
-    Panel panel = null!;
+    DialogFrame frame = null!;
+    DialogHead head = null!;
+    Control blocker = null!;
+    const float TextX = 35f, TextW = 570f, LineH = 26f;
+    const int MaxLines = 8;
     int relayout;
 
     public DialogView(Interp it, Entity ent)
@@ -32,38 +36,46 @@ public partial class DialogView : Control
         MouseFilter = MouseFilterEnum.Ignore;
         ZIndex = 50;
 
-        panel = new Panel { Position = new Vector2(20, 262), Size = new Vector2(600, 206), MouseFilter = MouseFilterEnum.Stop };
-        var style = new StyleBoxFlat { BgColor = new Color(0.03f, 0.06f, 0.16f, 0.88f), BorderColor = new Color(0.85f, 0.68f, 0.3f), CornerRadiusBottomLeft = 6, CornerRadiusBottomRight = 6, CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6 };
-        style.SetBorderWidthAll(2);
-        panel.AddThemeStyleboxOverride("panel", style);
-        AddChild(panel);
+        // the window of the original (legacy_dialog.cpp): the carved frame of dialog\dialog.tga with the head window at the left, the name bar on top and the text / answer
+        // lines growing upwards from the bottom bar; the frame is drawn from the sprite table of the original, the head is a live 3D view
+        frame = new DialogFrame { MouseFilter = MouseFilterEnum.Ignore, Position = Vector2.Zero, Size = new Vector2(640, 480), ShowBehindParent = false };
+        AddChild(frame);
+        head = new DialogHead { Position = new Vector2(31, 28) };
+        AddChild(head);
+        AddChild(new HeadOverlay(frame));
+        blocker = new Control { MouseFilter = MouseFilterEnum.Stop };           // the window takes the mouse clicks (nothing behind it is clicked)
+        AddChild(blocker);
 
-        nameLabel.Position = new Vector2(34, 266);
-        nameLabel.AddThemeColorOverride("font_color", new Color(1f, 0.82f, 0.35f));
-        nameLabel.AddThemeFontSizeOverride("font_size", 17);
+        nameLabel.Position = new Vector2(168, 26);
+        nameLabel.AddThemeColorOverride("font_color", new Color(1f, 0.86f, 0.45f));
+        nameLabel.AddThemeColorOverride("font_outline_color", new Color(0.05f, 0.03f, 0.0f));
+        nameLabel.AddThemeConstantOverride("outline_size", 3);
+        nameLabel.AddThemeFontSizeOverride("font_size", 19);
         AddChild(nameLabel);
 
-        text.Position = new Vector2(34, 290);
-        text.Size = new Vector2(572, 84);
+        text.Position = new Vector2(TextX, 300);
+        text.Size = new Vector2(TextW, 84);
         text.BbcodeEnabled = false;
         text.ScrollActive = true;
         text.AddThemeFontSizeOverride("normal_font_size", 15);
         text.AddThemeColorOverride("default_color", Colors.White);
         AddChild(text);
 
-        links.Position = new Vector2(34, 378);
-        links.Size = new Vector2(572, 86);
+        links.Position = new Vector2(TextX, 378);
+        links.Size = new Vector2(TextW, 86);
         links.AddThemeConstantOverride("separation", 0);
         AddChild(links);
 
         // NPC greeting: dialog.c (DialogPlayGreeting) writes Dialog.greeting = CharacterRef.greeting 10 frames after the start; the original
         // DIALOG class plays that alias (INI/ALIASES/Greetings_alias.ini) as speech when the attribute is written. The Dialog object is
         // global, so a value left from the previous dialog must not play: only writes made while this dialog lives count.
+        HookHead(ent);
         ent.Root.GetOrCreate("greeting").OnWrite = a =>
         {
             if (!IsInstanceValid(this) || string.IsNullOrEmpty(a.Value)) return;
             if (lastGreeting > 0) SoundView.Instance?.StopVoice(lastGreeting);          // greetings never overlap, also across two dialogs in quick succession
             greetingVoice = lastGreeting = SoundView.Instance?.PlaySpeech(a.Value!) ?? 0;
+            head.SetSpeaking(greetingVoice > 0);
             GD.Print($"[dialog] greeting '{a.Value}'");
         };
     }
@@ -71,9 +83,22 @@ public partial class DialogView : Control
     int greetingVoice;
     static int lastGreeting;
 
+    void HookHead(Entity ent)
+    {
+        // Dialog.headModel is written by the script right after the entity is created (dialog.c StartDialogMain), Dialog.mood by quests that change the face
+        var hm = ent.Root.GetOrCreate("headModel");
+        hm.OnWrite = a => { if (IsInstanceValid(this)) head.SetHead(a.Value); };
+        head.SetHead(hm.Value);
+        var md = ent.Root.GetOrCreate("mood");
+        md.OnWrite = a => { if (IsInstanceValid(this)) head.SetMood(a.Value); };
+        head.SetMood(md.Value);
+    }
+
     public override void _ExitTree()
     {
         if (Ent.Root.Get("greeting") is { } g) g.OnWrite = null;
+        if (Ent.Root.Get("headModel") is { } hm) hm.OnWrite = null;
+        if (Ent.Root.Get("mood") is { } md) md.OnWrite = null;
         if (greetingVoice > 0 && greetingVoice == lastGreeting) { SoundView.Instance?.StopVoice(greetingVoice); lastGreeting = 0; }          // the voice ends with the dialog window
     }
 
@@ -109,27 +134,31 @@ public partial class DialogView : Control
     public override void _Process(double delta)
     {
         Position = new Vector2(40, 30) + UiLayout.Extra(this);
+        if (greetingVoice > 0 && !(SoundView.Instance?.VoiceAlive(greetingVoice) ?? false)) { greetingVoice = 0; head.SetSpeaking(false); }          // the voice ended: the head idles again
         Process2(delta);
     }
 
-    /// <summary>The frame hugs its content: wide as the longest line (up to the full width), tall as name + text + answers, standing on the bottom edge.</summary>
+    /// <summary>
+    /// legacy_dialog.cpp: the text starts at y = 445 - lines * 26, the answers end at y = 450, and the blue body of the window is as many 26 px strips as the text and the
+    /// answers need ((text + answers) / 26, one more with answers) growing upwards from the bottom bar; at most eight.
+    /// </summary>
     void Relayout()
     {
         var font = text.GetThemeDefaultFont();
-        float maxW = 0f;
-        foreach (var line in text.Text.Split('\n')) maxW = Math.Max(maxW, font.GetStringSize(line, HorizontalAlignment.Left, -1, 15).X);
-        foreach (var c in links.GetChildren()) if (c is Button b) maxW = Math.Max(maxW, font.GetStringSize(b.Text, HorizontalAlignment.Left, -1, 14).X);
-        float inner = Math.Clamp(maxW + 24f, 260f, 572f);
-        text.Size = new Vector2(inner, text.Size.Y);
-        float textH = Math.Min(Math.Max(22f, text.GetContentHeight()), 150f);
+        foreach (var c in links.GetChildren()) if (c is Button b) b.CustomMinimumSize = new Vector2(TextW, 20);
         float linksH = 0f;
         foreach (var c in links.GetChildren()) if (c is Control ctl) linksH += Math.Max(20f, ctl.GetCombinedMinimumSize().Y);
-        float w = inner + 28f, top = 468f - (8f + 24f + textH + 6f + linksH + 12f);
-        panel.Position = new Vector2(320f - w / 2f, top); panel.Size = new Vector2(w, 468f - top);
-        nameLabel.Position = new Vector2(320f - w / 2f + 14f, top + 4f);
-        text.Position = new Vector2(320f - w / 2f + 14f, top + 30f); text.Size = new Vector2(inner, textH);
-        links.Position = new Vector2(320f - w / 2f + 14f, top + 30f + textH + 6f); links.Size = new Vector2(inner, linksH);
-        foreach (var c in links.GetChildren()) if (c is Button b) b.CustomMinimumSize = new Vector2(inner, 20);
+        text.Size = new Vector2(TextW, text.Size.Y);
+        float textMax = Math.Max(LineH, MaxLines * LineH - linksH - (linksH > 0 ? LineH : 0f) - 4f);
+        float textH = Math.Min(Math.Max(font.GetHeight(15), text.GetContentHeight()), textMax);
+        int tl = (int)Math.Floor((textH + linksH) / LineH) + (linksH > 0 ? 1 : 0);
+        tl = Math.Clamp(tl, 0, MaxLines);
+        frame.Set(tl, linksH > 0, linksH);
+        float top = 445f - tl * LineH;
+        text.Position = new Vector2(TextX, top); text.Size = new Vector2(TextW, textH);
+        links.Position = new Vector2(TextX, 450f - linksH); links.Size = new Vector2(TextW, linksH);
+        float bTop = 425f - tl * LineH;
+        blocker.Position = new Vector2(-39f, bTop); blocker.Size = new Vector2(717f, 518f - bTop);
     }
 
     void Process2(double delta)
@@ -150,7 +179,7 @@ public partial class DialogView : Control
             LogShown("line", Speaker() + ": " + t);
             foreach (var it2 in items) LogShown("answer", it2.text);
         }
-        nameLabel.Text = Speaker();
+        nameLabel.Text = Speaker().ToUpperInvariant();
         text.Text = Display(t);
         foreach (var c in links.GetChildren()) c.QueueFree();
         sel = 0;
@@ -217,6 +246,50 @@ public partial class DialogView : Control
         {
             Choose(Math.Clamp(sel, 0, n - 1));
             GetViewport().SetInputAsHandled();
+        }
+    }
+
+    /// <summary>The window's carved frame, drawn from the sprite table of legacy_dialog.cpp (SPRITE_DATA; positions in the 640 x 480 dialog, rectangles in pixels of dialog.tga 1024 x 256).</summary>
+    public sealed partial class DialogFrame : Control
+    {
+        static readonly Rect2 Left = R(-39, -39, 169, 216), LeftUv = U(0, 0, 208, 255), Top = R(169, -39, 678, 79), TopUv = U(208, 0, 757, 118), Bottom = R(-39, 451, 678, 518), BottomUv = U(209, 189, 1023, 255);
+        static readonly Rect2 Line = R(-39, 425, 678, 451), LineUv = U(209, 155, 1023, 186), Cap = R(-39, 425, 678, 451), CapUv = U(209, 119, 1023, 156), Divider = R(35, 445, 605, 462), DividerUv = U(209, 94, 602, 116);
+        static Rect2 R(float l, float t, float r, float b) => new(l, t, r - l, b - t);
+        static Rect2 U(float l, float t, float r, float b) => new(l, t, r - l, b - t);
+        Texture2D? tex;
+        int lines; bool divider; float linksH;
+        public Rect2 HeadTopDst = R(29, 25, 147, 37), HeadTopUv = U(904, 91, 1023, 103), HeadBotDst = R(29, 173, 146, 185), HeadBotUv = U(904, 105, 1023, 116);
+
+        public void Set(int tl, bool withDivider, float links)
+        {
+            if (tl == lines && withDivider == divider && Math.Abs(links - linksH) < 0.5f) return;
+            lines = tl; divider = withDivider; linksH = links; QueueRedraw();
+        }
+
+        public Texture2D? Tex => tex ??= GameAssets.Texture("dialog\\dialog.tga");
+
+        public override void _Draw()
+        {
+            var t = Tex;
+            if (t == null) { DrawRect(new Rect2(0, 425 - lines * LineH, 640, 56 + lines * LineH), new Color(0.03f, 0.06f, 0.16f, 0.9f)); return; }
+            DrawTextureRectRegion(t, Left, LeftUv); DrawTextureRectRegion(t, Top, TopUv); DrawTextureRectRegion(t, Bottom, BottomUv);
+            DrawTextureRectRegion(t, HeadTopDst, HeadTopUv); DrawTextureRectRegion(t, HeadBotDst, HeadBotUv);
+            for (int i = 0; i < lines; i++) DrawTextureRectRegion(t, new Rect2(Line.Position.X, Line.Position.Y - LineH * i, Line.Size.X, Line.Size.Y), LineUv);
+            DrawTextureRectRegion(t, new Rect2(Cap.Position.X, Cap.Position.Y - LineH * lines, Cap.Size.X, Cap.Size.Y), CapUv);
+            if (divider) DrawTextureRectRegion(t, new Rect2(Divider.Position.X, Divider.Position.Y - linksH, Divider.Size.X, Divider.Size.Y), DividerUv);
+        }
+    }
+
+    /// <summary>The bevel of the head window (the first two sprites of the table) drawn over the 3D head, as the original draws it last.</summary>
+    sealed partial class HeadOverlay : Control
+    {
+        readonly DialogFrame f;
+        public HeadOverlay(DialogFrame frame) { f = frame; MouseFilter = MouseFilterEnum.Ignore; Size = new Vector2(640, 480); }
+        public override void _Draw()
+        {
+            var t = f.Tex;
+            if (t == null) return;
+            DrawTextureRectRegion(t, f.HeadTopDst, f.HeadTopUv); DrawTextureRectRegion(t, f.HeadBotDst, f.HeadBotUv);
         }
     }
 }
