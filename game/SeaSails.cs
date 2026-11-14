@@ -141,6 +141,8 @@ uniform float roll = 0.0;
 uniform float bulge = 0.0;
 uniform float flap = 0.0;
 uniform float phase = 0.0;
+uniform float life = 0.0;
+uniform float lifemul = 1.0;
 uniform int hmask = 0;
 uniform vec3 amb = vec3(0.55);        // weather light: ambient, sun colour, direction towards the sun (world space)
 uniform vec3 sun_col = vec3(0.5);
@@ -155,12 +157,15 @@ vec3 sailPos(vec2 uv, float t) {
     float u = uv.x, v = uv.y, s = 1.0 - roll;
     float w = sin(PI * clamp(u, 0.0, 1.0));
     float wave = flap * sin(u * 7.0 + v * 4.0 + t * 8.0 + phase) * sin(t * 2.3 + phase);
+    // the cloth is never still: gusts breathe the belly (a few seconds apart) and a soft ripple runs over it, even in a steady wind
+    float gust = 1.0 + lifemul * (0.11 * sin(t * 0.8 + phase) + 0.06 * sin(t * 1.9 + phase * 1.7));
+    wave += life * lifemul * sin(u * 6.0 + v * 3.5 + t * 2.6 + phase) * (0.6 + 0.4 * sin(t * 0.7 + phase)) * sin(PI * clamp(v, 0.0, 1.0));
     if (tri > 0.5) {
         // triangle: the luff on the stay (c0 tack, c1 head), the clew c2 is pulled to the stay when the sail is taken in
         vec3 stay = mix(c0, c1, u);
         vec3 p = mix(stay, c2, v * s);
         float b = w * sin(PI * clamp(v, 0.0, 1.0));
-        p += nrm * (b * s * (bulge + wave));
+        p += nrm * (b * s * (bulge * gust + wave));
         p += nrm * (roll * $RZ * length(c1 - c0) * tform(u) * sin(PI * clamp(v, 0.0, 1.0)));
         return p;
     }
@@ -172,7 +177,7 @@ vec3 sailPos(vec2 uv, float t) {
     float a = PI * clamp(v, 0.0, 1.0);
     p += roll * sform(u) * h * (nrm * $RZ * sin(a) + dn * $RY * 0.5 * (1.0 - cos(a)));
     float b = pow(w, 0.8) * sin(PI * clamp(v, 0.0, 1.0) * 0.85);
-    p += nrm * (b * s * (bulge + wave));
+    p += nrm * (b * s * (bulge * gust + wave));
     return p;
 }
 
@@ -281,6 +286,8 @@ void fragment() {
             if (LastSailLight is { } ll) { sl.Mat.SetShaderParameter("amb", ll.Item1); sl.Mat.SetShaderParameter("sun_col", ll.Item2); sl.Mat.SetShaderParameter("sun_dir", ll.Item3); }
             sl.Mat.SetShaderParameter("tri", tri ? 1f : 0f);
             sl.Mat.SetShaderParameter("phase", sl.Phase);
+            sl.Mat.SetShaderParameter("life", Math.Max(0.05f, sl.Depth * 0.08f));
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_NOSAILLIFE") != null) sl.Mat.SetShaderParameter("lifemul", 0f);
             var box = new Aabb(c[0], Vector3.Zero);
             foreach (var p in c) box = box.Expand(p);
             float grow = Math.Max(1f, sl.Depth * 1.8f);

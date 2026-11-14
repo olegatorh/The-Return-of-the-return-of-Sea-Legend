@@ -370,6 +370,7 @@ public partial class SeaView : Node3D
     static ShipModel LoadShipModel(string typeName, int nation)
     {
         var sm = new ShipModel { Root = new Node3D { Name = "Ship_" + typeName } };
+        bool CullLooseParts = System.Environment.GetEnvironmentVariable("SEADOGS_CULLLOOSE") != null;     // the rope blocks that hang at the rope ends are kept now that the ropes are drawn
         string dir = GameAssets.Resource("MODELS\\Ships\\" + typeName);
         if (!Directory.Exists(dir)) { GD.Print("[sea] no model folder for ship " + typeName); return sm; }
         GmFile? Load(string name)
@@ -398,7 +399,7 @@ public partial class SeaView : Node3D
             var mast = Load("_" + ml.Name);
             if (mast == null) continue;
             var mastNode = ModelFactory.Build(mast, ml.Name, "ships", null);
-            ShipDebug.CullLoose(mastNode, 4.0f, 60);
+            if (CullLooseParts) ShipDebug.CullLoose(mastNode, 4.0f, 60);
             mastNode.Transform = LabelTransform(ml.M);
             if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("MAST " + ml.Name, mastNode);
             if (false) foreach (var n in mastNode.FindChildren("*", "MeshInstance3D", true, false)) { var mi = (MeshInstance3D)n; var bb = mi.Mesh.GetAabb(); GD.Print(string.Format(System.Globalization.CultureInfo.InvariantCulture, "[mastobj] {0} {1}: center ({2:0.0};{3:0.0};{4:0.0}) size ({5:0.0};{6:0.0};{7:0.0}) surfaces {8}", ml.Name, mi.Name, bb.GetCenter().X, bb.GetCenter().Y, bb.GetCenter().Z, bb.Size.X, bb.Size.Y, bb.Size.Z, mi.Mesh.GetSurfaceCount())); }
@@ -408,29 +409,42 @@ public partial class SeaView : Node3D
             mr.Base = new Vector3(mastNode.Position.X, mastNode.Position.Y, -mastNode.Position.Z);
             sm.Masts.Add(mr);
             sm.Sails.AddRange(MakeSails(mast, mastNode, sm.Root, mr, sailTex, triTex));          // sails on the stays of this mast
-            foreach (var rl in mast.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
+            // yards of the mast, and the yards hung on a yard (rey_a4 -> rey_c4 -> rey_d4 ...: gaffs, booms, topsail yards): the original models nest them through "geometry" labels
+            void AddReys(GmFile parentGm, Node3D parentNode, bool top, int depth)
             {
-                var rey = Load("_" + rl.Name);
-                if (rey == null) continue;
-                var reyNode = ModelFactory.Build(rey, rl.Name, "ships", null);
-                ShipDebug.CullLoose(reyNode, 0.3f, 40, true);
-                reyNode.Transform = LabelTransform(rl.M);
-                if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("REY " + rl.Name, reyNode);
-                mastNode.AddChild(reyNode);
-                parts.Add(new(reyNode, rey));
-                var sails = MakeSails(rey, reyNode, sm.Root, mr, sailTex, triTex).ToList();
-                sm.Sails.AddRange(sails);
-                // a yard with square sails turns to the wind round the vertical of the ship (not on the bowsprit)
-                if (!mr.Bowsprit && sails.Any(x => !x.ForeAft))
+                foreach (var rl in parentGm.Labels.Where(l => l.Group.Equals("geometry", StringComparison.OrdinalIgnoreCase) && l.Name.StartsWith("rey", StringComparison.OrdinalIgnoreCase)))
                 {
-                    mr.Yards.Add(new YardRt { Node = reyNode, Rest = reyNode.Transform, Axis = (mastNode.Basis.Inverse() * Vector3.Up).Normalized() });
-                    sm.YardNodes.Add(reyNode);
+                    var rey = Load("_" + rl.Name);
+                    if (rey == null) continue;
+                    var reyNode = ModelFactory.Build(rey, rl.Name, "ships", null);
+                    if (CullLooseParts) ShipDebug.CullLoose(reyNode, 0.3f, 40, true);
+                    reyNode.Transform = LabelTransform(rl.M);
+                    if (System.Environment.GetEnvironmentVariable("SEADOGS_SHIPLOG") != null) ShipDebug.Dump("REY " + rl.Name, reyNode);
+                    parentNode.AddChild(reyNode);
+                    parts.Add(new(reyNode, rey));
+                    var sails = MakeSails(rey, reyNode, sm.Root, mr, sailTex, triTex).ToList();
+                    sm.Sails.AddRange(sails);
+                    // a yard with square sails turns to the wind round the vertical of the ship (not on the bowsprit)
+                    if (top && !mr.Bowsprit && sails.Any(x => !x.ForeAft))
+                    {
+                        mr.Yards.Add(new YardRt { Node = reyNode, Rest = reyNode.Transform, Axis = (mastNode.Basis.Inverse() * Vector3.Up).Normalized() });
+                        sm.YardNodes.Add(reyNode);
+                    }
+                    if (depth < 4) AddReys(rey, reyNode, false, depth + 1);
                 }
             }
+            AddReys(mast, mastNode, true, 0);
         }
         float total = sm.Sails.Sum(x => x.Area);
         foreach (var sl in sm.Sails) sl.Power = total > 0f ? sl.Area / total : 0f;
         sm.Ropes = RiggingFx.CollectRopes(parts);
+        RopeDiag(sm);
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)
+            foreach (var f in Directory.GetFiles(dir, typeName + "_*.gm"))
+            {
+                string nm = Path.GetFileNameWithoutExtension(f).Substring(typeName.Length + 1);
+                if ((nm.StartsWith("mast") || nm.StartsWith("rey")) && !parts.Any(pt => pt.Node.Name.ToString().Equals(nm, StringComparison.OrdinalIgnoreCase))) GD.Print($"[ropediag] {typeName}: model file {nm} is not used by any geometry label");
+            }
         sm.Ropes.AddRange(ExtraRigging(sm));
         BuildShipRopes(sm.Root, sm.Ropes, sm.YardNodes, ref sm.FixedRopes, ref sm.YardRopes, true);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null) GD.Print($"[rig] ropes total {sm.Ropes.Count}: fixed {(sm.FixedRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)} on yards {(sm.YardRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)}, fixed aabb {sm.FixedRopes?.Mesh.GetAabb()}");

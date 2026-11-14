@@ -163,6 +163,33 @@ public partial class SeaView
         return list;
     }
 
+    /// <summary>SEADOGS_RIGLOG: for every rope end of the model labels the distance to the nearest vertex of its own node's mesh (ends in empty air = a part of the model that is not drawn).</summary>
+    static void RopeDiag(ShipModel sm)
+    {
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") == null) return;
+        foreach (var m in sm.Masts)
+            GD.Print($"[ropediag] {sm.Root.Name}: {m.Name} base ({m.Base.X:0.0},{m.Base.Y:0.0},{m.Base.Z:0.0}) top {m.Top:0.0} bowsprit={m.Bowsprit} yards {m.Yards.Count} sails {m.Sails.Count} basisY=({m.Node.Basis.Y.X:0.00},{m.Node.Basis.Y.Y:0.00},{m.Node.Basis.Y.Z:0.00})");
+        var cache = new Dictionary<Node3D, List<Vector3>>();
+        float Near(RiggingFx.End e)
+        {
+            if (!cache.TryGetValue(e.Node, out var vs)) cache[e.Node] = vs = MeshVerts(e.Node);
+            float best = float.MaxValue;
+            foreach (var v in vs) best = Math.Min(best, v.DistanceTo(e.Local));
+            return best;
+        }
+        int far = 0;
+        foreach (var r in sm.Ropes)
+        {
+            float da = Near(r.A), db = Near(r.B);
+            if (da > 0.5f || db > 0.5f)
+            {
+                far++;
+                GD.Print($"[ropediag] {sm.Root.Name}: {r.A.Node.Name} {da:0.0} m -> {r.B.Node.Name} {db:0.0} m, len {RiggingFx.ToRoot(r.A.Node, sm.Root).Origin.DistanceTo(RiggingFx.ToRoot(r.B.Node, sm.Root).Origin):0.0}");
+            }
+        }
+        GD.Print($"[ropediag] {sm.Root.Name}: {far} of {sm.Ropes.Count} ropes have an end farther than 0.5 m from the mesh of its node");
+    }
+
     /// <summary>The vertices of the node's own meshes (its direct MeshInstance3D children, not the yards hung on a mast) in the node's space.</summary>
     static List<Vector3> MeshVerts(Node3D n)
     {
