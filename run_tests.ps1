@@ -80,6 +80,16 @@ if ($Sea) {
             $sl = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', "--set=Characters[0].Ship.Type=$st@305", '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--sail=+1@705', '--shot-frame=2600')
             $fail += Invoke-Godot "sails_$st" $sl 300 @('[sea] ship Blaze')
         }
+        # rope review (SEADOGS_ROPESHOTS=1, off by default): bow 3/4, front and stern 3/4 views of the types; look at the PNGs for ropes that lead into the air
+        if ($env:SEADOGS_ROPESHOTS) {
+            foreach ($st in ($env:SEADOGS_ROPESHOTS -split ',')) {
+                foreach ($yaw in '0.75', '2.4', '3.14', '0.0') {
+                    $env:SEADOGS_SEACAM = "21,0.12,$yaw"
+                    $sl = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', $(if ($st -eq 'blaze') { '--call=Log_Info(0)@305' } else { "--set=Characters[0].Ship.Type=$($st)@305" }), '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--sail=+1@705', '--shot-frame=2600')
+                    $fail += Invoke-Godot "ropes_${st}_$yaw" $sl 300 @('[sea] ship Blaze')
+                }
+            }
+        }
         Remove-Item Env:SEADOGS_SEACAM
         # day / night of the world map: the script sets the clock (worldMap.date.hour), the engine multiplies the map with the daylight colour of that hour
         $nm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',

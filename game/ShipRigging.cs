@@ -100,7 +100,22 @@ public partial class SeaView
         var stubs = sm.Masts.Where(m => !masts.Contains(m)).OrderByDescending(m => Math.Abs(W(m.Node, Vector3.Zero).Z - centerZ)).ToList();
         // the bow lies on the side where most of the stubs stand (bowsprit root, ensign pole ...); without stubs the end ropes (bow / stern) are skipped
         float bow = stubs.Count > 0 ? Math.Sign(stubs.Sum(m => W(m.Node, Vector3.Zero).Z - centerZ)) : 0f, sternZ = 0f, bowZ = 0f;
-        var spr = bow != 0f ? stubs.OrderByDescending(m => (W(m.Node, Vector3.Zero).Z - centerZ) * bow).First() : null;
+        // the bowsprit is the long, roughly horizontal stub (an ensign pole or a wheel is also a stub, but not 3 m long): its farthest vertex is the tip, and it tells where the bow is
+        MastRt? spr = null; float sprLen = 3f;
+        foreach (var m in stubs)
+        {
+            var ws = VertsOf(m.Node).Select(v => W(m.Node, v)).ToList();
+            if (ws.Count == 0) continue;
+            float h = Math.Max(ws.Max(v => v.X) - ws.Min(v => v.X), ws.Max(v => v.Z) - ws.Min(v => v.Z));
+            if (h > sprLen) { sprLen = h; spr = m; }
+        }
+        if (spr != null)
+        {
+            var ws = VertsOf(spr.Node).Select(v => W(spr.Node, v)).ToList();
+            float dz = ws.Average(v => v.Z) - centerZ;
+            if (Math.Abs(dz) > 1f) bow = Math.Sign(dz);
+        }
+        else spr = bow != 0f ? stubs.OrderByDescending(m => (W(m.Node, Vector3.Zero).Z - centerZ) * bow).First() : null;
         masts = masts.OrderByDescending(m => W(m.Node, Vector3.Zero).Z * (bow == 0f ? 1f : bow)).ToList();      // fore-most first
         if (bow != 0f) { sternZ = centerZ - bow * sm.Length * 0.42f; bowZ = centerZ + bow * sm.Length * 0.47f; }
 
@@ -115,8 +130,25 @@ public partial class SeaView
         {
             // fore stay: the head of the fore mast down to the bowsprit (its tip, and a lower line to its middle)
             var f0 = masts[0].Node;
-            Add(Extreme(f0, 1, 1f), Extreme(spr.Node, 1, 1f), true);
-            Add(OnAxis(f0, 0.70f), OnAxis(spr.Node, 0.55f), true);
+            var sv = VertsOf(spr.Node);
+            RiggingFx.End? Tip(float dir) { RiggingFx.End? r = null; float bz = float.MinValue; foreach (var v in sv) { float z = W(spr.Node, v).Z * dir; if (z > bz) { bz = z; r = new RiggingFx.End(spr.Node, v); } } return r; }
+            var tip = Tip(bow); var tail = Tip(-bow);
+            // a point of the bowsprit at a fraction of its length from the heel (a real vertex)
+            RiggingFx.End? OnSpr(float f)
+            {
+                if (tip == null || tail == null) return null;
+                var want = W(spr.Node, tail.Value.Local).Lerp(W(spr.Node, tip.Value.Local), f);
+                RiggingFx.End? r = null; float bd = float.MaxValue;
+                foreach (var v in sv) { float d = W(spr.Node, v).DistanceSquaredTo(want); if (d < bd) { bd = d; r = new RiggingFx.End(spr.Node, v); } }
+                return r;
+            }
+            Add(Extreme(f0, 1, 1f), tip, true);                                  // the fore stay: the head of the fore mast to the tip of the bowsprit
+            Add(OnAxis(f0, 0.70f), OnSpr(0.6f), true);                           // and a lower line to the middle of it
+            if (masts.Count > 1) Add(Extreme(masts[1].Node, 1, 1f), OnSpr(0.75f), true);
+            // the bobstay: from the tip of the bowsprit down to the stem under it
+            RiggingFx.End? stem = null; float sz = float.MinValue;
+            foreach (var v in hullV) if (v.Y > 0.4f && v.Y < deckY - 0.3f && Math.Abs(v.X) < hw * 0.5f && v.Z * bow > sz) { sz = v.Z * bow; stem = new RiggingFx.End(root, v); }
+            Add(tip, stem, true);
         }
         // backstays: the head of the aft-most mast (and a lower point of it) to the rail at the stern, both sides
         if (bow != 0f)
@@ -190,20 +222,178 @@ public partial class SeaView
         GD.Print($"[ropediag] {sm.Root.Name}: {far} of {sm.Ropes.Count} ropes have an end farther than 0.5 m from the mesh of its node");
     }
 
-    /// <summary>The vertices of the node's own meshes (its direct MeshInstance3D children, not the yards hung on a mast) in the node's space.</summary>
-    static List<Vector3> MeshVerts(Node3D n)
+    /// <summary>The vertices of the node's own VISIBLE meshes (its direct MeshInstance3D children, not the yards hung on a mast) in the node's space.</summary>
+    static List<Vector3> MeshVerts(Node3D n) => MeshTris(n).V;
+
+    /// <summary>Triangles of a node's own visible meshes in the node's space (hidden shadow plates and the like are not geometry the player sees).</summary>
+    sealed class Tris { public readonly List<Vector3> V = new(); public readonly List<int> I = new(); }
+
+    static Tris MeshTris(Node3D n)
     {
-        var r = new List<Vector3>();
+        var r = new Tris();
         foreach (var mi in n.GetChildren().OfType<MeshInstance3D>())
         {
-            if (mi.Mesh == null) continue;
+            if (mi.Mesh == null || !mi.Visible) continue;
             for (int sIdx = 0; sIdx < mi.Mesh.GetSurfaceCount(); sIdx++)
             {
                 var arr = mi.Mesh.SurfaceGetArrays(sIdx);
                 if (arr.Count == 0 || arr[(int)Mesh.ArrayType.Vertex].VariantType == Variant.Type.Nil) continue;
-                foreach (var v in arr[(int)Mesh.ArrayType.Vertex].AsVector3Array()) r.Add(mi.Transform * v);
+                int b = r.V.Count;
+                foreach (var v in arr[(int)Mesh.ArrayType.Vertex].AsVector3Array()) r.V.Add(mi.Transform * v);
+                if (arr[(int)Mesh.ArrayType.Index].VariantType != Variant.Type.Nil) foreach (int k in arr[(int)Mesh.ArrayType.Index].AsInt32Array()) r.I.Add(b + k);
+                else for (int k = 0; k < r.V.Count - b; k++) r.I.Add(b + k);
             }
         }
         return r;
+    }
+
+    /// <summary>Distance from a point to the nearest triangle of the mesh set (float.MaxValue when none is near); triangles whose box is farther than <paramref name="limit"/> are skipped.</summary>
+    static float DistToTris(Tris t, Vector3 p, float limit)
+    {
+        float best = float.MaxValue;
+        for (int i = 0; i + 2 < t.I.Count; i += 3)
+        {
+            Vector3 a = t.V[t.I[i]], b = t.V[t.I[i + 1]], c = t.V[t.I[i + 2]];
+            if (p.X < Math.Min(a.X, Math.Min(b.X, c.X)) - limit || p.X > Math.Max(a.X, Math.Max(b.X, c.X)) + limit
+                || p.Y < Math.Min(a.Y, Math.Min(b.Y, c.Y)) - limit || p.Y > Math.Max(a.Y, Math.Max(b.Y, c.Y)) + limit
+                || p.Z < Math.Min(a.Z, Math.Min(b.Z, c.Z)) - limit || p.Z > Math.Max(a.Z, Math.Max(b.Z, c.Z)) + limit) continue;
+            float d = ClosestOnTriangle(p, a, b, c).DistanceTo(p);
+            if (d < best) best = d;
+        }
+        return best;
+    }
+
+    static Vector3 ClosestOnTriangle(Vector3 p, Vector3 a, Vector3 b, Vector3 c)
+    {
+        Vector3 ab = b - a, ac = c - a, ap = p - a;
+        float d1 = ab.Dot(ap), d2 = ac.Dot(ap);
+        if (d1 <= 0f && d2 <= 0f) return a;
+        Vector3 bp = p - b; float d3 = ab.Dot(bp), d4 = ac.Dot(bp);
+        if (d3 >= 0f && d4 <= d3) return b;
+        float vc = d1 * d4 - d3 * d2;
+        if (vc <= 0f && d1 >= 0f && d3 <= 0f) return a + ab * (d1 / (d1 - d3));
+        Vector3 cp = p - c; float d5 = ab.Dot(cp), d6 = ac.Dot(cp);
+        if (d6 >= 0f && d5 <= d6) return c;
+        float vb = d5 * d2 - d1 * d6;
+        if (vb <= 0f && d2 >= 0f && d6 <= 0f) return a + ac * (d2 / (d2 - d6));
+        float va = d3 * d6 - d5 * d4;
+        if (va <= 0f && d4 - d3 >= 0f && d5 - d6 >= 0f) return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+        float den = 1f / (va + vb + vc);
+        return a + ab * (vb * den) + ac * (vc * den);
+    }
+
+    // ------------------------------------------------------------------ the ropes of the model labels: only those that hang on something visible
+    static List<Vector3> SailEdgePoints(ShipModel sm)
+    {
+        var pts = new List<Vector3>();
+        foreach (var sl in sm.Sails)
+        {
+            if (sl.Gone || sl.Host == null || sl.C == null) continue;
+            var xf = RiggingFx.ToRoot(sl.Host, sm.Root);
+            int n = sl.Tri ? 3 : 4;
+            for (int k = 0; k < n; k++)
+            {
+                Vector3 a = xf * sl.C[k], b = xf * sl.C[(k + 1) % n];
+                for (int j = 0; j < 5; j++) pts.Add(a.Lerp(b, j / 5f));
+            }
+        }
+        return pts;
+    }
+
+    /// <summary>An end is supported when a visible mesh of its own node is within <paramref name="tol"/> or a sail corner/edge is close (the sheets and tacks end on the cloth, not on the yard).</summary>
+    static bool Supported(ShipModel sm, RiggingFx.End e, Dictionary<Node3D, Tris> cache, List<Vector3> sailPts, float tol, out float dist)
+    {
+        if (!cache.TryGetValue(e.Node, out var t)) cache[e.Node] = t = MeshTris(e.Node);
+        dist = DistToTris(t, e.Local, tol + 0.5f);
+        if (dist <= tol) return true;
+        var wp = RiggingFx.ToRoot(e.Node, sm.Root) * e.Local;
+        foreach (var q in sailPts) if (wp.DistanceSquaredTo(q) <= 1.0f) return true;
+        return false;
+    }
+
+    static readonly bool NoRopeFilter = System.Environment.GetEnvironmentVariable("SEADOGS_NOROPEFILTER") != null;
+
+    /// <summary>
+    /// The original ropes (ropeb/ropee labels): a rope whose end hangs where no visible geometry is (a label of a part that the model does not draw, a mast stub without its upper part)
+    /// is dropped; with SEADOGS_RIGLOG the dropped ends are listed as [ropediag] unsupported. SEADOGS_NOROPEFILTER=1 keeps everything.
+    /// </summary>
+    static void FilterOriginalRopes(ShipModel sm)
+    {
+        if (NoRopeFilter) return;
+        var cache = new Dictionary<Node3D, Tris>();
+        var sailPts = SailEdgePoints(sm);
+        bool log = System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null;
+        int before = sm.Ropes.Count;
+        sm.Ropes.RemoveAll(r =>
+        {
+            if (r.U != null) return false;                                    // shrouds hang on the hull and the mast by their own geometry
+            bool a = Supported(sm, r.A, cache, sailPts, 0.6f, out float da), b = Supported(sm, r.B, cache, sailPts, 0.6f, out float db);
+            if (a && b) return false;
+            if (log) GD.Print($"[ropediag] {sm.Root.Name}: unsupported rope dropped: {(a ? "" : $"end A on {r.A.Node.Name} ({da:0.0} m from visible geometry) ")}{(b ? "" : $"end B on {r.B.Node.Name} ({db:0.0} m from visible geometry)")}");
+            return true;
+        });
+        if (log) GD.Print($"[ropediag] {sm.Root.Name}: {before - sm.Ropes.Count} of {before} original ropes dropped (no visible support)");
+    }
+
+    /// <summary>
+    /// Thin out the rigging: no two ropes between the same pair of points (both ends within 0.3 m), at most 4 ropes end in one point (the bowsprit tip collected a bundle), and an extra
+    /// rope (index >= origCount) that runs through a sail is dropped. The originals come first in the list, so they win.
+    /// </summary>
+    static void TidyRopes(ShipModel sm, int origCount)
+    {
+        if (NoRopeFilter) return;
+        var pos = sm.Ropes.Select(r => (a: RiggingFx.ToRoot(r.A.Node, sm.Root) * r.A.Local, b: RiggingFx.ToRoot(r.B.Node, sm.Root) * r.B.Local)).ToList();
+        var sails = sm.Sails.Where(sl => !sl.Gone && sl.Host != null && sl.C != null).Select(sl =>
+        {
+            var xf = RiggingFx.ToRoot(sl.Host, sm.Root);
+            return sl.C.Take(sl.Tri ? 3 : 4).Select(v => xf * v).ToArray();
+        }).ToList();
+        bool Through(Vector3 a, Vector3 b)
+        {
+            foreach (var c in sails)
+            {
+                var n = (c[1] - c[0]).Cross(c[2] - c[0]); if (n.LengthSquared() < 1e-6f) continue; n = n.Normalized();
+                int hits = 0;
+                for (int k = 1; k < 12; k++)
+                {
+                    float f = k / 12f; if (f < 0.12f || f > 0.88f) continue;
+                    var q = a.Lerp(b, f);
+                    if (Math.Abs((q - c[0]).Dot(n)) > 0.15f) continue;
+                    bool inside = true;                                       // inside the polygon: every edge has q on the same side
+                    for (int e = 0; e < c.Length && inside; e++)
+                        if ((c[(e + 1) % c.Length] - c[e]).Cross(q - c[e]).Dot(n) < -0.05f) inside = false;
+                    if (inside) hits++;
+                }
+                if (hits >= 2) return true;
+            }
+            return false;
+        }
+        var keep = new List<int>();
+        var cells = new Dictionary<(int, int, int), int>();
+        (int, int, int) Cell(Vector3 p) => ((int)MathF.Floor(p.X / 0.6f), (int)MathF.Floor(p.Y / 0.6f), (int)MathF.Floor(p.Z / 0.6f));
+        int dup = 0, bundle = 0, thru = 0;
+        for (int i = 0; i < sm.Ropes.Count; i++)
+        {
+            var (a, b) = pos[i];
+            if (sm.Ropes[i].U != null) { keep.Add(i); continue; }
+            bool same = false;
+            foreach (int j in keep)
+            {
+                if (sm.Ropes[j].U != null) continue;
+                var (a2, b2) = pos[j];
+                if ((a.DistanceTo(a2) < 0.3f && b.DistanceTo(b2) < 0.3f) || (a.DistanceTo(b2) < 0.3f && b.DistanceTo(a2) < 0.3f)) { same = true; break; }
+            }
+            if (same) { dup++; continue; }
+            if (cells.GetValueOrDefault(Cell(a)) >= 4 || cells.GetValueOrDefault(Cell(b)) >= 4) { bundle++; continue; }
+            if (i >= origCount && Through(a, b)) { thru++; continue; }
+            keep.Add(i);
+            cells[Cell(a)] = cells.GetValueOrDefault(Cell(a)) + 1; cells[Cell(b)] = cells.GetValueOrDefault(Cell(b)) + 1;
+        }
+        if (keep.Count != sm.Ropes.Count)
+        {
+            var kept = keep.Select(i => sm.Ropes[i]).ToList();
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null) GD.Print($"[ropediag] {sm.Root.Name}: tidy {sm.Ropes.Count} -> {kept.Count} ropes (duplicates {dup}, bundles {bundle}, through sails {thru})");
+            sm.Ropes.Clear(); sm.Ropes.AddRange(kept);
+        }
     }
 }

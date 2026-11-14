@@ -439,13 +439,16 @@ public partial class SeaView : Node3D
         foreach (var sl in sm.Sails) sl.Power = total > 0f ? sl.Area / total : 0f;
         sm.Ropes = RiggingFx.CollectRopes(parts);
         RopeDiag(sm);
+        FilterOriginalRopes(sm);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null)
             foreach (var f in Directory.GetFiles(dir, typeName + "_*.gm"))
             {
                 string nm = Path.GetFileNameWithoutExtension(f).Substring(typeName.Length + 1);
                 if ((nm.StartsWith("mast") || nm.StartsWith("rey")) && !parts.Any(pt => pt.Node.Name.ToString().Equals(nm, StringComparison.OrdinalIgnoreCase))) GD.Print($"[ropediag] {typeName}: model file {nm} is not used by any geometry label");
             }
+        int origRopes = sm.Ropes.Count;
         sm.Ropes.AddRange(ExtraRigging(sm));
+        TidyRopes(sm, origRopes);
         BuildShipRopes(sm.Root, sm.Ropes, sm.YardNodes, ref sm.FixedRopes, ref sm.YardRopes, true);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_RIGLOG") != null) GD.Print($"[rig] ropes total {sm.Ropes.Count}: fixed {(sm.FixedRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)} on yards {(sm.YardRopes?.GetMeta("ropes", 0).AsInt32() ?? 0)}, fixed aabb {sm.FixedRopes?.Mesh.GetAabb()}");
         foreach (var (host, flag) in RiggingFx.BuildFlags(parts, nation)) host.AddChild(flag);
