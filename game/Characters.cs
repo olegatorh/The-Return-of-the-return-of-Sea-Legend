@@ -1137,6 +1137,7 @@ void fragment() {
 
     /// <summary>Character::Dead: a man with the sword out falls with one of death_0..3, otherwise death_citizen_1/2; the weights are the "Probability" of man.ani,
     /// cut when the body would fall onto another man or off the walk patch (the engine traces the fall for walls the same way).</summary>
+    string? deathAnim;       // the death clip this body fell with (re-shown at its last frame when the model is rebuilt)
     string PickDeath()
     {
         string[] names = fightMode ? new[] { "death_0", "death_1", "death_2", "death_3" } : new[] { "death_citizen_1", "death_citizen_2" };
@@ -1514,6 +1515,9 @@ void fragment() {
                 shadow = CharShadow.Create(this, newRig);
                 if (shadow != null) { AddChild(shadow); GetNodeOrNull("Shadow")?.QueueFree(); }       // the silhouette shadow replaces the blob
                 playing = "";
+                // a dead body whose model is rebuilt (the script re-equips it while the player loots the corpse: a cuirass changes the model) lies where it fell: the new body would
+                // stand in the bind pose, "alive" and with the sword out
+                if (task == Task.Dead && deathAnim != null && rig.PlayFinished(deathAnim)) { playing = "dead"; GD.Print($"[model] dead body {Id} rebuilt: stays in {deathAnim}"); }
                 if (placeholder != null) { placeholder.QueueFree(); placeholder = null; }
                 return V.Int(1);
             }
@@ -1646,7 +1650,8 @@ void fragment() {
                 if (rig != null)
                 {
                     string dn = PickDeath();
-                    if (rig.Play(dn, false) || rig.Play("death_0", false)) playing = "dead";
+                    if (rig.Play(dn, false)) { playing = "dead"; deathAnim = dn; }
+                    else if (rig.Play("death_0", false)) { playing = "dead"; deathAnim = "death_0"; }
                     if (MeleeLog) GD.Print($"[death] {Id} plays {dn} (fight mode {fightMode})");
                 }
                 break;

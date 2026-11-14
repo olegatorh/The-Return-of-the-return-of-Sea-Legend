@@ -313,6 +313,16 @@ public partial class CharacterRig : Node3D
         return true;
     }
 
+    /// <summary>A one-shot action shown at its last frame at once (a body whose model was rebuilt keeps lying where it fell instead of replaying the fall or standing in the bind pose).</summary>
+    public bool PlayFinished(string action)
+    {
+        if (!Play(action, false, true) || cur == null) return false;
+        time = Math.Max(cur.End - cur.Start, 1);
+        blendLeft = 0f; fromQ = null;
+        Pose(cur.Reverse ? cur.End - time : cur.Start + time);
+        return true;
+    }
+
     /// <summary>Per-character lighting (weather sun/ambient + the nearest location lights), see LocationLights.cs.</summary>
     public readonly CharShading.State Shading = new();
 
