@@ -220,6 +220,9 @@ if ($Sea) {
                 '--call=LAi_group_MoveCharacter(#Gilles+Roche,TestA)@410', '--call=LAi_group_MoveCharacter(#Terry++Snider,TestB)@410', '--call=LAi_group_FightGroups(TestA,TestB,1)@420',
                 '--call=LAi_SetHP(#Gilles+Roche,400,400)@430', '--call=LAi_SetHP(#Terry++Snider,400,400)@430', '--bring=Gilles_Roche:3@440', '--bring=Terry__Snider:5@445', '--key=E@450', '--shot-frame=1600')
         $fail += Invoke-Godot 'melee' $ml 300 @('[fight] Gilles Roche vs Terry  Snider: attack=1/s defence=0.65/s', '[fight] Terry  Snider vs Gilles Roche:', 'script-driven=True player fightMode=True')
+        # a killed man whose model is rebuilt (looting re-equips the body: a cuirass -> SetNewModelToChar) must keep lying in his death pose, not stand up in the bind pose
+        $dk = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300', '--call=LAi_SetWarriorType(#Terry++Snider)@400', '--call=LAi_KillCharacter(#Terry++Snider)@500', '--call=SetNewModelToChar(#Terry++Snider)@700', '--shot-frame=900')
+        $fail += Invoke-Godot 'deadkeep' $dk 300 @('[model] dead body Terry  Snider rebuilt: stays in death')
         # a hostile soldier against the HERO (group 'player' made enemy of TestB): he must run up, swing and wound the hero within the run (the NPC rolls its
         # wishes every 0.2 s like np_character.cpp, so the attack rate of the script means a blow as soon as the last one is over). The hero is drawn while running:
         # he stops for the draw animation (log "hero stopped for the draw") and runs on afterwards
@@ -406,7 +409,7 @@ if ($Stages3) {
             '--call=Fort_SetAbordageMode(#Blaze,#Antigua+Commander)@2450', '--call=Character_SetAbordageEnable(#Antigua+Commander,1)@2455', '--sail=-1@2460', '--set=bWeatherIsStorm=0@2500', '--call=LAi_SetImmortal(#Blaze,1)@2550', '--act@2700')
         foreach ($f in 36..70) { $an += "--killgroup=brdenemy@$($f * 100)"; $an += "--ctl=ChrAction@$($f * 100 + 50)" }
         $an += @('--click=GOODS@7400', '--key=Escape@7700', '--click=SLAVES@8000', '--key=Escape@8300', '--click=ENTER_BATTLE@8600', '--shot-frame=9500')
-        $fail += Invoke-Godot 'fortland' $an 600 @('[sea] action: LandTroops', 'fortcapture.ini', 'transfer_goods.ini', 'ransack_crew.ini', '[location] model GrPort_l')
+        $fail += Invoke-Godot 'fortland' $an 600 @('[sea] action: LandTroops', 'fortcapture.ini', 'transfer_goods.ini', '[goods] transfer list', 'ransack_crew.ini', '[location] model GrPort_l')
         Remove-Item Env:SEADOGS_PLAYERHP
         # Antigua tavern: officer hire (BetaTestMode removes the random "nobody today"), the officer joins, the passengers screen; sleeping to the night
         $tav = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@250', '--call=GiveItem2Character(#Blaze,patent_eng)@252', '--call=EquipCharacterbyItem(#Blaze,patent_eng)@254', '--set=Characters[0].Money=50000@255',
