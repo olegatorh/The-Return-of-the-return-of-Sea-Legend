@@ -1032,9 +1032,9 @@ if ($Sea) {
         $env:SEADOGS_LAMPLOG = '1'
         $fail += Invoke-Godot 'lamps' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(19,0)@320', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@500', '--shot-frame=1500') 300 @('[lamps] QC_town: group')
         # daytime town look (textures of houses, trees, ground): noon in the port town
-        $fail += Invoke-Godot 'towntex' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(12,0)@320', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@500', '--goto=reload.reload3@900', '--shot-frame=2600') 300 @('[model] loaded')
+        $fail += Invoke-Godot 'towntex' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(12,0)@320', '--call=DoReloadCharacterToLocation(QC_town,reload,reload1)@500', '--goto=reload.reload3@900', '--shot-frame=2600') 300 @('[weather] begin')
         # Nevis port at dusk: pier piles in the water, shore foam
-        $fail += Invoke-Godot 'nevis_water' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(19,0)@320', '--call=DoReloadCharacterToLocation(QC_port,reload,reload1)@500', '--shot-frame=1500') 300 @('[model] loaded')
+        $fail += Invoke-Godot 'nevis_water' @('--ctl=Quick_Load@200', '--call=SetCurrentTime(19,0)@320', '--call=DoReloadCharacterToLocation(QC_port,reload,reload1)@500', '--shot-frame=1500') 300 @('[weather] begin')
         Remove-Item Env:SEADOGS_LAMPLOG
     }
 }
