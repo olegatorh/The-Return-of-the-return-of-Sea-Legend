@@ -11,7 +11,7 @@ public static class ModelFactory
     public static double TotalBuildMs; public static int BuildCount;       // SEADOGS_PROF: all ModelFactory.Build calls so far
     public static float LightGain = 2.0f;   // the original modulates vertex lighting x2 (128 = neutral)
 
-    public static Node3D Build(GmFile g, string name, string? texturesPath, Color[]? vertexColors, string? shadowPath = null)
+    public static Node3D Build(GmFile g, string name, string? texturesPath, Color[]? vertexColors, string? shadowPath = null, float relief = 0f)
     {
         long tB = System.Diagnostics.Stopwatch.GetTimestamp();
         var root = new Node3D { Name = name };
@@ -48,7 +48,8 @@ public static class ModelFactory
                 for (int i = 0; i < n; i++)
                 {
                     var c = vertexColors[m.FirstGlobalVertex + i];
-                    cs[i] = new Color(Math.Min(c.R * LightGain, 1f), Math.Min(c.G * LightGain, 1f), Math.Min(c.B * LightGain, 1f));
+                    float k = relief > 0f ? 1f - relief * 0.5f + relief * Math.Max(0f, norms[i].Normalized().Dot(ReliefSun)) : 1f;     // slopes facing the light are brighter, the others fall into shade: volume where the baked light is flat
+                    cs[i] = new Color(Math.Min(c.R * LightGain * k, 1f), Math.Min(c.G * LightGain * k, 1f), Math.Min(c.B * LightGain * k, 1f));
                 }
                 arrays[(int)Mesh.ArrayType.Color] = cs;
                 lit = true;
@@ -107,6 +108,7 @@ public static class ModelFactory
     static bool IsShadowMaterial(GmFile g, int index)
         => index >= 0 && index < g.Materials.Count && string.Equals(g.Materials[index].Textures[0], "shadow.tga", StringComparison.OrdinalIgnoreCase);
 
+    static readonly Vector3 ReliefSun = new Vector3(-0.45f, 0.75f, 0.35f).Normalized();
     const float DetailMetres = 14f;
     static readonly bool NoDetail = System.Environment.GetEnvironmentVariable("SEADOGS_NODETAIL") != null;
     static readonly Dictionary<string, ImageTexture?> detailTex = new(StringComparer.OrdinalIgnoreCase);

@@ -22,6 +22,14 @@ public partial class SeaView
     const int MaxSailorsPerShip = 6;
     const float SailorsViewDist = 220f;
     static readonly string[] SailorModels = ["Lo_Man_1", "Lo_Man_2", "Lo_Man_3", "Lo_Man_1", "Lo_Man_2", "Lo_Man_Kamzol_1", "Lo_Man_Kamzol_2", "Lo_Man_Kamzol_3"];
+    // full-detail bodies (512 px textures) instead of the original low-poly "Lo_Man" men (256 px): they play the man.ani clips under the Lo_Man names the walk logic uses
+    static readonly bool LowSailors = System.Environment.GetEnvironmentVariable("SEADOGS_LOWSAILORS") != null;
+    static readonly string[] HiSailorModels = ["Sailor1", "Sailor2", "Sailor3", "Sailor4", "Sailor5", "Sailor6", "Sailor1", "Sailor3"];
+    static readonly Dictionary<string, string> LoToMan = new()
+    {
+        ["stand"] = "idle_1", ["action1"] = "idle_2", ["action2"] = "idle_3", ["action3"] = "idle_4", ["action4"] = "idle_5", ["reload"] = "idle_7",
+        ["crawl"] = "stairs up", ["crawl_down"] = "stairs down", ["turn_left"] = "turn left", ["turn_right"] = "turn right",
+    };
     static readonly string[] SailorIdle = ["action1", "action2", "action3", "action4", "stand"];
 
 
@@ -126,7 +134,8 @@ public partial class SeaView
         var free = usable.OrderBy(_ => sailorRnd.Next()).ToList();
         for (int k = 0; k < n && k < free.Count; k++)
         {
-            var rig = CharacterRig.Create(SailorModels[sailorRnd.Next(SailorModels.Length)], "Lo_Man", null, "Lowcharacters");
+            var rig = LowSailors ? CharacterRig.Create(SailorModels[sailorRnd.Next(SailorModels.Length)], "Lo_Man", null, "Lowcharacters") : CharacterRig.Create(HiSailorModels[sailorRnd.Next(HiSailorModels.Length)], "man", null);
+            if (rig != null && !LowSailors) rig.Alias = LoToMan;
             if (rig == null) break;
             var s = new Sailor { Rig = rig, At = free[k], To = free[k], Wait = (float)sailorRnd.NextDouble() * 3f, Yaw = (float)(sailorRnd.NextDouble() * Math.Tau) };
             deck.Root.AddChild(rig);

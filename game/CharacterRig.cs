@@ -28,14 +28,19 @@ public partial class CharacterRig : Node3D
     public float TimeScale = 1f;        // 0 while a dialog is open (the script calls SetTimeScale)
 
     /// <summary>"Walk speed" (m/s) of an action from the .ani file.</summary>
+    /// <summary>Clip names the caller uses -> clips of this rig's animation file (a body that plays another character's action set, e.g. deck sailors in a full body with the man clips).</summary>
+    public Dictionary<string, string>? Alias;
+    string curReq = "";
+    string Resolve(string action) => Alias != null && Alias.TryGetValue(action, out var r) ? r : action;
+
     public float ActionSpeed(string action, float fallback)
-        => ani.Actions.TryGetValue(action, out var a) && a.Data.TryGetValue("Walk speed", out var v)
+        => ani.Actions.TryGetValue(Resolve(action), out var a) && a.Data.TryGetValue("Walk speed", out var v)
            && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? Math.Abs(f) : fallback;
 
     public float ActionTurnSpeed(string action, float fallback)
         => ani.Actions.TryGetValue(action, out var a) && a.Data.TryGetValue("Turn speed", out var v)
            && float.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : fallback;
-    public string ActionName => curName;
+    public string ActionName => Alias != null ? curReq : curName;
 
     /// <summary>False for a one-shot action ("loop = false" in the .ani): it stops on its last frame and the engine reports its end.</summary>
     public bool ActionLoops(string action) => !ani.Actions.TryGetValue(action, out var a) || a.Loop;
@@ -297,7 +302,9 @@ public partial class CharacterRig : Node3D
 
     public bool Play(string action, bool looping, bool restart = false)
     {
+        string req = action; action = Resolve(action);
         if (!ani.Actions.TryGetValue(action, out var a) || a.End <= a.Start) return false;
+        curReq = req;
         if (cur == a && !restart) return true;
         float bt = IsFightAction(action) && havePose && IsVisibleInTree() ? Math.Max(0f, Fl(a.Data.GetValueOrDefault("Blend time"), 0.2f)) : 0f;
         if (bt > 0.01f) { fromQ = (Quaternion[])lastQ!.Clone(); fromRoot = lastRoot; blendLeft = blendDur = bt; } else { fromQ = null; blendLeft = 0f; }
