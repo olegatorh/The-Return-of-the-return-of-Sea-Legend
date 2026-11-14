@@ -166,12 +166,20 @@ void fragment() {
         seen = mix(seen, shallow_color * (0.4 + 0.8 * lit) * (0.5 + 0.5 * length(sky_color)), 0.45);
         body = mix(seen, deep, bp);
         // shore foam from the depth: where the sea is shallow (island coast, hull waterline) the foam texture shows
-        float sz = scene_depth_diff(SCREEN_UV, INV_PROJECTION_MATRIX, VERTEX);
-        if (sz > 0.0 && sz < shore_end * 1.2) {
+        // the foam follows the VERTICAL depth of what is behind the surface (world height of the depth-buffer point), not the view-ray distance: that one grows without
+        // limit at a grazing angle, so a shallow beach seen from the shore or a pile seen from the pier got no foam
+        float rawd = textureLod(depth_texture, SCREEN_UV, 0.0).r;
+        vec4 sv = INV_PROJECTION_MATRIX * vec4(vec3(SCREEN_UV * 2.0 - 1.0, rawd * 2.0 - 1.0), 1.0);
+        sv.xyz /= sv.w;
+        float vdepth = wpos.y - (INV_VIEW_MATRIX * vec4(sv.xyz, 1.0)).y;
+        float vend = shore_end * 0.8;
+        if (rawd < 0.9999 && vdepth > -0.12 && vdepth < vend * 1.25) {
             vec2 fp = wpos.xz * 0.12 + vec2(t * 0.02, -t * 0.015);
             float ft = smoothstep(0.5, 1.0, texture(foam_tex, fp).a * 0.6 + texture(foam_tex, fp * 2.3 + 0.4).a * 0.4);
-            float ripple = 0.55 + 0.45 * sin(sz * 5.0 - t * 1.8 + ft * 3.0);
-            shore = (1.0 - smoothstep(shore_start, shore_end, sz + (ft - 0.5) * 0.9)) * (0.5 + 0.5 * ft) * ripple * shore_gain * (1.0 - smoothstep(200.0, 440.0, dist));
+            float ripple = 0.55 + 0.45 * sin(vdepth * 14.0 - t * 1.8 + ft * 3.0);       // lines of wash running along the shore
+            float edge = 1.0 - smoothstep(shore_start * 0.35, vend, max(vdepth, 0.0) + (ft - 0.5) * 0.35);
+            shore = edge * (0.55 + 0.45 * ft) * ripple * shore_gain * (1.0 - smoothstep(200.0, 440.0, dist));
+            shore = max(shore, (1.0 - smoothstep(0.0, 0.18, abs(vdepth))) * (0.6 + 0.4 * ft) * shore_gain);       // a thin solid line where the water touches the ground / a pile
         }
     }
     vec3 col = mix(body, refl, clamp(f * refl_k * 1.25, 0.0, 0.95));
@@ -193,7 +201,7 @@ void fragment() {
         foam = clamp(cap * (0.06 + 1.0 * ft) * smoothstep(0.08, 0.35, foam_gain) * (0.35 + 0.65 * near), 0.0, 1.0);
     }
     float fa = clamp(max(foam, shore), 0.0, 1.0);
-    col = mix(col, pena_color, fa);
+    col = mix(col, pena_color * (0.85 + 0.45 * lit), fa);
 
     float fg = 1.0 - exp(-dist * fog_density);
     col = mix(col, fog_color, clamp(fg, 0.0, 1.0));

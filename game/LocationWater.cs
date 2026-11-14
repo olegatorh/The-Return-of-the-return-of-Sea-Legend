@@ -1,3 +1,4 @@
+using System;
 using Godot;
 
 namespace SeaDogs;
@@ -23,6 +24,13 @@ public static class LocationWater
         var mat = am.SurfaceGetMaterial(0);
         var arr = am.SurfaceGetArrays(0);
         var v = (Vector3[])arr[(int)Mesh.ArrayType.Vertex];
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_WATERDBG") == "1")
+        {
+            float lo = float.MaxValue, hi = float.MinValue; int above = 0;
+            foreach (var p in v) { lo = Math.Min(lo, p.Y); hi = Math.Max(hi, p.Y); if (p.Y > Level) above++; }
+            var sm = mat as StandardMaterial3D;
+            GD.Print($"[seabed] {mi.Name}: {v.Length} verts, y {lo:0.00}..{hi:0.00}, above-level {above}, aabb {mi.Mesh.GetAabb()}, transparency {sm?.Transparency}, cull {sm?.CullMode}, tex {sm?.AlbedoTexture?.GetSize()}");
+        }
         for (int i = 0; i < v.Length; i++) if (v[i].Y > Level) v[i].Y = Level;
         arr[(int)Mesh.ArrayType.Vertex] = v;
         var nm = new ArrayMesh();
