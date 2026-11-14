@@ -131,7 +131,7 @@ public partial class SeaView
         string Fl(float x) => x.ToString("0.0#####", CultureInfo.InvariantCulture);
         string code = @"
 shader_type spatial;
-render_mode cull_disabled, depth_draw_opaque, specular_disabled;
+render_mode unshaded, cull_disabled, depth_draw_opaque;
 uniform sampler2D tex : source_color, filter_linear_mipmap_anisotropic;
 uniform sampler2D holes : filter_linear_mipmap_anisotropic;
 uniform vec3 c0; uniform vec3 c1; uniform vec3 c2; uniform vec3 c3;
@@ -142,6 +142,9 @@ uniform float bulge = 0.0;
 uniform float flap = 0.0;
 uniform float phase = 0.0;
 uniform int hmask = 0;
+uniform vec3 amb = vec3(0.55);        // weather light: ambient, sun colour, direction towards the sun (world space)
+uniform vec3 sun_col = vec3(0.5);
+uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
 const float SF[13] = { $SF };
 const float TF[5] = { $TF };
 
@@ -190,8 +193,18 @@ void fragment() {
         if (((hmask >> cell) & 1) != 0) a = min(a, texture(holes, vec2(0.5 + clamp(UV.x, 0.0, 1.0) * 0.499, clamp(UV.y, 0.0, 1.0) * 0.499)).a);
     }
     if (a < 0.5) discard;
-    ALBEDO = c.rgb;
-    ROUGHNESS = 1.0;
+    // cloth: lit on the sun side, light shines through on the far side (translucency), folds from a light wobble of the normal; time of day comes from the weather light
+    vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+    if (!FRONT_FACING) nw = -nw;
+    float fold = tri > 0.5 ? sin(UV.x * 17.0 + UV.y * 5.0 + phase) : sin(UV.x * 21.0 + phase) * (0.6 + 0.4 * sin(UV.y * 9.0));
+    float d = dot(nw, sun_dir) + fold * 0.10 * (0.35 + clamp(abs(bulge) * 0.5, 0.0, 0.65));
+    vec3 light = amb * 0.85 + sun_col * (max(d, 0.0) * 0.9 + max(-d, 0.0) * 0.65);
+    light = max(light, vec3(0.13, 0.13, 0.15));
+    // the hem (bolt-rope) and the reef bands: a darker seam along the edges and across the sail
+    float edge = min(min(UV.x, 1.0 - UV.x), min(UV.y, 1.0 - UV.y));
+    float seam = mix(0.62, 1.0, smoothstep(0.0, 0.035, edge));
+    float reef = tri > 0.5 ? 1.0 : 1.0 - 0.14 * smoothstep(0.46, 0.5, abs(fract(UV.y * 3.0) - 0.5)) * step(0.05, UV.y) * step(UV.y, 0.95);
+    ALBEDO = c.rgb * light * seam * reef * 1.55;
 }";
         code = code.Replace("$SF", Arr(ini.SForm)).Replace("$TF", Arr(ini.TForm)).Replace("$RZ", Fl(ini.RollZ)).Replace("$RY", Fl(ini.RollY));
         sailShader = new Shader { Code = code };
@@ -265,6 +278,7 @@ void fragment() {
             sl.Mat.SetShaderParameter("holes", holeTex);
             for (int k = 0; k < 4; k++) sl.Mat.SetShaderParameter("c" + k, c[k]);
             sl.Mat.SetShaderParameter("nrm", n);
+            if (LastSailLight is { } ll) { sl.Mat.SetShaderParameter("amb", ll.Item1); sl.Mat.SetShaderParameter("sun_col", ll.Item2); sl.Mat.SetShaderParameter("sun_dir", ll.Item3); }
             sl.Mat.SetShaderParameter("tri", tri ? 1f : 0f);
             sl.Mat.SetShaderParameter("phase", sl.Phase);
             var box = new Aabb(c[0], Vector3.Zero);
@@ -523,12 +537,53 @@ void fragment() {
     // ------------------------------------------------------------------ per frame
     static float MoveTo(float v, float target, float step) => v < target ? Math.Min(target, v + step) : Math.Max(target, v - step);
 
+    // the sails take the weather's light themselves (shader: ambient + sun diffuse + translucency), so they follow the time of day instead of the scene lights
+    float sailLightT = 10f;
+    Vector3 sailAmb = new(0.55f, 0.55f, 0.55f), sailSun = new(0.5f, 0.5f, 0.5f), sailDir = Vector3.Up, sailAmbSet = new(-1f, 0f, 0f), sailSunSet, sailDirSet;
+
+    static Vector3 WeatherColor(Attr w, string key, Vector3 def)
+    {
+        var v = w.Find(key, false)?.Value?.Trim();
+        if (string.IsNullOrEmpty(v)) return def;
+        try
+        {
+            long n = v.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? Convert.ToInt64(v.Substring(2), 16) : long.Parse(v, CultureInfo.InvariantCulture);
+            return new Vector3(((n >> 16) & 255) / 255f, ((n >> 8) & 255) / 255f, (n & 255) / 255f);
+        }
+        catch { return def; }
+    }
+
+    void UpdateSailLight(Attr? wa, float dt)
+    {
+        if (wa == null) return;
+        sailLightT += dt;
+        if (sailLightT < 0.25f) return;
+        sailLightT = 0f;
+        var amb = WeatherColor(wa, "Sun.Ambient", new Vector3(0.4f, 0.4f, 0.4f));
+        var col = WeatherColor(wa, "Sun.Color", new Vector3(0.6f, 0.6f, 0.6f));
+        float up = MathF.Max(0f, MathF.Sin(F(wa, "Sun.HeightAngle", 0.8f)));
+        var sun = col * (0.35f + 0.65f * up);                                                // a low sun still shines through the cloth
+        static Vector3 Soften(Vector3 c, float keep) { float l = 0.3f * c.X + 0.59f * c.Y + 0.11f * c.Z; return new Vector3(l, l, l).Lerp(c, keep); }
+        sun = Soften(sun, 0.35f); amb = Soften(amb, 0.6f);                                   // the script's sunset colours are far more saturated than the lit hull looks: keep the cloth near white
+        var dir = WeatherFx.LastSunDir.LengthSquared() > 0.1f ? WeatherFx.LastSunDir.Normalized() : new Vector3(0.3f, 0.8f, 0.3f).Normalized();
+        if ((amb - sailAmbSet).Length() < 0.01f && (sun - sailSunSet).Length() < 0.01f && (dir - sailDirSet).Length() < 0.01f) return;
+        sailAmbSet = amb; sailSunSet = sun; sailDirSet = dir;
+        foreach (var s in ships)
+            foreach (var sl in s.Sails)
+            {
+                sl.Mat.SetShaderParameter("amb", amb); sl.Mat.SetShaderParameter("sun_col", sun); sl.Mat.SetShaderParameter("sun_dir", dir);
+            }
+        LastSailLight = (amb, sun, dir);
+    }
+    static (Vector3, Vector3, Vector3)? LastSailLight;
+
     void TickSails(float dt)
     {
         float windAng = 0f, windSpd = 0f;
         if (it.Globals.TryGetValue("Weather", out var w) && w.Val.Attr is { } wa) { windAng = F(wa, "Wind.Angle"); windSpd = F(wa, "Wind.Speed"); }
         var windW = new Vector3(MathF.Sin(windAng), 0f, -MathF.Cos(windAng));                   // where the wind blows to (Godot)
         RiggingFx.WindWorld = windW;
+        UpdateSailLight(w?.Val.Attr, dt);
         float k = 0.55f + 0.45f * Math.Clamp(windSpd / 14f, 0f, 1f);
         var cam = Cam.GlobalPosition;
         float ease = 1f - MathF.Exp(-dt * 1.5f);

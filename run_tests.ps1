@@ -74,6 +74,13 @@ if ($Sea) {
         $b = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--act@1250', '--shot-frame=2000')
         $fail += Invoke-Godot 'map' $b 300 @('[map] world map built', '[map] exit to sea at QuebradasCostillas')
+        # ship models from the side (masts, yards, sails, ropes of the two-masted types): one screenshot per ship type
+        $env:SEADOGS_SEACAM = '34,0.2,0.75'
+        foreach ($st in 62, 18, 86, 98) {
+            $sl = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', "--set=Characters[0].Ship.Type=$st@305", '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--sail=+1@705', '--shot-frame=2600')
+            $fail += Invoke-Godot "sails_$st" $sl 300 @('[sea] ship Blaze')
+        }
+        Remove-Item Env:SEADOGS_SEACAM
         # day / night of the world map: the script sets the clock (worldMap.date.hour), the engine multiplies the map with the daylight colour of that hour
         $nm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--set=worldMap.date.hourPerSec=0.01@1250', '--set=worldMap.date.hour=23@1251', '--set=worldMap.date.hourPerSec=0.01@1400', '--set=worldMap.date.hour=23@1401', '--shot-frame=1420')
