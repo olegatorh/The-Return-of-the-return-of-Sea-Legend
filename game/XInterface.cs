@@ -364,12 +364,15 @@ public partial class XView : Control
         return r;
     }
 
+    string curIni = "";
+
     public void Load(string iniFile)
     {
         Clear();
         string path = System.IO.Path.IsPathRooted(iniFile) ? iniFile : System.IO.Path.Combine(GameAssets.GameDir, iniFile.Replace('\\', System.IO.Path.DirectorySeparatorChar));
         if (!System.IO.File.Exists(path)) { GD.PrintErr("interface ini not found: " + iniFile); return; }
         GD.Print("[xinterface] loading " + iniFile);
+        curIni = iniFile;
         var ini = IniFile.Load(path);
         var defs = IniFile.Load(GameAssets.Resource("INI\\INTERFACES\\defaultnode.ini"));
         var main = ini.Get("MAIN");
@@ -1302,6 +1305,7 @@ public partial class XView : Control
         var v = new ScrollImageView(Ent, name, pos[0], pos[1], pos[2], pos[3], sz[0] > 0 ? sz[0] : 128, sz[1] > 0 ? sz[1] : 128, (cmd, n) => Run(n, cmd, 0));
         if (P("centerXoffset") is { Length: > 0 } cxo) v.CenterX = pos[0] + Conv.ParseFloatPrefix(cxo);         // the chosen picture's centre (screen units), e.g. between the arrows of the chest lists
         v.Translate = Tr;
+        v.HideDimmed = GoodsFilter.HidesEmpty(curIni, name);
         for (int k = 1; k <= 2; k++)
         {
             if (!(P(k == 1 ? "UseOneString" : "UseTwoString") is { Length: > 0 } use && Conv.ParseFloatPrefix(use) != 0)) continue;

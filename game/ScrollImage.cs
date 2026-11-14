@@ -70,12 +70,27 @@ public partial class ScrollImageView : Control
 
     public int ListSize => (int)Conv.ParseFloatPrefix(Root?.Find("ListSize", false)?.Value);
 
+    /// <summary>The cargo exchange list shows only the goods somebody carries (see <see cref="GoodsFilter"/>): the dimmed entries behind them are left out.</summary>
+    public bool HideDimmed;
+
+    /// <summary>The number of pictures shown and reachable (ListSize, or fewer when the dimmed tail is hidden).</summary>
+    public int ShownSize
+    {
+        get
+        {
+            int n = ListSize;
+            if (!HideDimmed || n <= 0) return n;
+            var r = Root;
+            return r == null ? n : GoodsFilter.VisibleCount(n, i => r.Find("pic" + (i + 1), false)?.Find("spec2", false)?.Value is { } v && (v == "1" || v.Equals("true", StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
     /// <summary>How far Shift + arrow jumps (xi_scroll_image.cpp GetRightQuantity: the pictures of the visible chain): the pictures that fit the strip, at least 2.</summary>
     public int PageSize => Math.Max(2, (int)(Size.X / (itemW + 6)) - 1);
 
     public void Move(int delta)
     {
-        int n = ListSize;
+        int n = ShownSize;
         if (n <= 0) return;
         Current = Math.Clamp(Current + delta, 0, n - 1);
         command("select", node);
@@ -94,7 +109,8 @@ public partial class ScrollImageView : Control
         selectBorder?.QueueFree(); selectBorder = null;
         var r = Root;
         if (r == null) return;
-        int n = ListSize;
+        int n = ShownSize;
+        if (HideDimmed) GD.Print($"[goods] transfer list: {n} of {ListSize} goods shown");
         for (int i = 0; i < n; i++)
         {
             var pic = r.Find("pic" + (i + 1), false);
