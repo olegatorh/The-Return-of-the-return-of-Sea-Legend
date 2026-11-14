@@ -222,6 +222,8 @@ public partial class LocationView : Node3D
         if (GameAssets.Prof) GD.Print($"[load] model {name}: {(System.Diagnostics.Stopwatch.GetTimestamp() - tModel) * 1000.0 / System.Diagnostics.Stopwatch.Frequency:0} ms (textures {GameAssets.DecodeMs - texBefore:0} ms; textures so far {GameAssets.DecodeCount}, {GameAssets.DecodeMs:0} ms)");
         bool foamModel = IsFoamModel(name);
         if (foamModel) LocationWater.PrepareSeabed(node);   // shore/sea-bottom mesh under the sea: feeds the water shader's depth (colour, shore foam)
+        // the "<model>_l" file only carries the locator labels; its stub geometry (one triangle with the "govno.tga" placeholder texture) is never drawn
+        if (name.EndsWith("_l", StringComparison.OrdinalIgnoreCase) && System.Environment.GetEnvironmentVariable("SEADOGS_SHOWLOC") == null) node.Visible = false;
         AddChild(node);
         // collision for the follow camera (it must not look through walls): triangle meshes of the visible parts, no characters
         if (node.Visible && !foamModel && !name.EndsWith("_l", StringComparison.OrdinalIgnoreCase))
