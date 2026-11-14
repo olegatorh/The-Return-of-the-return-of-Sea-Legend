@@ -460,9 +460,10 @@ public partial class SeaView : Node3D
                 for (int i = 0; i < cols.Length; i++) cols[i] = new Color(b[i * 4 + 2] / 255f, b[i * 4 + 1] / 255f, b[i * 4] / 255f);
             }
             island?.QueueFree();
-            island = ModelFactory.Build(g, model, path, cols, null, cols != null ? 0.9f : 0f);
+            island = ModelFactory.Build(g, model, path, cols, null, cols != null && IslandSmooth.Rough ? 0.9f : 0f);       // the slope shading of the smoothed island is applied by IslandSmooth on its smooth normals
             AddChild(island);
-            BuildIslandCollision(island);
+            BuildIslandCollision(island);                       // from the original rough meshes: ship physics stays as it was
+            IslandSmooth.Apply(island, cols != null);           // visual only: welded, subdivided, smooth-lit
             foreach (var c in island.GetChildren().OfType<MeshInstance3D>()) GD.Print($"[sea]   object {c.Name} visible={c.Visible} aabb={c.Mesh.GetAabb()} mat={(c.Mesh.SurfaceGetMaterial(0) as StandardMaterial3D)?.AlbedoTexture?.GetSize()}");
             var bb = ModelFactory.Bounds(island);
             GD.Print($"[sea] island {model}: {g.Objects.Count} objects, {g.TotalVertices} vertices, light={(cols != null ? light : "none")}, bounds {bb.Position} .. {bb.End}");
