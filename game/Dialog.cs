@@ -277,6 +277,38 @@ public partial class DialogView : Control
             for (int i = 0; i < lines; i++) DrawTextureRectRegion(t, new Rect2(Line.Position.X, Line.Position.Y - LineH * i, Line.Size.X, Line.Size.Y), LineUv);
             DrawTextureRectRegion(t, new Rect2(Cap.Position.X, Cap.Position.Y - LineH * lines, Cap.Size.X, Cap.Size.Y), CapUv);
             if (divider) DrawTextureRectRegion(t, new Rect2(Divider.Position.X, Divider.Position.Y - linksH, Divider.Size.X, Divider.Size.Y), DividerUv);
+            CloseSides();
+        }
+
+        // The sprites of the original run past both screen edges (the carved leaves are simply cut by the screen). On a wider window the 4:3 frame would end in a raw cut, so each cut edge
+        // gets a bevelled gold border (outer line, gold, highlight, wood shade) and the strips beside the frame are dimmed a little.
+        static readonly Color[] Bevel = { new(0.08f, 0.05f, 0.02f), new(0.78f, 0.62f, 0.27f), new(0.92f, 0.80f, 0.45f), new(0.50f, 0.34f, 0.14f), new(0.36f, 0.24f, 0.10f), new(0.22f, 0.14f, 0.06f), new(0.08f, 0.05f, 0.02f) };
+        static readonly float[] BevelW = { 1.2f, 2.2f, 1.2f, 2.2f, 2.2f, 1.6f, 1.0f };      // total 11.6 units, from the outer edge inwards
+
+        void CloseSides()
+        {
+            float bTop = 425f - lines * LineH;
+            // dim the strips outside the frame (only visible on windows wider than 4:3)
+            var dim = new Color(0f, 0f, 0f, 0.38f);
+            DrawRect(new Rect2(-4000f, -2000f, 4000f - 39f, 5000f), dim);
+            DrawRect(new Rect2(678f, -2000f, 4000f, 5000f), dim);
+            // left edge: the head block and the bottom panel; right edge: the top plank and the bottom panel
+            Edge(-39f, -39f, 216f, true); Edge(-39f, bTop, 518f, true);
+            Edge(678f, -39f, 79f, false); Edge(678f, bTop, 518f, false);
+        }
+
+        void Edge(float x, float y0, float y1, bool left)
+        {
+            float o = 0f;
+            for (int i = 0; i < Bevel.Length; i++)
+            {
+                float w = BevelW[i], px = left ? x + o : x - o - w;
+                DrawRect(new Rect2(px, y0, w, y1 - y0), Bevel[i]);
+                o += w;
+            }
+            // a soft shadow cast outwards by the border
+            for (int k = 0; k < 5; k++)
+                DrawRect(new Rect2(left ? x - (k + 1) * 1.4f : x + k * 1.4f, y0, 1.4f, y1 - y0), new Color(0f, 0f, 0f, 0.30f * (1f - k / 5f)));
         }
     }
 
