@@ -38,6 +38,7 @@ public partial class NavigatorView : Control
     float heading, windAngle, windSpeed, shipSpeed, scale = 1f;
     float[] charge = { 1f, 1f, 1f, 1f }, damage = new float[4];
     bool[] hasGuns = { true, true, true, true };
+    GunCell[][]? cells;
     int chargePic = -1;
     bool notEnough;
     List<NavShip> ships = new();
@@ -77,6 +78,7 @@ public partial class NavigatorView : Control
     {
         heading = d.Heading; windAngle = d.WindTo; windSpeed = d.WindSpeed; shipSpeed = d.Speed;
         for (int i = 0; i < 4; i++) { charge[i] = d.Ready[i]; damage[i] = d.Damage[i]; hasGuns[i] = d.HasGuns[i]; }
+        cells = d.Cells;
         chargePic = d.NavCharge; notEnough = d.NotEnoughBalls;
         ships = d.NavShips;
         fireZone = d.FireZone; fireDir = d.FireDir; fireRange = d.FireRange;
@@ -194,9 +196,42 @@ public partial class NavigatorView : Control
         Rotated(GameAssets.Texture(Dir + "compass.tga"), c, s, s, -heading);
         // gun charge of the four sides: loaded arcs are green, the arc grows in red while loading, destroyed guns are grey
         var cannons = GameAssets.Texture(Dir + "indicators_cannons_reload.tga");
+        // one cell per gun of this ship: the ring band of the texture (radii 88.5..97.5 of 256) is cut into N equal cells along the arc
+        void GunCells(int i, float beg, float end)
+        {
+            var g = cells![i];
+            float r0 = 88.5f / 256f * s, r1 = 97.5f / 256f * s, rm = (r0 + r1) / 2f;
+            float a0 = beg * D2R, a1 = end * D2R, span = a1 - a0;
+            Vector2 P(float ang, float r) => c + new Vector2(MathF.Sin(ang), -MathF.Cos(ang)) * r;
+            void Band(float x0, float x1, Color col)
+            {
+                int k = Math.Max(1, (int)MathF.Ceiling(MathF.Abs(x1 - x0) / (4f * D2R)));
+                var poly = new List<Vector2>();
+                for (int j = 0; j <= k; j++) poly.Add(P(Lerp(x0, x1, j / (float)k), r1));
+                for (int j = k; j >= 0; j--) poly.Add(P(Lerp(x0, x1, j / (float)k), r0));
+                if (MathF.Abs(x1 - x0) * rm < 0.4f) return;
+                DrawColoredPolygon(poly.ToArray(), col);
+            }
+            Band(a0 - 0.01f, a1 + 0.01f, new Color(0.05f, 0.05f, 0.07f, 0.9f));          // dark backing: hides the fixed cells baked into the ring texture
+            int n = g.Length;
+            float cell = span / n, cellPx = MathF.Abs(cell) * rm;
+            float gap = cellPx >= 3.5f ? Math.Clamp(cellPx * 0.16f, 0.8f, 2.2f) : 0f;
+            float gapA = gap / rm * MathF.Sign(cell) / 2f;
+            for (int j = 0; j < n; j++)
+            {
+                Color col = g[j].State switch
+                {
+                    0 => new Color(0.12f, 0.82f, 0.2f),                                                          // loaded
+                    2 => new Color(0.32f, 0.32f, 0.34f),                                                         // destroyed / disabled
+                    _ => new Color(0.95f, 0.12f, 0.1f).Lerp(new Color(1f, 0.85f, 0.15f), Math.Clamp(g[j].Progress, 0f, 1f)),      // loading: red -> yellow
+                };
+                Band(a0 + cell * j + gapA, a0 + cell * (j + 1) - gapA, col);
+            }
+        }
         void Side4(int i, float beg, float end, bool reversed)
         {
             if (!hasGuns[i]) return;
+            if (cells != null && cells[i].Length > 0) { GunCells(i, beg, end); return; }
             float curDmg = Lerp(end * D2R, beg * D2R, damage[i]);
             float curChg = Lerp(beg * D2R, curDmg, Math.Clamp(charge[i], 0f, 1f));
             bool done = MathF.Abs(curChg - curDmg) < 1e-4f;

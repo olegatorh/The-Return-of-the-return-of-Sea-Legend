@@ -41,6 +41,7 @@ public sealed class HudData
     public float[] Ready = { 1f, 1f, 1f, 1f };     // bow, starboard, stern, port: 1 = loaded, < 1 = reloading
     public float[] Damage = new float[4];          // DamageRatio of the four sides (destroyed guns, grey arc)
     public bool[] HasGuns = { false, false, false, false };
+    public GunCell[][]? Cells;                     // per side (bow, starboard, stern, port) the state of every gun: the navigator ring draws one cell per gun
     public int Charge = -1;
     public int[] Ammo = new int[4];
     public string Action = "";

@@ -700,6 +700,7 @@ public partial class SeaView : Node3D
             }
         }
         if (sh?.Find("Cannons.Charge.Type", false)?.Value is { Length: > 0 } ct) d.Charge = (int)Conv.ParseFloatPrefix(ct);
+        d.Cells = HudGunCells(p);
         string[] goods = { "Balls", "Grapes", "Knippels", "Bombs" };
         for (int i = 0; i < 4; i++) d.Ammo[i] = (int)F(sh, "Cargo.Goods." + goods[i]);
         string act = it.Globals.TryGetValue("g_ActiveActionName", out var ga) ? Conv.ToStr(ga.Val) : "";

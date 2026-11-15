@@ -70,6 +70,9 @@ if ($Sea) {
         $a = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--sail=+1@705', '--move=1,0@900-1100', '--act@1500', '--shot-frame=1900')
         $fail += Invoke-Godot 'sea' $a 300 @('[sea] ship Blaze', '[sea] action: Moor', 'locations=1')
+        # navigator ring: one cell per gun of the player's ship (Lugger VML: 4+4 beam guns, 2 bow, 2 stern)
+        $hc = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--set=Characters[0].Ship.Type=18@305', '--call=SetBaseShipData(#Blaze)@306', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450', '--sail=+1@700', '--seapos=-681,-42,4.71@800', '--shot-frame=1500')
+        $fail += Invoke-Godot 'hudcells' $hc 300 @('[hud] cells: port 4 starboard 4 bow 2 stern 2')
         # sea -> world map -> back to the sea at the island (the tutorial deck scene the script starts on the first map visit is not reached before the shot)
         $b = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                '--sail=+1@700', '--seapos=-600,-101,4.71@800', '--ctl=BI_MapEnter@1000', '--act@1250', '--shot-frame=2000')
