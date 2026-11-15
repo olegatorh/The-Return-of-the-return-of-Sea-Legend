@@ -227,6 +227,7 @@ public partial class DialogView : Control
         if (link == null) return;
         string go = link.Get("go")?.Value ?? "";
         GD.Print($"[dialog] answer {index + 1} -> node '{go}'");
+        head.React(!DialogHead.IsNegative(go));
         Ent.Root.GetOrCreate("CurrentNode").Value = go;
         it.FireEvent("DialogEvent");
     }

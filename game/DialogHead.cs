@@ -110,9 +110,41 @@ public sealed partial class DialogHead : Control
     /// <summary>The NPC's voice plays: "dialog_all" (talking); when it ends back to "dialog_idle".</summary>
     public void SetSpeaking(bool on) { if (on != speaking) { speaking = on; Apply(); } }
 
-    void Apply()
+    // one-shot actions of the head file: "yes4" / "no4" when the player picks an answer, "dialog_stay2..5" as idle variety (all have the mood variants too)
+    bool oneShot;
+    float stayIn = 6f;
+    static readonly Random rnd = new();
+
+    /// <summary>The player picked an answer: the head nods (yes4) or shakes (no4) once, then goes back to the idle / talking loop.</summary>
+    public void React(bool yes)
     {
         if (rig == null) return;
+        string baseName = yes ? "yes4" : "no4";
+        if (PlayOnce(baseName)) stayIn = 6f + (float)rnd.NextDouble() * 4f;
+    }
+
+    bool PlayOnce(string baseName)
+    {
+        if (rig == null) return false;
+        string want = mood == "normal" ? baseName : baseName + "_" + mood;
+        if (!rig.Play(want, false, true) && !rig.Play(baseName, false, true)) return false;
+        oneShot = true; action = want;
+        GD.Print($"[dialog] head action {want}");
+        return true;
+    }
+
+    /// <summary>Does the answer end or refuse the talk (node names like exit / no / end / bye)? Then the head shakes, else it nods.</summary>
+    public static bool IsNegative(string go)
+    {
+        // whole words of the node name only ("node_2" must not count as "no")
+        foreach (var w in System.Text.RegularExpressions.Regex.Split((go ?? "").ToLowerInvariant(), "[^a-z]+"))
+            if (w is "exit" or "end" or "bye" or "leave" or "refuse" or "decline" or "cancel" or "reject" or "no" or "nothing" or "nomoney" or "deny" or "close") return true;
+        return false;
+    }
+
+    void Apply()
+    {
+        if (rig == null || oneShot) return;
         string baseName = speaking ? "dialog_all" : "dialog_idle";
         string want = mood == "normal" ? baseName : baseName + "_" + mood;
         if (want == action) return;
@@ -124,5 +156,12 @@ public sealed partial class DialogHead : Control
     {
         // the head's own frame: keep the camera aspect equal to the window's (115 : 157)
         cam.Fov = Mathf.RadToDeg(ViewAngle) * 1.12f;
+        if (rig == null) return;
+        if (oneShot && rig.Finished) { oneShot = false; action = ""; Apply(); }
+        else if (!oneShot && !speaking)
+        {
+            stayIn -= (float)delta;
+            if (stayIn <= 0f) { stayIn = 6f + (float)rnd.NextDouble() * 5f; PlayOnce("dialog_stay" + (2 + rnd.Next(4))); }
+        }
     }
 }
