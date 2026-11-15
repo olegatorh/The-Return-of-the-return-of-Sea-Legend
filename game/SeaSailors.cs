@@ -24,6 +24,7 @@ public partial class SeaView
     static readonly string[] SailorModels = ["Lo_Man_1", "Lo_Man_2", "Lo_Man_3", "Lo_Man_1", "Lo_Man_2", "Lo_Man_Kamzol_1", "Lo_Man_Kamzol_2", "Lo_Man_Kamzol_3"];
     // full-detail bodies (512 px textures) instead of the original low-poly "Lo_Man" men (256 px): they play the man.ani clips under the Lo_Man names the walk logic uses
     static readonly bool LowSailors = System.Environment.GetEnvironmentVariable("SEADOGS_LOWSAILORS") != null;
+    static readonly string[] SkeletonModels = ["Skel1", "Skel2", "Skel3", "Skel4", "Skelt"];
     static readonly string[] HiSailorModels = ["Sailor1", "Sailor2", "Sailor3", "Sailor4", "Sailor5", "Sailor6", "Sailor1", "Sailor3"];
     static readonly Dictionary<string, string> LoToMan = new()
     {
@@ -134,8 +135,9 @@ public partial class SeaView
         var free = usable.OrderBy(_ => sailorRnd.Next()).ToList();
         for (int k = 0; k < n && k < free.Count; k++)
         {
-            var rig = LowSailors ? CharacterRig.Create(SailorModels[sailorRnd.Next(SailorModels.Length)], "Lo_Man", null, "Lowcharacters") : CharacterRig.Create(HiSailorModels[sailorRnd.Next(HiSailorModels.Length)], "man", null);
-            if (rig != null && !LowSailors) rig.Alias = LoToMan;
+            bool skel = F(ship.Chr, "SkeletonCrew", 0f) != 0f;                  // debug / cursed crew (the Black Pearl): bare skeletons walk the deck
+            var rig = skel ? CharacterRig.Create(SkeletonModels[sailorRnd.Next(SkeletonModels.Length)], "man", null) : LowSailors ? CharacterRig.Create(SailorModels[sailorRnd.Next(SailorModels.Length)], "Lo_Man", null, "Lowcharacters") : CharacterRig.Create(HiSailorModels[sailorRnd.Next(HiSailorModels.Length)], "man", null);
+            if (rig != null && (skel || !LowSailors)) rig.Alias = LoToMan;
             if (rig == null) break;
             var s = new Sailor { Rig = rig, At = free[k], To = free[k], Wait = (float)sailorRnd.NextDouble() * 3f, Yaw = (float)(sailorRnd.NextDouble() * Math.Tau) };
             deck.Root.AddChild(rig);
