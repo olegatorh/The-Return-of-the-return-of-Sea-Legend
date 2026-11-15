@@ -203,6 +203,7 @@ public partial class Main : Node
         WeatherFx.RepickSeconds = Math.Max(0f, Cfg("WeatherRepickSeconds", "SEADOGS_WXSEC", 240f));
         seaClockStep = Math.Max(0.05f, Cfg("SeaClockStep", "SEADOGS_CLOCKSTEP", 8f));
         if (gs?.Get("HitStop") is { } hsv && float.TryParse(hsv.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var hsm)) CharacterView.HitStopMs = Math.Clamp(hsm, 0f, 200f);          // settings.ini [game] HitStop = ms of the fighters freeze on a landed blow (0 = off)
+        CharacterView.LoadComfort(gs);          // settings.ini [game] AutoAim / InputBuffer
         if (gs?.Get("WaterShader") is { } wsh) SeaSurface.Boujie = !wsh.Trim().Equals("classic", StringComparison.OrdinalIgnoreCase);
         if (System.Environment.GetEnvironmentVariable("SEADOGS_WATER") is { } wenv) SeaSurface.Boujie = !wenv.Equals("classic", StringComparison.OrdinalIgnoreCase);
         if (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_WAVESCALE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var wse)) SeaWaves.WaveScale = Math.Clamp(wse, 0.3f, 3f);       // tests: fixed sea state

@@ -987,7 +987,7 @@ void fragment() {
         // player: keyboard control while the script lets the player act (the engine's "special mode": turn to the wanted direction and walk forward)
         if (IsPlayer && !ScriptControlled && task is Task.Stay or Task.None)
         {
-            if (TurnAdd != 0f) { Turn(ay + Math.Clamp(TurnAdd, -0.3f, 0.3f)); TurnAdd = 0f; }     // Player::Rotate: a = rotate * 0.01, at most 0.3 rad ahead of the heading
+            if (TurnAdd != 0f) { Turn(ay + Math.Clamp(TurnAdd, -0.3f, 0.3f)); TurnAdd = 0f; NoteManualTurn(); }     // Player::Rotate: a = rotate * 0.01, at most 0.3 rad ahead of the heading
             if (Classic)
             {
                 if (MathF.Abs(Input.Y) > 0.01f)
@@ -995,7 +995,7 @@ void fragment() {
                     isBack = Input.Y < 0f; isMove = true; pushMove = true; wantRun = Run;
                     PlayMove((isBack ? "back " : "") + (Run ? "run" : "walk"));
                 }
-                else PlayIdle();
+                else { PlayIdle(); SoftLockOn(dt); }
             }
             else if (Input.LengthSquared() > 0.01f)
             {
@@ -1008,7 +1008,7 @@ void fragment() {
                 isMove = true; pushMove = true; wantRun = Run;
                 PlayMove(Run ? "run" : "walk");
             }
-            else { PlayIdle(); if (TurnAdd == 0f) SoftLockOn(dt); }
+            else { PlayIdle(); SoftLockOn(dt); }
             Locomote(dt);
             Apply();
             return;
@@ -1310,7 +1310,7 @@ void fragment() {
         {
             queuedUntil -= dt;
             if (queuedUntil <= 0f || (q.enemy != null && !q.enemy.IsAlive)) queuedSwing = null;
-            else if (atkCooldown <= 0f && atkHitIn < 0f) { queuedSwing = null; StartSwing(q.enemy, q.kind); }
+            else if (atkCooldown <= 0f && atkHitIn < 0f) { queuedSwing = null; StartSwing(BufferedTarget(q.enemy), q.kind); }
         }
         if (!strikeNow)
         {
@@ -1405,7 +1405,7 @@ void fragment() {
         if (atkCooldown > 0f || atkHitIn >= 0f || Stunned)
         {
             // the hero's click in the last quarter second of the running action is buffered and carried out right after it (comfort of the port)
-            if (IsPlayer && !Stunned && atkCooldown <= InputBufferSeconds) { queuedSwing = (enemy, kind); queuedUntil = InputBufferSeconds; }
+            if (IsPlayer && !Stunned && InputBufferOn && atkCooldown <= InputBufferSeconds) { queuedSwing = (enemy, kind); queuedUntil = InputBufferSeconds; if (MeleeLog) GD.Print("[buffer] blow buffered, " + (atkCooldown * 1000f).ToString("0") + " ms before the end"); }
             return false;
         }
         if (enemy != null && !IsPlayer) ay = Angle(enemy.x - x, enemy.z - z);          // no enemy in reach: the blow is struck at the air in the current heading (the hero eases round to his target, see TickSwing)

@@ -284,6 +284,32 @@ if ($Sea) {
                 '--call=LAi_group_FightGroups(player,TestB,1)@420', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--call=LAi_SetHP(#Jakob+Nickerson,900,900)@432', '--bring=Jakob_Nickerson:2@600', '--key=E@460',
                 '--btn=L+@1200', '--btn=L-@2000', '--shot-frame=2300')
         $fail += Invoke-Godot 'heropress' $hpr 200 @('[press] ')
+        # soft aim assist + input buffer (game\CombatLockOn.cs): the idle hero with the sword out eases round to an enemy within ~45 degrees (3 rad/s), does nothing for one outside the cone or without the sword;
+        # blows pressed in the last 0.25 s of the running action are buffered (one slot) and carried out right after it. SEADOGS_LOCKTURN=frame:degrees turns the hero off his heading at that frame.
+        $lk = @('--ctl=Quick_Load@200', '--goto=goto.goto2@300', '--call=ChangeCharacterAddressGroup(#Jakob+Nickerson,QC_port,goto,goto1)@380', '--call=LAi_SetStayType(#Jakob+Nickerson)@400', '--call=LAi_group_MoveCharacter(#Jakob+Nickerson,TestB)@410',
+                '--call=LAi_group_FightGroups(player,TestB,1)@420', '--set=Characters[0].chr_ai.hp=900@431', '--set=Characters[0].chr_ai.hp_max=900@431', '--call=LAi_SetHP(#Jakob+Nickerson,9000,9000)@432', '--bring=Jakob_Nickerson:2.0@600')
+        $env:SEADOGS_MELEELOG = '1'
+        $env:SEADOGS_LOCKTURN = '700:30'
+        $fail += Invoke-Godot 'lockon' ($lk + @('--key=E@460', '--shot-frame=900')) 200 @('[lockon] f7')
+        if (Test-Path "$root\game\smoke_lockon.log") {
+            $lt = Get-Content "$root\game\smoke_lockon.log" -Encoding UTF8 | Where-Object { $_ -match '^\[lockon\] f(7\d\d) ' }
+            $ok = ($lt | Where-Object { $_ -match 'err -30\.0' }) -and ($lt | Where-Object { $_ -match 'aligned' })
+            if ($ok) { Say 'lockon ok: a hero 30 degrees off his target is back on it within a few frames' 'Green' } else { Write-Host '[lockon] the hero was not turned back to the enemy 30 degrees off his heading' -ForegroundColor Red; $fail += 1 }
+        }
+        $env:SEADOGS_LOCKTURN = '700:75'
+        $fail += Invoke-Godot 'lockon_far' ($lk + @('--key=E@460', '--shot-frame=900')) 200 @('[melee]')
+        if (Test-Path "$root\game\smoke_lockon_far.log") {
+            $far = Get-Content "$root\game\smoke_lockon_far.log" -Encoding UTF8 | Where-Object { $_ -match '^\[lockon\] f([7-9]\d\d) ' -and [int]$matches[1] -gt 705 }
+            if ($far) { Write-Host '[lockon_far] the aim assist grabbed an enemy outside the cone' -ForegroundColor Red; $fail += 1 } else { Say 'lockon_far ok: an enemy 75 degrees off the heading is left alone' 'Green' }
+        }
+        Remove-Item Env:SEADOGS_LOCKTURN
+        $fail += Invoke-Godot 'lockon_nosword' ($lk + @('--shot-frame=900')) 200 @('[melee]')
+        if (Test-Path "$root\game\smoke_lockon_nosword.log") {
+            if (Select-String -Path "$root\game\smoke_lockon_nosword.log" -Pattern '^\[lockon\] f') { Write-Host '[lockon_nosword] the aim assist worked with the sword in the sheath' -ForegroundColor Red; $fail += 1 } else { Say 'lockon_nosword ok' 'Green' }
+        }
+        $sw = 640..1400 | Where-Object { $_ % 12 -eq 0 } | ForEach-Object { "--swing@$_" }
+        $fail += Invoke-Godot 'lockon_buffer' ($lk + @('--key=E@460') + $sw + @('--shot-frame=1500')) 200 @('[buffer] blow buffered')
+        Remove-Item Env:SEADOGS_MELEELOG
         if (Test-Path "$root\game\smoke_heropress.log") {
             $lg = Get-Content "$root\game\smoke_heropress.log" -Encoding UTF8
             $pr = $lg | Select-String '^\[press\] t=(\d+)' | ForEach-Object { [int]$_.Matches[0].Groups[1].Value } | Select-Object -First 1
