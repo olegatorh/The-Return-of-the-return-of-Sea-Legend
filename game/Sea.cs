@@ -29,6 +29,7 @@ public partial class SeaView : Node3D
         public Node3D Node = null!;
         public float Sail;                 // 0, 0.5, 1
         public float Speed, TurnRate, Drift;      // current forward speed, yaw rate and sideways slide
+        public float MaxHp;                       // the hull points the ship was first seen with (AI partial salvo: finishing a weak enemy)
         public float X, Z, Ay;
         public float ParamTimer, AvoidT, AvoidOff;
         public bool IsPlayer, Aground, Dying;
@@ -699,8 +700,8 @@ public partial class SeaView : Node3D
                 d.Damage[i] = 1f - (float)(gs.Count(g => !g.Damaged) + gs.Count(g => g.Damage >= 2f)) / gs.Count;
             }
         }
-        if (sh?.Find("Cannons.Charge.Type", false)?.Value is { Length: > 0 } ct) d.Charge = (int)Conv.ParseFloatPrefix(ct);
         d.Cells = HudGunCells(p);
+        if (sh?.Find("Cannons.Charge.Type", false)?.Value is { Length: > 0 } ct) d.Charge = (int)Conv.ParseFloatPrefix(ct);
         string[] goods = { "Balls", "Grapes", "Knippels", "Bombs" };
         for (int i = 0; i < 4; i++) d.Ammo[i] = (int)F(sh, "Cargo.Goods." + goods[i]);
         string act = it.Globals.TryGetValue("g_ActiveActionName", out var ga) ? Conv.ToStr(ga.Val) : "";

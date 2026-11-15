@@ -379,6 +379,25 @@ if ($Sea) {
         $env:SEADOGS_PARTIALFIRE = '0.4'; $env:SEADOGS_PLAYERHP = '9000'
         $fail += Invoke-Godot 'partialfire' $pf 400 @('[guns]', 'reload restarts for these')
         Remove-Item Env:SEADOGS_PARTIALFIRE
+        # AI partial salvos (SeaCombat.cs AiPartialWorthIt): the French ships' starboard bort is set to 50 % charge by the hook; they fire the charged part (log '[guns] ... AI fired K of N
+        # charged guns (reason: ...)') without waiting for the whole bort. Control 1: the base threshold 1.0 and a 20 % bort: no salvo for the share alone (only by a reason such as leaving
+        # the sector / close range); control 2: AIPartialFire off = the original rule, no partial AI salvo at all
+        $ai = $c[0..($c.Count - 4)] + @('--shot-frame=3600')
+        $env:SEADOGS_PLAYERHP = '9000'
+        $env:SEADOGS_AIPARTIAL = '0.5'
+        $fail += Invoke-Godot 'aipartial' $ai 400 @('AI fired', 'reason: charged')
+        $env:SEADOGS_AIPARTIAL = '0.2'; $env:SEADOGS_AIPARTIALMIN = '1'
+        $fail += Invoke-Godot 'aipartial_wait' $ai 400 @('test hook: ')
+        if (Test-Path "$root\game\smoke_aipartial_wait.log") {
+            if (Select-String -Path "$root\game\smoke_aipartial_wait.log" -Pattern 'reason: charged') { Write-Host '[aipartial_wait] a thin bort fired for the charge share alone' -ForegroundColor Red; $fail += 1 } else { Say 'aipartial_wait ok: no salvo for the share alone' 'Green' }
+        }
+        Remove-Item Env:SEADOGS_AIPARTIALMIN
+        $env:SEADOGS_AIPARTIALFIRE = '0'; $env:SEADOGS_AIPARTIAL = '0.5'
+        $fail += Invoke-Godot 'aipartial_off' $ai 400 @('test hook: ')
+        if (Test-Path "$root\game\smoke_aipartial_off.log") {
+            if (Select-String -Path "$root\game\smoke_aipartial_off.log" -Pattern 'AI fired') { Write-Host '[aipartial_off] AIPartialFire=0 still fired a partial salvo' -ForegroundColor Red; $fail += 1 } else { Say 'aipartial_off ok: only full salvos' 'Green' }
+        }
+        Remove-Item Env:SEADOGS_AIPARTIAL, Env:SEADOGS_AIPARTIALFIRE
         $env:SEADOGS_PLAYERHP = '9000'   # the French squadron now hits as the original does: keep the test ship afloat
         $fail += Invoke-Godot 'fight' $c 400 @('fires 4 cannons', 'hit on CapitanFF01', 'fort FalaiseDeFleur Commander: 38 cannons')
         # relations: France is made neutral (UpdateRelations -> AI_MESSAGE_UPDATE_RELATIONS), the squadron a trade group (AI_MESSAGE_GROUP_SET_TYPE); our broadside

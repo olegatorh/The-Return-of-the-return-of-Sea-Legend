@@ -166,7 +166,7 @@ public partial class SeaView
     /// that can be loaded (CANNON_LOAD) fires after its own script delay (CANNON_GET_FIRE_TIME, AICannon::Fire) at the elevation that reaches the point
     /// (AICannon::RealFire / CalcHeightFireAngle). Reload is per bort here (the original reloads each cannon; the ammunition counts are the same).
     /// </summary>
-    void FireBort(ShipRt s, string bort, Vector3 target, bool partial = false)
+    void FireBort(ShipRt s, string bort, Vector3 target, bool partial = false, string? aiReason = null)
     {
         var sh = s.Chr.Find("Ship", false);
         if (sh == null) return;
@@ -197,7 +197,7 @@ public partial class SeaView
             shots.Add((clock + delay, g.Pos, cdir, HeightFireAngle(v0, cp, target), g));
         }
         int fired = shots.Count;
-        if (partial) GD.Print($"[guns] {s.Chr.Get("id")?.Value} {bort}: fired {fired} of {chargedBefore} charged guns ({guns.Count(g => !g.Damaged)} intact); reload restarts for these {fired} only, the others keep their progress");
+        if (partial) GD.Print($"[guns] {s.Chr.Get("id")?.Value} {bort}: {(aiReason != null ? "AI " : "")}fired {fired} of {chargedBefore} charged guns ({guns.Count(g => !g.Damaged)} intact){(aiReason != null ? $" (reason: {aiReason})" : "")}; reload restarts for these {fired} only, the others keep their progress");
         if (fired == 0) return;                                                            // the HUD learns it from SHIP_NOT_ENOUGH_BALLS (TickCombat)
         float dist = MathF.Sqrt((target.X - s.X) * (target.X - s.X) + (target.Z - s.Z) * (target.Z - s.Z));
         GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), delays {shots.Min(q => q.at - clock):0.0}-{shots.Max(q => q.at - clock):0.0} s, {guns.Count(g => g.Damaged)} damaged");
@@ -257,6 +257,81 @@ public partial class SeaView
 
     float BallSpeedMultiply() => it.Globals.TryGetValue("AIBalls", out var g) && g.Val.Attr?.Get("SpeedMultiply")?.Value is { Length: > 0 } m ? Math.Max(0.1f, Conv.ParseFloatPrefix(m)) : 1f;
 
+    // ------------------------------------------------------------------ AI partial salvos
+    /// <summary>settings.ini [game] AIPartialFire (1 = AI ships may fire the charged part of a bort when it pays; 0 = only a fully charged bort, the original rule),
+    /// AIPartialMinReady (the base share of the bort's guns that must be charged, default 0.4).</summary>
+    public static bool AiPartialFire = true;
+    public static float AiPartialMinReady = 0.4f;
+    const float AiPartialInterval = 1.25f, AiSectorHalfWidth = 0.5f;
+    readonly Dictionary<(ShipRt, string), float> aiLastPartial = new();
+    readonly HashSet<(ShipRt, string)> aiHooked = new();
+
+    public static void LoadAiGunSettings(IniFile.Section? gs)
+    {
+        AiPartialFire = !(gs?.Get("AIPartialFire")?.Trim() is { } v && (v == "0" || v.Equals("off", StringComparison.OrdinalIgnoreCase)));
+        if (float.TryParse(gs?.Get("AIPartialMinReady")?.Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m)) AiPartialMinReady = Math.Clamp(m, 0.05f, 1f);
+        if (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_AIPARTIALMIN"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var me)) AiPartialMinReady = Math.Clamp(me, 0.05f, 1f);
+        if (System.Environment.GetEnvironmentVariable("SEADOGS_AIPARTIALFIRE") is { } ev) AiPartialFire = ev != "0";
+    }
+
+    /// <summary>Test hook SEADOGS_AIPARTIAL=fraction: the first time an AI ship is about to fire a bort, every loaded gun of it is set to that share of its reload (a partly charged bort).</summary>
+    void AiTestHookCharge(ShipRt s, string bort)
+    {
+        if (!float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_AIPARTIAL"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr)) return;
+        if (!aiHooked.Add((s, bort))) return;
+        foreach (var g in GunsOf(s).Where(g => g.Bort == bort && g.Loaded && !g.Damaged && !g.Fired)) { g.Recharging = true; g.Time = g.Total * (1f - fr); }
+        GD.Print($"[guns] test hook: {s.Chr.Get("id")?.Value} {bort} set to {fr:0.00} charged");
+    }
+
+    /// <summary>
+    /// Is a partial salvo of this AI ship's bort worth firing now (the bort is not fully charged, at least one charged gun reaches the aim point)? The decision of WHO shoots at
+    /// WHOM stays with the script and the controller; this only chooses the moment among the charged guns, so a ship does not hold fire while a good shot passes:
+    ///  * the charged share of the bort must reach a threshold, AIPartialMinReady (0.4) at rest, lowered when waiting costs more than a thin salvo:
+    ///    the target leaves the firing sector before the bort would be charged (0.15, "leaving sector"), the range is short (0.25, "close range"), the enemy is nearly beaten
+    ///    (hull under a quarter, 0.15, "finishing"), our own crew morale is low (0.25, "low morale");
+    ///  * at least 2 guns unless the target is leaving or nearly beaten (no single balls at a target that stays), and a bort fires at most every 1.25 s.
+    /// </summary>
+    bool AiPartialWorthIt(ShipRt s, ShipRt tgt, string bort, Vector3 aim, float v0, float dist, float rel, out string reason)
+    {
+        reason = "";
+        var guns = GunsOf(s).Where(g => g.Bort == bort && !g.Damaged).ToList();
+        if (guns.Count == 0) return false;
+        var chosen = PartialFireGuns(s, bort, aim, v0, true);                                // the charged guns that really reach the aim point (the same test the shot uses)
+        if (chosen.Count == 0) return false;
+        if (aiLastPartial.TryGetValue((s, bort), out var last) && clock - last < AiPartialInterval) return false;
+        float share = PartialFireCount(s, bort) / (float)guns.Count;
+        // time until the target leaves the sector (rate of the bearing against the ship's heading) against the time until the bort is fully charged
+        float vsx = MathF.Sin(s.Ay) * s.Speed * KnotsToMs, vsz = MathF.Cos(s.Ay) * s.Speed * KnotsToMs;
+        float vtx = MathF.Sin(tgt.Ay) * tgt.Speed * KnotsToMs, vtz = MathF.Cos(tgt.Ay) * tgt.Speed * KnotsToMs;
+        float dx = tgt.X - s.X, dz = tgt.Z - s.Z, d2 = Math.Max(1f, dx * dx + dz * dz);
+        float bearingRate = (dz * (vtx - vsx) - dx * (vtz - vsz)) / d2;                      // d/dt atan2(dx, dz)
+        float relRate = bearingRate - s.TurnRate;
+        float dev = MathF.Abs(rel) - MathF.PI / 2, devRate = MathF.Sign(rel) * relRate;     // distance from the beam line and its change
+        float tExit = MathF.Abs(devRate) < 1e-4f ? float.MaxValue : ((devRate > 0f ? AiSectorHalfWidth - dev : AiSectorHalfWidth + dev) / MathF.Abs(devRate));
+        float tFull = guns.Where(g => g.Loaded && g.Recharging).Select(g => g.Time).DefaultIfEmpty(0f).Max();
+        bool leaving = tExit + 1f < tFull;                                                    // waiting for the full charge would cost the shot (at least a second of margin)
+        float th = AiPartialMinReady;
+        reason = $"charged {share:0.00} >= {th:0.00}";
+        if (leaving && th > 0.15f) { th = 0.15f; reason = $"leaving sector in {tExit:0.0} s, bort full in {tFull:0.0} s"; }
+        bool beaten = TargetWeak(tgt);
+        if (beaten && th > 0.15f) { th = 0.15f; reason = "finishing a weak enemy"; }
+        if (dist < 120f && th > 0.25f) { th = 0.25f; reason = $"close range {dist:0} m"; }
+        if (F(s.Chr.Find("Ship", false), "Crew.Morale", 100f) < 40f && th > 0.25f) { th = 0.25f; reason = "low morale, returning fire"; }
+        if (share < th) return false;
+        if (chosen.Count < 2 && !leaving && !beaten) return false;
+        return true;
+    }
+
+    /// <summary>The enemy hull is under a quarter of the value it was first seen with.</summary>
+    bool TargetWeak(ShipRt t)
+    {
+        var sh = t.Chr.Find("Ship", false);
+        if (sh == null) return false;
+        float hp = F(sh, "HP");
+        if (t.MaxHp <= 0f) t.MaxHp = Math.Max(hp, 1f);
+        return hp < t.MaxHp * 0.25f;
+    }
+
     void TickCombat(float dt)
     {
         clock += dt;
@@ -284,14 +359,20 @@ public partial class SeaView
             while (rel < -MathF.PI) rel += MathF.Tau;
             if (MathF.Abs(MathF.Abs(rel) - MathF.PI / 2) >= 0.5f) continue;
             string bort = rel > 0 ? "cannonr" : "cannonl";
-            if (!BortCharged(s, bort)) continue;
+            AiTestHookCharge(s, bort);
+            bool full = BortCharged(s, bort);
+            if (!full && !(AiPartialFire && PartialFireCount(s, bort) >= 1)) continue;
             // AIShipCannonController::Fire(AIShip*): aim height from the script (CANNON_GET_FIRE_HEIGHT), the target led by its speed over the flight
             // and the fire delay (CANNON_GET_FIRE_TIME)
             float h = Conv.ToFloat(it.FireEvent("CannGFHeight", new List<V> { V.A(s.Chr), V.A(tgt.Chr) }));
             float ft = Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) }));
             float v0 = Math.Max(10f, F(s.Chr.Find("Ship", false), "Cannons.SpeedV0", 50f));
             float lead = tgt.Speed * (1853f / 3600f) * (d / (v0 * BallSpeedMultiply()) + ft);         // knots -> m/s; the ball flies SpeedMultiply x faster
-            FireBort(s, bort, new Vector3(tgt.X + MathF.Sin(tgt.Ay) * lead, h, tgt.Z + MathF.Cos(tgt.Ay) * lead));
+            var aim = new Vector3(tgt.X + MathF.Sin(tgt.Ay) * lead, h, tgt.Z + MathF.Cos(tgt.Ay) * lead);
+            if (full) { FireBort(s, bort, aim); continue; }                                           // the whole bort is charged: the original salvo, unchanged
+            if (!AiPartialWorthIt(s, tgt, bort, aim, v0, d, rel, out var reason)) continue;
+            aiLastPartial[(s, bort)] = clock;
+            FireBort(s, bort, aim, true, reason);
         }
         TickNotEnoughBalls();
         // flight: AIBalls::Execute advances the ball time by dt x AIBalls.SpeedMultiply (AIBalls.c: 3), the trajectory is the real one

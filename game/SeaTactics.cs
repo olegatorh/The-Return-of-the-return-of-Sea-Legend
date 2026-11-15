@@ -57,7 +57,7 @@ public partial class SeaView
         float bestTurn = float.MaxValue, bestAy = want;
         foreach (var bort in s.Cannons.Select(c => c.bort).Distinct())
         {
-            if (!BortCharged(s, bort)) continue;
+            if (!BortCharged(s, bort) && !(AiPartialFire && PartialFireCount(s, bort) >= Math.Max(1, (int)MathF.Ceiling(AiPartialMinReady * IntactGuns(s, bort))))) continue;     // a bort with the base share charged also turns to the target (it will fire a partial salvo)
             float h = GunsOf(s).Where(g => g.Bort == bort).Average(g => g.Pos.Y);
             float range = MaxFireDistance(h, v0, ang);
             if (d > range - zapas) continue;
