@@ -113,5 +113,6 @@ this game remain the specification; use the C++ for formulas, constants, timings
 ## Status
 Not kept here (a hand-written list in this file went stale). Current sources, in this order:
 * **`docs/HANDOFF.md`**: where the last work stopped and what to resume first.
+* **`docs/CHANGES_FROM_ORIGINAL.md`**: every deliberate difference of the port from the original game (what the original did, what the port does and how, where in the code, how to switch it off, how verified), plus known open differences. Update it with every change that departs from the original.
 * **`docs/STATUS.md`** (generated) and **`docs/PROGRESS.md`**: every subsystem with its layer and accuracy; weak spots.
 * **`docs/ROADMAP.md`**: what to do next. `README.md`: the long log of discoveries.

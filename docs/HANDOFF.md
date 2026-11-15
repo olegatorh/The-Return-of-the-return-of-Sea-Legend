@@ -1,5 +1,7 @@
 # Where we stopped (handoff, 2026-11-06)
 
+> **2026-11-15:** all deliberate differences from the original (combat, controls, saving, sea water/sky/islands, sea fight and HUD, ships' sails/ropes/crew, weather, locations, dialog window, interface) are collected in [`docs/CHANGES_FROM_ORIGINAL.md`](CHANGES_FROM_ORIGINAL.md), with switches (settings.ini keys, `SEADOGS_*` variables) and the list of known open differences. Keep it up to date.
+
 > **Update 2026-11-11:** the controls hooks/docs listed below as "uncommitted" (`--mousemove`, `--btn`) are in git now (commit 6fa8753: also the tests draw the
 > sword with E, the original ChrFightMode key, instead of F — the probable cause of the failing `melee` / `meleehero` / `drawrun`), so next step 2 is done.
 > The four failing scenarios (step 1) are being re-run after the patch `sea-legend-changes.patch` was imported (Characters/Groups refactor into unit-tested `CharacterMath` / `GroupRelations`, +272 polished Ukrainian lines, docs split: `docs/TESTING.md`, `AGENTS.md`).
