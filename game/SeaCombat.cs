@@ -94,7 +94,7 @@ public partial class SeaView
         // test hook SEADOGS_PARTIALFIRE=fraction: the first call sets every gun of the bort to that share of its reload, and the salvo is partial
         if (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_PARTIALFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf))
         {
-            if (!partialSet) { partialSet = true; foreach (var g in GunsOf(p).Where(g => g.Bort == nb && !g.Damaged && g.Loaded)) { g.Recharging = true; g.Time = g.Total * (1f - pf); } }
+            if (!partialSet) { partialSet = true; SetTestCharge(GunsOf(p).Where(g => g.Bort == nb && !g.Damaged && g.Loaded).ToList(), pf); }
             FireBort(p, nb, Dist(p, o), true);
         }
         else FireBort(p, nb, Dist(p, o));
@@ -102,6 +102,25 @@ public partial class SeaView
     }
 
     bool noSpreadOnce, partialSet;
+
+    /// <summary>
+    /// Test hook: puts the guns into a known charge state. SEADOGS_GUNMIX="1;0.99;0.5;0" gives the guns (in order, cyclically) that loading progress (1 = fully charged = green, anything below is
+    /// still loading and must not fire, -1 = a destroyed gun); without it the first <paramref name="share"/> of the guns are fully charged and the others are half loaded.
+    /// </summary>
+    static void SetTestCharge(List<Gun> guns, float share)
+    {
+        var mix = (System.Environment.GetEnvironmentVariable("SEADOGS_GUNMIX") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => float.TryParse(x, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0f).ToArray();
+        int ready = (int)MathF.Round(share * guns.Count);
+        for (int i = 0; i < guns.Count; i++)
+        {
+            float prog = mix.Length > 0 ? mix[i % mix.Length] : i < ready ? 1f : 0.5f;
+            var g = guns[i];
+            if (prog < 0f) { g.Damage = 1f; g.Recharging = false; g.Fired = false; }                  // -1 = destroyed: grey cell, no loading, never fires
+            else if (prog >= 1f) { g.Recharging = false; g.Time = 0f; }
+            else { g.Recharging = true; g.Time = g.Total * (1f - prog); }
+        }
+    }
     static float Dist(ShipRt a, ShipRt b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
 
     /// <summary>
@@ -171,7 +190,7 @@ public partial class SeaView
         var sh = s.Chr.Find("Ship", false);
         if (sh == null) return;
         var guns = GunsOf(s).Where(g => g.Bort == bort).ToList();
-        // the player's salvo does not wait for the whole bort: the guns fire in proportion to the charge (PartialFireGuns); the AI keeps the original rule (isCharged)
+        // the player's salvo does not wait for the whole bort: only the fully charged guns fire (PartialFireGuns); the AI keeps the original rule (isCharged)
         if (guns.Count == 0 || (!partial && !BortCharged(s, bort))) return;                // AISHIP_BORT::isCharged: every intact gun has finished loading
         bool enough = EnoughBalls(s, bort);
         float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
@@ -188,7 +207,7 @@ public partial class SeaView
         {
             if (g.Damaged) continue;
             g.CanRecharge = enough;
-            if (partial ? !chosen!.Contains(g) : !g.Ready) continue;                       // AICannon::Fire: empty / loading guns do not shoot (a partial salvo takes the most charged ones)
+            if (partial ? !chosen!.Contains(g) : !g.Ready) continue;                       // AICannon::Fire: empty / loading guns do not shoot (a partial salvo takes the fully charged ones only)
             var cp = BallStart(s, g.Pos);
             if (!GunReaches(s, g, bort, target, v0, false)) continue;                      // the target must be within ~72 degrees of the gun axis
             float cdir = MathF.Atan2(target.X - cp.X, target.Z - cp.Z);
@@ -279,7 +298,7 @@ public partial class SeaView
     {
         if (!float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_AIPARTIAL"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var fr)) return;
         if (!aiHooked.Add((s, bort))) return;
-        foreach (var g in GunsOf(s).Where(g => g.Bort == bort && g.Loaded && !g.Damaged && !g.Fired)) { g.Recharging = true; g.Time = g.Total * (1f - fr); }
+        SetTestCharge(GunsOf(s).Where(g => g.Bort == bort && g.Loaded && !g.Damaged && !g.Fired).ToList(), fr);
         GD.Print($"[guns] test hook: {s.Chr.Get("id")?.Value} {bort} set to {fr:0.00} charged");
     }
 

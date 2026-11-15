@@ -379,6 +379,10 @@ if ($Sea) {
         $env:SEADOGS_PARTIALFIRE = '0.4'; $env:SEADOGS_PLAYERHP = '9000'
         $fail += Invoke-Godot 'partialfire' $pf 400 @('[guns]', 'reload restarts for these')
         Remove-Item Env:SEADOGS_PARTIALFIRE
+        # gun mix: four guns with progress {1, 0.99, 0.5, destroyed}: only the fully charged one fires (a gun that is not green never shoots)
+        $env:SEADOGS_PARTIALFIRE = '0.25'; $env:SEADOGS_GUNMIX = '1;0.99;0.5;-1'
+        $fail += Invoke-Godot 'gunmix' $pf 400 @('fired 1 of 1 charged guns')
+        Remove-Item Env:SEADOGS_PARTIALFIRE, Env:SEADOGS_GUNMIX
         # AI partial salvos (SeaCombat.cs AiPartialWorthIt): the French ships' starboard bort is set to 50 % charge by the hook; they fire the charged part (log '[guns] ... AI fired K of N
         # charged guns (reason: ...)') without waiting for the whole bort. Control 1: the base threshold 1.0 and a 20 % bort: no salvo for the share alone (only by a reason such as leaving
         # the sector / close range); control 2: AIPartialFire off = the original rule, no partial AI salvo at all

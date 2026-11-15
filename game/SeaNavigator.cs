@@ -194,7 +194,7 @@ public partial class NavigatorView : Control
         var empty = GameAssets.Texture(Dir + "indicators_dark_and_center_ship.tga");
         if (empty != null) DrawTextureRect(empty, new Rect2(0, 0, s, s), false);
         Rotated(GameAssets.Texture(Dir + "compass.tga"), c, s, s, -heading);
-        // gun charge of the four sides: loaded arcs are green, the arc grows in red while loading, destroyed guns are grey
+        // gun charge of the four sides: one cell per gun - green loaded, red empty, yellow -> greenish yellow while loading, grey destroyed
         var cannons = GameAssets.Texture(Dir + "indicators_cannons_reload.tga");
         // one cell per gun of this ship: the ring band of the texture (radii 88.5..97.5 of 256) is cut into N equal cells along the arc
         void GunCells(int i, float beg, float end)
@@ -219,11 +219,12 @@ public partial class NavigatorView : Control
             float gapA = gap / rm * MathF.Sign(cell) / 2f;
             for (int j = 0; j < n; j++)
             {
+                // green = loaded (the only guns that can fire); red = empty / just fired; while loading the colour glides from yellow to a greenish yellow; destroyed = dark grey
                 Color col = g[j].State switch
                 {
-                    0 => new Color(0.12f, 0.82f, 0.2f),                                                          // loaded
-                    2 => new Color(0.32f, 0.32f, 0.34f),                                                         // destroyed / disabled
-                    _ => new Color(0.95f, 0.12f, 0.1f).Lerp(new Color(1f, 0.85f, 0.15f), Math.Clamp(g[j].Progress, 0f, 1f)),      // loading: red -> yellow
+                    0 => new Color(0.2f, 0.9f, 0.2f),
+                    2 => new Color(0.32f, 0.32f, 0.34f),
+                    _ => g[j].Progress < 0.03f ? new Color(0.95f, 0.15f, 0.1f) : new Color(0.95f, 0.85f, 0.1f).Lerp(new Color(0.75f, 0.9f, 0.15f), Math.Clamp(g[j].Progress, 0f, 1f)),
                 };
                 Band(a0 + cell * j + gapA, a0 + cell * (j + 1) - gapA, col);
             }

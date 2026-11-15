@@ -112,24 +112,14 @@ public partial class SeaView
     }
 
     /// <summary>
-    /// How many guns of the bort may fire now when the player fires at once without waiting for the whole bort: the bort's charge ratio (the mean progress of its loaded
-    /// guns, AISHIP_BORT::fChargePercent) times its intact guns, rounded down. 10 % charged = a tenth of the guns, the rest keep loading.
+    /// How many guns of the bort may fire now when the player (or the AI) fires without waiting for the whole bort: only the FULLY charged guns (Ready, the green cells of the ring).
+    /// A gun that is still loading never fires, whatever its progress; the rest keep loading and a fired gun starts again from 0.
     /// </summary>
-    int PartialFireCount(ShipRt s, string bort)
-    {
-        var live = GunsOf(s).Where(g => g.Bort == bort && !g.Damaged).ToList();
-        float sum = live.Where(g => g.Loaded && !g.Fired).Sum(g => g.Percent);
-        return (int)MathF.Floor(sum + 1e-3f);
-    }
+    int PartialFireCount(ShipRt s, string bort) => GunsOf(s).Count(g => g.Bort == bort && g.Ready);
 
-    /// <summary>The guns of the bort that would shoot at <paramref name="target"/> in a partial salvo: the most charged guns that reach it, as many as the charge allows.</summary>
+    /// <summary>The guns of the bort that would shoot at <paramref name="target"/> in a partial salvo: every fully charged gun that reaches it.</summary>
     List<Gun> PartialFireGuns(ShipRt s, string bort, Vector3 target, float v0, bool checkRange)
-    {
-        int k = PartialFireCount(s, bort);
-        if (k <= 0) return new List<Gun>();
-        return GunsOf(s).Where(g => g.Bort == bort && !g.Damaged && g.Loaded && !g.Fired && GunReaches(s, g, bort, target, v0, checkRange))
-            .OrderByDescending(g => g.Percent).Take(k).ToList();
-    }
+        => GunsOf(s).Where(g => g.Bort == bort && g.Ready && GunReaches(s, g, bort, target, v0, checkRange)).ToList();
 
     bool BortCharged(ShipRt s, string bort) => BortCharge(s, bort) >= 1f && GunsOf(s).Any(g => g.Bort == bort && g.Ready);
 
