@@ -370,6 +370,12 @@ if ($Sea) {
         $cm = @('--ctl=Quick_Load@200', '--call=initTutMainCharacterShip()@300', '--call=SetPlayerShipLocation(184)@320', '--goto=reload.reload1@400', '--ctl=ChrAction@450',
                 '--sail=+1@700', '--key=Enter@900', '--key=Key7@920', '--key=Key2@940', '--key=Enter@1000', '--key=Key8@1020', '--key=Key2@1040', '--key=Enter@1100', '--key=Key2@1120', '--shot-frame=1180')
         $fail += Invoke-Godot 'seacmds' $cm 300 @('[sea] commands of', 'BI_CommandEndChecking(BI_Charge) = 256', '[sea] command BI_Charge by 0, target 2', 'BI_CommandEndChecking(BI_Speed) = 512', "[sea] command BI_Speed by 0, target -1, 'sail_midi'", 'BI_CommandEndChecking(BI_SailTo)', '[sea] navigator island map')
+        # partial salvo: the guns of the bort are set to 40 % of their reload; fire shoots 40 % of them, the reload restarts for those only, and an immediate second salvo
+        # takes what the remaining guns have charged (the log line [guns] shows the counts)
+        $pf = $c[0..($c.Count - 4)] + @('--fire@2500', '--fire@2560', '--shot-frame=2700')
+        $env:SEADOGS_PARTIALFIRE = '0.4'; $env:SEADOGS_PLAYERHP = '9000'
+        $fail += Invoke-Godot 'partialfire' $pf 400 @('[guns]', 'reload restarts for these')
+        Remove-Item Env:SEADOGS_PARTIALFIRE
         $env:SEADOGS_PLAYERHP = '9000'   # the French squadron now hits as the original does: keep the test ship afloat
         $fail += Invoke-Godot 'fight' $c 400 @('fires 4 cannons', 'hit on CapitanFF01', 'fort FalaiseDeFleur Commander: 38 cannons')
         # relations: France is made neutral (UpdateRelations -> AI_MESSAGE_UPDATE_RELATIONS), the squadron a trade group (AI_MESSAGE_GROUP_SET_TYPE); our broadside

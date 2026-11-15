@@ -40,6 +40,16 @@ public partial class SeaView
     public void FirePlayer()
     {
         if (ships.FirstOrDefault(s => s.IsPlayer) is not { } p) return;
+        // deck camera (the one with the aim circle): AIShipCannonController::Fire(camPos, dir): every bort that covers the view direction fires at ITS aim point
+        // (the one the circle is drawn for), the guns of a bort that reach it shooting in proportion to their charge. Nothing fires when no gun reaches.
+        if (deckCam && !freeCam && HasPlayerShip && scopeT <= 0f)
+        {
+            var f = -Cam.GlobalTransform.Basis.Z;
+            var borts = AimBorts(p, new Vector3(f.X, f.Y, -f.Z)).Where(b => b.Reach > 0).ToList();
+            if (borts.Count == 0) { GD.Print("[guns] fire pressed: no gun reaches the aim point (the circle is white)"); return; }
+            foreach (var b in borts) FireBort(p, b.Bort, b.FirePos, true);
+            return;
+        }
         var fwd = -Cam.GlobalTransform.Basis.Z;                                    // Godot -> engine: z flips
         float aimAy = MathF.Atan2(fwd.X, -fwd.Z);
         float rel = aimAy - p.Ay;
@@ -63,7 +73,7 @@ public partial class SeaView
         var sh = p.Chr.Find("Ship", false);
         float h0 = p.Cannons.Count > 0 ? p.Cannons.Average(c => c.pos.Y) : 3f;
         dist = Math.Min(dist, MaxFireDistance(h0, range, F(sh, "Cannons.FireAngMax", 0.6f)));
-        FireBort(p, bort, dist);
+        FireBort(p, bort, dist, true);
     }
 
     /// <summary>
@@ -80,18 +90,45 @@ public partial class SeaView
         while (rel < -MathF.PI) rel += MathF.Tau;
         // the test hook aims without the gunner's spread (SHIP_GET_BORT_FIRE_DELTA) so the scenario hits every time; the per-ball dispersion stays
         noSpreadOnce = true;
-        FireBort(p, rel >= 0f ? "cannonr" : "cannonl", Dist(p, o));
+        string nb = rel >= 0f ? "cannonr" : "cannonl";
+        // test hook SEADOGS_PARTIALFIRE=fraction: the first call sets every gun of the bort to that share of its reload, and the salvo is partial
+        if (float.TryParse(System.Environment.GetEnvironmentVariable("SEADOGS_PARTIALFIRE"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var pf))
+        {
+            if (!partialSet) { partialSet = true; foreach (var g in GunsOf(p).Where(g => g.Bort == nb && !g.Damaged && g.Loaded)) { g.Recharging = true; g.Time = g.Total * (1f - pf); } }
+            FireBort(p, nb, Dist(p, o), true);
+        }
+        else FireBort(p, nb, Dist(p, o));
         noSpreadOnce = false;
     }
 
-    bool noSpreadOnce;
+    bool noSpreadOnce, partialSet;
     static float Dist(ShipRt a, ShipRt b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
 
+    /// <summary>
+    /// Can this gun send a ball to <paramref name="target"/>: the target within ~72 degrees of the gun axis (AICannon::Fire: dot product >= 0.3) and, with
+    /// <paramref name="checkRange"/>, within the range of the gun's height at the highest elevation and inside the elevation limits. The ONE test used by both the shot
+    /// (FireBort) and the aim circle (SeaAim), so the circle never promises a hit that the guns cannot make.
+    /// </summary>
+    bool GunReaches(ShipRt s, Gun g, string bort, Vector3 target, float v0, bool checkRange)
+    {
+        var cp = BallStart(s, g.Pos);
+        var toT = new Vector3(target.X - cp.X, target.Y - cp.Y, target.Z - cp.Z).Normalized();
+        float dir = BortDir(s, bort);
+        if (toT.X * MathF.Sin(dir) + toT.Z * MathF.Cos(dir) < 0.3f) return false;
+        if (!checkRange) return true;
+        var sh = s.Chr.Find("Ship", false);
+        float hd = MathF.Sqrt((target.X - cp.X) * (target.X - cp.X) + (target.Z - cp.Z) * (target.Z - cp.Z));
+        float aMin = F(sh, $"Cannons.Borts.{bort}.FireAngMin", F(sh, "Cannons.FireAngMin", -0.35f)), aMax = F(sh, $"Cannons.Borts.{bort}.FireAngMax", F(sh, "Cannons.FireAngMax", 0.6f));
+        if (hd > MaxFireDistance(cp.Y, v0, aMax) * 1.02f) return false;
+        float ang = HeightFireAngle(v0, cp, target);
+        return ang >= aMin - 0.03f && ang <= aMax + 0.03f;
+    }
+
     /// <summary>One broadside aimed at a point <paramref name="aimDist"/> metres away at water level in the direction of the bort.</summary>
-    void FireBort(ShipRt s, string bort, float aimDist)
+    void FireBort(ShipRt s, string bort, float aimDist, bool partial = false)
     {
         float dir = BortDir(s, bort);
-        FireBort(s, bort, new Vector3(s.X + MathF.Sin(dir) * aimDist, 0f, s.Z + MathF.Cos(dir) * aimDist));
+        FireBort(s, bort, new Vector3(s.X + MathF.Sin(dir) * aimDist, 0f, s.Z + MathF.Cos(dir) * aimDist), partial);
     }
 
     static float BortDir(ShipRt s, string bort) => bort switch
@@ -129,12 +166,13 @@ public partial class SeaView
     /// that can be loaded (CANNON_LOAD) fires after its own script delay (CANNON_GET_FIRE_TIME, AICannon::Fire) at the elevation that reaches the point
     /// (AICannon::RealFire / CalcHeightFireAngle). Reload is per bort here (the original reloads each cannon; the ammunition counts are the same).
     /// </summary>
-    void FireBort(ShipRt s, string bort, Vector3 target)
+    void FireBort(ShipRt s, string bort, Vector3 target, bool partial = false)
     {
         var sh = s.Chr.Find("Ship", false);
         if (sh == null) return;
         var guns = GunsOf(s).Where(g => g.Bort == bort).ToList();
-        if (guns.Count == 0 || !BortCharged(s, bort)) return;                              // AISHIP_BORT::isCharged: every intact gun has finished loading
+        // the player's salvo does not wait for the whole bort: the guns fire in proportion to the charge (PartialFireGuns); the AI keeps the original rule (isCharged)
+        if (guns.Count == 0 || (!partial && !BortCharged(s, bort))) return;                // AISHIP_BORT::isCharged: every intact gun has finished loading
         bool enough = EnoughBalls(s, bort);
         float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
         float rad = Conv.ToFloat(it.FireEvent("ShpGetBortFireDelta", new List<V> { V.A(s.Chr), V.Float(target.X), V.Float(target.Y), V.Float(target.Z) }));
@@ -144,20 +182,22 @@ public partial class SeaView
         var fdir = new Vector3(target.X - s.X, target.Y, target.Z - s.Z).Normalized();
         var axis = new Vector3(MathF.Sin(BortDir(s, bort)), 0f, MathF.Cos(BortDir(s, bort)));
         var shots = new List<(float at, Vector3 local, float dir, float elev, Gun gun)>();
+        int chargedBefore = partial ? PartialFireCount(s, bort) : 0;
+        var chosen = partial ? new HashSet<Gun>(PartialFireGuns(s, bort, target, v0, false)) : null;
         foreach (var g in guns)
         {
             if (g.Damaged) continue;
             g.CanRecharge = enough;
-            if (!g.Ready) continue;                                                        // AICannon::Fire: empty / loading guns do not shoot
+            if (partial ? !chosen!.Contains(g) : !g.Ready) continue;                       // AICannon::Fire: empty / loading guns do not shoot (a partial salvo takes the most charged ones)
             var cp = BallStart(s, g.Pos);
-            var toT = new Vector3(target.X - cp.X, target.Y - cp.Y, target.Z - cp.Z).Normalized();
-            if (toT.X * axis.X + toT.Z * axis.Z < 0.3f) continue;                          // the target must be within ~72 degrees of the gun axis
+            if (!GunReaches(s, g, bort, target, v0, false)) continue;                      // the target must be within ~72 degrees of the gun axis
             float cdir = MathF.Atan2(target.X - cp.X, target.Z - cp.Z);
             float delay = noSpreadOnce ? 0f : Math.Max(0f, Conv.ToFloat(it.FireEvent("CannGFTime", new List<V> { V.A(s.Chr) })));
             g.Fired = true;
             shots.Add((clock + delay, g.Pos, cdir, HeightFireAngle(v0, cp, target), g));
         }
         int fired = shots.Count;
+        if (partial) GD.Print($"[guns] {s.Chr.Get("id")?.Value} {bort}: fired {fired} of {chargedBefore} charged guns ({guns.Count(g => !g.Damaged)} intact); reload restarts for these {fired} only, the others keep their progress");
         if (fired == 0) return;                                                            // the HUD learns it from SHIP_NOT_ENOUGH_BALLS (TickCombat)
         float dist = MathF.Sqrt((target.X - s.X) * (target.X - s.X) + (target.Z - s.Z) * (target.Z - s.Z));
         GD.Print($"[sea] {s.Chr.Get("id")?.Value} fires {fired} cannons of {bort}, aim {dist:0} m (spread {rad:0} m), delays {shots.Min(q => q.at - clock):0.0}-{shots.Max(q => q.at - clock):0.0} s, {guns.Count(g => g.Damaged)} damaged");

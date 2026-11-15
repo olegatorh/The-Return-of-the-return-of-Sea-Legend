@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using StormScript.Runtime;
@@ -10,6 +11,7 @@ public struct AimState
 {
     public bool Show;          // a broadside can fire in the direction of the camera (AIShipCannonController::isCanFire)
     public int Relation;       // -1 nothing under the aim point (white), else 0 friend (green), 1 neutral (grey), 2 enemy (red)
+    public int Reach, Total;   // guns of the best bort that can reach the aim point / its intact guns: the circle is coloured only when Reach >= 1
 }
 
 /// <summary>
@@ -24,19 +26,25 @@ public struct AimState
 public partial class SeaView
 {
     float aimDelta;
-    int aimLogRel = -9; bool aimLogShow;
+    int aimLogRel = -9, aimLogReach = -1; bool aimLogShow;
     /// <summary>The latest aim state (log '[aim]' on every change).</summary>
     public AimState Aim;
 
-    /// <summary>isCanFire + GetFirePos for the view direction <paramref name="d"/> (engine axes); false when no side can fire that way.</summary>
-    bool AimFirePos(ShipRt p, Vector3 d, out Vector3 firePos)
+    /// <summary>A bort that covers the view direction: where its balls are aimed and how many of its guns can really reach that point.</summary>
+    public readonly record struct AimBort(string Bort, Vector3 FirePos, int Reach, int Total, int Charged);
+
+    /// <summary>
+    /// isCanFire + GetFirePos for the view direction <paramref name="d"/> (engine axes): every bort whose fire zone and elevation cover it, with its own aim point (the range
+    /// of a ball at the camera elevation from the bort's height) and the number of its guns that reach that point (GunReaches: the same test the shot uses).
+    /// </summary>
+    List<AimBort> AimBorts(ShipRt p, Vector3 d)
     {
-        firePos = default;
+        var res = new List<AimBort>();
         var sh = p.Chr.Find("Ship", false);
         int ti = (int)F(sh, "Type", -1);
         Attr? type = it.Globals.TryGetValue("ShipsTypes", out var st) && st.Arr != null && ti >= 0 && ti < st.Arr.Length ? st.Arr[ti].Val.Attr : null;
         float hl = MathF.Sqrt(d.X * d.X + d.Z * d.Z);
-        if (hl < 1e-4f) return false;
+        if (hl < 1e-4f) return res;
         float pitch = MathF.Atan2(d.Y, hl);
         for (int i = 0; i < BortNames.Length; i++)
         {
@@ -50,12 +58,25 @@ public partial class SeaView
             if (d.Y < 0f && ang > MathF.Abs(aMin)) continue;
             if (d.Y > 0f && ang > MathF.Abs(aMax)) continue;
             float h0 = p.Cannons.Where(c => c.bort == bn).Select(c => c.pos.Y).DefaultIfEmpty(3f).Average();
-            float maxDist = MaxFireDistance(h0, Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f)), pitch);
-            if (System.Environment.GetEnvironmentVariable("SEADOGS_AIMLOG") != null && Engine.GetProcessFrames() % 60 == 0) GD.Print($"[aim] bort {bn} pitch {pitch:0.00} h0 {h0:0.0} v0 {F(sh, "Cannons.SpeedV0", 50f):0} range {maxDist:0} m horizontal {maxDist * MathF.Cos(pitch):0} m");
-            firePos = new Vector3(p.X + d.X * maxDist, 0f, p.Z + d.Z * maxDist);          // vOurPos + fMaxDist * !vFireDir, y = 0
-            return true;
+            float v0 = Math.Max(10f, F(sh, "Cannons.SpeedV0", 50f));
+            float maxDist = MaxFireDistance(h0, v0, pitch);
+            var fp = new Vector3(p.X + d.X * maxDist, 0f, p.Z + d.Z * maxDist);          // vOurPos + fMaxDist * !vFireDir, y = 0
+            int reach = 0, total = 0;
+            foreach (var g in gs.Where(g => !g.Damaged)) { total++; if (GunReaches(p, g, bn, fp, v0, true)) reach++; }
+            res.Add(new AimBort(bn, fp, reach, total, PartialFireCount(p, bn)));
+            if (System.Environment.GetEnvironmentVariable("SEADOGS_AIMLOG") != null && Engine.GetProcessFrames() % 60 == 0) GD.Print($"[aim] bort {bn} pitch {pitch:0.00} h0 {h0:0.0} max {maxDist:0} m: {reach} of {total} guns reach, {PartialFireCount(p, bn)} charged");
         }
-        return false;
+        return res;
+    }
+
+    /// <summary>The bort the circle follows: the one with the most guns reaching the aim point (the first in the bow, starboard, stern, port order on a tie).</summary>
+    static AimBort? BestAimBort(List<AimBort> l) => l.Count == 0 ? null : l.OrderByDescending(b => b.Reach).First();
+
+    bool AimFirePos(ShipRt p, Vector3 d, out Vector3 firePos, out int reach, out int total)
+    {
+        var best = BestAimBort(AimBorts(p, d));
+        firePos = best?.FirePos ?? default; reach = best?.Reach ?? 0; total = best?.Total ?? 0;
+        return best != null;
     }
 
     /// <summary>AIShipCameraController::Execute / Realize for the player: the state of the circle this frame.</summary>
@@ -66,8 +87,9 @@ public partial class SeaView
         if (!deckCam || freeCam || scopeT > 0f || CommandsOpen || !HasPlayerShip) return st;
         var f = -Cam.GlobalTransform.Basis.Z;
         var d = new Vector3(f.X, f.Y, -f.Z);                                              // Godot -> engine: z flips
-        if (!AimFirePos(p, d, out var fp)) return st;
-        st.Show = true;
+        if (!AimFirePos(p, d, out var fp, out int reach, out int total)) return st;
+        st.Show = true; st.Reach = reach; st.Total = total;
+        if (reach == 0) return st;                                                          // the guns cannot reach the point: a plain white circle, no colour
         float best = 1e8f;
         foreach (var o in ships)
         {
@@ -105,10 +127,10 @@ public partial class SeaView
     {
         var s = p == null ? new AimState { Relation = -1 } : ComputeAim(p, dt);
         Aim = s; d.Aim = s; d.AimPulse = AimPulse;
-        if (s.Show != aimLogShow || s.Relation != aimLogRel)
+        if (s.Show != aimLogShow || s.Relation != aimLogRel || s.Reach != aimLogReach)
         {
-            aimLogShow = s.Show; aimLogRel = s.Relation;
-            GD.Print($"[aim] {(!s.Show ? "hidden" : s.Relation switch { 2 => "red (enemy under the aim point, a shot reaches)", 0 => "green (friend)", 1 => "grey (neutral)", _ => "white (nothing under the aim point)" })}");
+            aimLogShow = s.Show; aimLogRel = s.Relation; aimLogReach = s.Reach;
+            GD.Print($"[aim] {(!s.Show ? "hidden" : s.Relation switch { 2 => "red (enemy under the aim point, a shot reaches)", 0 => "green (friend)", 1 => "grey (neutral)", _ => "white (nothing under the aim point)" })}{(s.Show ? $"; {s.Reach} of {s.Total} guns reach the aim point" : "")}");
         }
     }
 }
